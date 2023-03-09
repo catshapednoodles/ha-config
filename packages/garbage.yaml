@@ -1,0 +1,41 @@
+garbage_package:
+  input_boolean:
+    waste_reminder:
+      name: Waste reminder enabled
+      icon: mdi:delete-alert
+
+  sensor:
+    - platform: afvalinfo
+      resources:
+        - type: gft
+          friendly_name: GFT
+        - type: kerstboom
+          friendly_name: Kerstboom
+        - type: pbd
+          friendly_name: Plastic Blik en Drankpakken
+        - type: papier
+          friendly_name: Papier
+        - type: restafval
+          friendly_name: Restafval
+        - type: textiel
+          friendly_name: Textiel
+        - type: trash_type_today
+          friendly_name: Afval vandaag
+        - type: trash_type_tomorrow
+          friendly_name: Afval morgen
+      location: !secret home_gemeente
+      postcode: !secret home_postcode
+      streetnumber: !secret home_streetnumber
+
+  template:
+    - binary_sensor:
+        - name: "Show garbage information for today"
+          state: >
+            {{ not(is_state('sensor.afvalinfo_afval_vandaag', 'none')) and now().hour < 12 }}
+          icon: >
+            {{ 'mdi:delete-clock' if this.state == 'on' else 'mdi:delete-off' }}
+        - name: "Show garbage information for tomorrow"
+          state: >
+            {{ not(is_state('sensor.afvalinfo_afval_morgen', 'none')) and now().hour > 15 }}
+          icon: >
+            {{ 'mdi:delete-clock' if this.state == 'on' else 'mdi:delete-off' }}
