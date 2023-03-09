@@ -24,10 +24,12 @@
 .storage
 .vscode
 
+# Ignore Python cache files 
+__pycache__/
+
 # Ensure these files are ignored, otherwise your secret data/credentials will leak.
 ip_bans.yaml
 secrets.yaml
 known_devices.yaml
 
-# Ignore Python cache files 
-__pycache__/
+packages/Persons/Ellen/work_notification.yaml

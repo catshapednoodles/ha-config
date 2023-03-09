@@ -1,0 +1,18 @@
+ellen_workday_package:
+  input_boolean:
+    call_notifier:
+      name: Phone call notifier on speakers
+      initial: on
+      icon: mdi:phone-incoming
+    ellen_on_call:
+      name: Ellen on call
+      icon: mdi:phone-alert
+    ellen_free_today:
+      name: Ellen free today
+      icon: mdi:calendar-blank
+    ellen_free_tomorrow:
+      name: Ellen free tomorrow
+      icon: mdi:calendar-plus
+    ellen_vacation:
+      name: Ellen vacation
+      icon: mdi:palm-tree

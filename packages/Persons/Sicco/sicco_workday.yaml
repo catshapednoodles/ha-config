@@ -1,0 +1,31 @@
+sicco_workday_package:
+  input_boolean:
+    sicco_working_today:
+      name: Sicco working today
+      icon: mdi:calendar-today
+    sicco_working_tomorrow:
+      name: Sicco working tomorrow
+      icon: mdi:calendar
+    sicco_working_from_home_today:
+      name: Sicco working from home today
+      icon: mdi:calendar-star
+    sicco_vacation:
+      name: Sicco vacation
+      icon: mdi:palm-tree
+
+  template:
+    - binary_sensor:
+        - name: "Sicco workday today"
+          unique_id: sicco_workday_today
+          state: >
+            {{ is_state("input_boolean.sicco_working_today", "on")
+              and is_state("input_boolean.sicco_vacation", "off") }}
+        - name: "Sicco workday tomorrow"
+          unique_id: sicco_workday_tomorrow
+          state: >
+            {{ is_state("input_boolean.sicco_working_tomorrow", "on") }}
+        - name: "Sicco working from home today"
+          unique_id: sicco_working_from_home_today
+          state: >
+            {{ is_state("input_boolean.sicco_working_today", "on")
+              and is_state("input_boolean.sicco_working_from_home_today", "on") }}

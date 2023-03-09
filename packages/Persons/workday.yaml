@@ -1,0 +1,21 @@
+workday_package:
+  binary_sensor:
+    - platform: workday
+      country: NL
+      name: Workday Today
+      remove_holidays:
+        - "Goede Vrijdag"
+      add_holidays:
+        - "2023-05-05"
+        - "2024-05-05"
+        - "2025-05-05"
+    - platform: workday
+      country: NL
+      name: Workday Tomorrow
+      days_offset: 1
+      remove_holidays:
+        - "Goede Vrijdag"
+      add_holidays:
+        - "2023-05-05"
+        - "2024-05-05"
+        - "2025-05-05"
