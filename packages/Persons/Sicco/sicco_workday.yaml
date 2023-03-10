@@ -29,3 +29,72 @@ sicco_workday_package:
           state: >
             {{ is_state("input_boolean.sicco_working_today", "on")
               and is_state("input_boolean.sicco_working_from_home_today", "on") }}
+
+  automation:
+    - alias: "Workday: Sicco"
+      id: 43144ef4-a4d4-44a9-b736-7fa1ff13fa22
+      mode: queued
+      trigger:
+        - platform: calendar
+          event: start
+          entity_id: calendar.werk
+          id: today
+          offset: "-02:00:00"
+        - platform: calendar
+          event: end
+          entity_id: calendar.werk
+          id: today
+        - platform: calendar
+          event: start
+          entity_id: calendar.werk
+          offset: "-15:00:00"
+          id: tomorrow
+        - platform: calendar
+          event: end
+          entity_id: calendar.werk
+          offset: "-10:00:00"
+          id: tomorrow
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: today
+                - "{{ 'werk' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.sicco_working_today
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.sicco_working_today
+            - conditions:
+                - condition: trigger
+                  id: tomorrow
+                - "{{ 'werk' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.sicco_working_tomorrow
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.sicco_working_tomorrow
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: today
+                - or:
+                  - "{{ 'thuis' in trigger.calendar_event.summary|lower }}"
+                  - "{{ 'thuis' in trigger.calendar_event.location|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.sicco_working_from_home_today
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.sicco_working_from_home_today

@@ -16,3 +16,80 @@ ellen_workday_package:
     ellen_vacation:
       name: Ellen vacation
       icon: mdi:palm-tree
+
+  automation:
+    - alias: "Workday: Ellen"
+      mode: queued
+      trigger:
+        - platform: calendar
+          event: start
+          entity_id: calendar.ellen_prive
+          id: today
+        - platform: calendar
+          event: end
+          entity_id: calendar.ellen_prive
+          id: today
+        - platform: calendar
+          event: start
+          entity_id: calendar.ellen_prive
+          offset: "-24:00:00"
+          id: tomorrow
+        - platform: calendar
+          event: end
+          entity_id: calendar.ellen_prive
+          offset: "-24:00:00"
+          id: tomorrow
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: today
+                - "{{ 'vrij' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.ellen_free_today
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.ellen_free_today
+            - conditions:
+                - condition: trigger
+                  id: tomorrow
+                - "{{ 'vrij' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.ellen_free_tomorrow
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.ellen_free_tomorrow
+            - conditions:
+                - condition: trigger
+                  id: today
+                - "{{ 'dienst' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.ellen_on_call
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.ellen_on_call
+            - conditions:
+                - condition: trigger
+                  id: today
+                - "{{ 'vakantie' in trigger.calendar_event.summary|lower }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event == 'start' }}"
+                  then:
+                    - service: input_boolean.turn_on
+                      entity_id: input_boolean.ellen_vacation
+                  else:
+                    - service: input_boolean.turn_off
+                      entity_id: input_boolean.ellen_vacation
