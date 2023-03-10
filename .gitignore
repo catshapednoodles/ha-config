@@ -32,4 +32,5 @@ ip_bans.yaml
 secrets.yaml
 known_devices.yaml
 
-packages/Persons/Ellen/work_notification.yaml
+packages/persons/Ellen/work_notification.yaml
+packages/persons/Sicco/finance.yaml
