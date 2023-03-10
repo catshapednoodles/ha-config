@@ -16,6 +16,31 @@ http:
   use_x_forwarded_for: true
   trusted_proxies: !secret trusted_proxies
 
+logbook:
+  exclude:
+    domains:
+      - input_boolean
+      - media_player
+    entity_globs:
+      - binary_sensor.pixel_6a*
+
+recorder:
+  db_url: !secret recorder_url
+  purge_keep_days: 32
+  exclude:
+    domains:
+      - camera
+      - sun
+      - update
+    entity_globs:
+      - sensor.*_geocoded_*
+      - sensor.*_last_notification
+      - sensor.*_last_removed_notification
+      - sensor.*_last_seen
+      - sensor.*_linkquality
+      - sensor.*_uptime
+      - sensor.afvalinfo_*
+
 #################################################################
 ## Includes and other platforms
 #################################################################

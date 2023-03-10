@@ -1,0 +1,12 @@
+eevee_zigbee2mqtt_package:
+  mqtt:
+    binary_sensor: # Sensor for monitoring the bridge state
+      - unique_id: zigbee2mqtt_bridge
+        name: Zigbee2MQTT Bridge
+        state_topic: "zigbee2mqtt/bridge/state"
+        payload_on: "online"
+        payload_off: "offline"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        payload_available: "online"
+        payload_not_available: "offline"
+        device_class: connectivity
