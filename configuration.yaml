@@ -40,6 +40,7 @@ recorder:
       - sensor.*_linkquality
       - sensor.*_uptime
       - sensor.afvalinfo_*
+      - sensor.power_highest_peak_time_*
 
 #################################################################
 ## Includes and other platforms

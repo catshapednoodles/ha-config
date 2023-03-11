@@ -1,0 +1,109 @@
+electricity_prices_package:
+  sensor:
+    - platform: nordpool
+      VAT: False
+      currency: "EUR"
+      price_in_cents: false
+      low_price_cutoff: 0.9
+      region: "NL"
+      precision: 3
+      price_type: kWh
+      additional_costs: >
+        {% set VAT = 0.21 %}
+        {% set tax_kWh = 0.12599 %}
+        {% set opslag = 0.018 %} {# Tibber, ex. BTW #}
+        {{ (current_price * VAT ) + (tax_kWh + opslag) * (1 + VAT)|float }}
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+
+  template:
+    ## Sensors and helpers
+    - binary_sensor:
+        - name: "Electricity prices for tomorrow available"
+          unique_id: electricity_prices_for_tomorrow_available
+          icon: mdi:clock-plus
+          state: >
+            {{ is_state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow_valid", True)
+              and state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0] != None
+              and state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow')[0].start.day != now().day }}
+        - name: "Electricity is cheaper tomorrow"
+          unique_id: electricity_is_cheaper_tomorrow
+          icon: mdi:sort-clock-ascending
+          state: >
+            {{ is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') 
+              and states('sensor.cheapest_price_tomorrow') | float(0) < states('sensor.cheapest_price') | float(0) }}
+        - name: "Electricity is cheaper tomorrow and early"
+          unique_id: electricity_is_cheaper_tomorrow_and_early
+          icon: mdi:sort-clock-ascending
+          state: >
+            {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_tomorrow") | sort(attribute="value") %}
+            {{ is_state('binary_sensor.electricity_is_cheaper_tomorrow', 'on') 
+              and sorted_list[0]["start"].hour < 15 }}
+        - name: "Cheap electricity this hour"
+          unique_id: cheap_electricity_this_hour
+          icon: mdi:cash-clock
+          state: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) < 0.17 }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+
+    - sensor:
+        - name: "Average electricity price today"
+          unique_id: average_electricity_price_today
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | average | round(3) }}
+        - name: "Cheapest electricity price today"
+          unique_id: cheapest_electricity_price_today
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min }}
+          attributes:
+            hour: >
+              {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_today") | sort(attribute="value") %}
+              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
+
+    - trigger:
+      # Update when data for tomorrow becomes available
+        - platform: state
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+      sensor:
+        - name: "Average electricity price tomorrow"
+          unique_id: average_electricity_price_tomorrow
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | average | round(3) }}
+        - name: "Cheapest electricity price tomorrow"
+          unique_id: cheapest_electricity_price_tomorrow
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min }}
+          attributes:
+            hour: >
+              {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_tomorrow") | sort(attribute="value") %}
+              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00 
+
+    ## Binary sensors for 2-4 cheapest and most expensive hours
+    - binary_sensor:
+        - name: "Electricity cheapest hour"
+          unique_id: electricity_cheapest_hour
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value') %}
+            {{ (now() >= l[0].start and now() <= l[0].end) }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Electricity most expensive 4 hours"
+          unique_id: electricity_most_expensive_4_hours
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value', reverse=true) %}
+            {{ (now() >= l[0].start and now() <= l[0].end)
+              or (now() >= l[1].start and now() <= l[1].end)
+              or (now() >= l[2].start and now() <= l[2].end)
+              or (now() >= l[3].start and now() <= l[3].end) }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
