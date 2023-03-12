@@ -1,0 +1,38 @@
+pikachu_download_package:
+  binary_sensor:
+    - platform: nordpool_planner
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      entity_id: activate_download_when_electricity_is_cheap
+      duration: 1
+      moving:
+        search_length: 24
+
+  # automation:
+  #   - alias: "Energy: Only download at cheap hours"
+  #     trigger:
+  #       - platform: state
+  #         entity_id: binary_sensor.activate_download_when_electricity_is_cheap
+  #         from: "off"
+  #         to: "on"
+  #         id: download_start
+  #       - platform: state
+  #         entity_id: binary_sensor.activate_download_when_electricity_is_cheap
+  #         from: "on"
+  #         to: "off"
+  #         id: download_end
+  #     action:
+  #       - choose:
+  #           - conditions:
+  #               - condition: trigger
+  #                 id: download_start
+  #             sequence:
+  #               - service: sabnzbd.resume
+  #                 data:
+  #                   api_key: !secret sabnzbd_api
+  #           - conditions:
+  #               - condition: trigger
+  #                 id: download_end
+  #             sequence:
+  #               - service: sabnzbd.pause
+  #                 data:
+  #                   api_key: !secret sabnzbd_api

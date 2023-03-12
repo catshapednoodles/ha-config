@@ -13,8 +13,6 @@ electricity_prices_package:
         {% set tax_kWh = 0.12599 %}
         {% set opslag = 0.018 %} {# Tibber, ex. BTW #}
         {{ (current_price * VAT ) + (tax_kWh + opslag) * (1 + VAT)|float }}
-    - platform: nordpool_diff
-      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
 
   template:
     ## Sensors and helpers
@@ -88,7 +86,7 @@ electricity_prices_package:
               {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_tomorrow") | sort(attribute="value") %}
               {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00 
 
-    ## Binary sensors for 2-4 cheapest and most expensive hours
+    ## Binary sensors for cheapest and most expensive hours
     - binary_sensor:
         - name: "Electricity cheapest hour"
           unique_id: electricity_cheapest_hour

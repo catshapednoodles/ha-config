@@ -1,0 +1,8 @@
+central_heating_package:
+  sensor:
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      filter_length: 10
+      filter_type: triangle
+      normalize: max_min
+# https://gathering.tweakers.net/forum/list_message/73381860#73381860
