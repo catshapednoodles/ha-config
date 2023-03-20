@@ -1,0 +1,45 @@
+guests_package:
+  input_boolean:
+    guest_mode:
+      name: Guest mode
+      icon: mdi:human-male-female
+
+  template:
+    - binary_sensor:
+        - name: "Guest wifi active"
+          state: >
+            {{ states.device_tracker | selectattr('state', 'eq', 'home') | selectattr('attributes.essid', 'defined') | selectattr('attributes.essid', 'eq', "Prei-fi Gast") | list | count > 0 }}
+
+  automation:
+    - alias: "Guest mode: Toggle boolean"
+      id: 7402f9af-3c7b-40cc-a1cc-2d1afdafa214
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.guest_wifi_active
+          to: "on"
+          id: turn_on
+        - platform: state
+          entity_id: binary_sensor.guest_wifi_active
+          to: "off"
+          id: turn_off
+      action:
+        - choose:
+          - conditions:
+              - condition: trigger
+                id: turn_on
+            sequence:
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.guest_mode
+              - service: notify.mobile_app_pixel_6a
+                data:
+                  title: "Guest wifi"
+                  message: "Someone connected to the guest wifi network"
+                  data:
+                    channel: "Guests"
+                    importance: high
+          - conditions:
+              - condition: trigger
+                id: turn_off
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.guest_mode
