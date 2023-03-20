@@ -1,0 +1,28 @@
+wtw_package:
+  input_datetime:
+    wtw_carbon_filter_cleaned:
+      name: Koolstoffilter schoongemaakt
+      has_date: true
+    wtw_pm25_filter_cleaned:
+      name: Fijnstoffilter schoongemaakt
+      has_date: true
+    wtw_filters_changed:
+      name: Filters vervangen
+      has_date: true
+
+  automation:
+    - alias: "WTW: Reset filter datetime sensors"
+      trigger:
+        - platform: state
+          entity_id: input_datetime.wtw_filters_changed
+      action:
+        - service: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.wtw_carbon_filter_cleaned
+          data:
+            date: "{{ now().strftime('%Y-%m-%d') }}"
+        - service: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.wtw_pm25_filter_cleaned
+          data:
+            date: "{{ now().strftime('%Y-%m-%d') }}"
