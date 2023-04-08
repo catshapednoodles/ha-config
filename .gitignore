@@ -4,11 +4,13 @@
 
 # You can allowlist files/folders with !, these will not be ignored.
 !*.yaml
+!*.jinja
 !.gitignore
 !*.md
 !automation/
 !automation/*
 !blueprints
+!custom_templates/
 !includes/
 !includes/*
 !packages/

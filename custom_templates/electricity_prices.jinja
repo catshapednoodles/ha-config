@@ -1,0 +1,72 @@
+{% macro calculate_price_at_time(time, entity_id, resolution_in_minutes) %}
+    {% set kwh_pattern = state_attr(entity_id, states(entity_id)) %}
+
+    {# Calculate start time to nearest 'resolution' #}
+    {% if time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
+        {% set time = time + timedelta(minutes=(resolution_in_minutes - time.minute%resolution_in_minutes)) %}
+    {% else %}
+        {% set time = time - timedelta(minutes=time.minute%resolution_in_minutes) %}
+    {% endif %}
+    {% set ns = namespace(costs=0, time=time) %}
+
+    {% for kwh in kwh_pattern %}
+        {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+        {% set ns.costs = ns.costs + kwh * state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", today_or_tomorrow)[ns.time.hour] %}
+        {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+    {% endfor %}
+    {{ns.costs | round(3)}}
+{% endmacro %}
+
+{% macro calculate_best_starting_time_today(entity_id, resolution_in_minutes) %}
+    {% set kwh_pattern = state_attr(entity_id, states(entity_id)) %}
+
+    {% set minutes = kwh_pattern | count * resolution_in_minutes %}
+    {% set total_run_time = timedelta(minutes=minutes) %}
+    {% set start_time = now().replace(minute=0) %}
+    {% set list = namespace(expected_costs=[], time=start_time) %}
+    {# Calculating until 23:55 #}
+    {% set amount_of_calculations = (23-start_time.hour) * (60 // resolution_in_minutes) + (55 // resolution_in_minutes) + 1 %}
+    {% for _ in range(0, amount_of_calculations) %}
+        {% set time_loop = list.time %}
+        {% set only_today = (time_loop + total_run_time).day == start_time.day %}
+        {% if only_today or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+            {% set ns = namespace(costs=0, time=time_loop) %}
+            {% for kwh in kwh_pattern %}
+                {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+                {% set ns.costs = ns.costs + kwh * state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", today_or_tomorrow)[ns.time.hour] %}
+                {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+            {% endfor %}
+            {% set start_time = time_loop %}
+            {% set add_item = {'start': start_time, 'costs': ns.costs | round(5)} %}
+            {% set list.expected_costs = list.expected_costs + [add_item] %}
+        {% endif %}
+        {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
+    {% endfor %}
+    {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
+    {{ sorted_list[0].start }}
+{% endmacro %}
+
+{% macro calculate_best_starting_time_tomorrow(entity_id, resolution_in_minutes) %}
+    {% set kwh_pattern = state_attr(entity_id, states(entity_id)) %}
+
+    {% set minutes = kwh_pattern | count * resolution_in_minutes %}
+    {% set total_run_time = timedelta(minutes=minutes) %}
+    {% set start_time = (now() + timedelta(days=1)).replace(hour=0, minute=0) %}
+    {% set list = namespace(expected_costs=[], time=start_time) %}
+    {# Calculating until 20:30 #}
+    {% set amount_of_calculations = (20-start_time.hour) * (60 // resolution_in_minutes) + (30 // resolution_in_minutes) + 1 %}
+    {% for _ in range(0, amount_of_calculations) %}
+        {% set time_loop = list.time %}
+        {% set ns = namespace(costs=0, time=time_loop) %}
+        {% for kwh in kwh_pattern %}
+            {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[ns.time.hour] %}
+            {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+        {% endfor %}
+        {% set start_time = time_loop %}
+        {% set add_item = {'start': start_time, 'costs': ns.costs | round(5)} %}
+        {% set list.expected_costs = list.expected_costs + [add_item] %}
+        {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
+    {% endfor %}
+    {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
+    {{ sorted_list[0].start }}
+{% endmacro %}
