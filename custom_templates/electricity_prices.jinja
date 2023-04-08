@@ -43,7 +43,7 @@
         {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
     {% endfor %}
     {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
-    {{ sorted_list[0].start }}
+    {{ sorted_list[0].start.replace(second=0) }}
 {% endmacro %}
 
 {% macro calculate_best_starting_time_tomorrow(entity_id, resolution_in_minutes) %}
@@ -68,5 +68,5 @@
         {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
     {% endfor %}
     {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
-    {{ sorted_list[0].start }}
+    {{ sorted_list[0].start.replace(second=0) }}
 {% endmacro %}
