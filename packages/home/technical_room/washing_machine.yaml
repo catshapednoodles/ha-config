@@ -1,0 +1,83 @@
+washing_machine_package:
+  input_select:
+    washing_machine_program:
+      name: Washing machine program
+      icon: mdi:tune-variant
+      options:
+        - 20 degrees
+        - 30 degrees
+        - 40 degrees
+        - 60 degrees
+        - 90 degrees
+
+  template:
+    - sensor:
+        - name: "Washing machine energy usage pattern"
+          unique_id: washing_machine_energy_usage_pattern
+          icon: mdi:washing-machine
+          state: >
+            {% set programs = {
+              '20 degrees': 'cotton_20',
+              '30 degrees': 'cotton_30',
+              '40 degrees': 'cotton_40',
+              '60 degrees': 'cotton_60',
+              '90 degrees': 'cotton_90',
+            } %}
+            {{ programs[states('input_select.washing_machine_program')] }}
+          attributes:
+            cotton_20: >
+              {{ [0.0, 0.16, 0.04, 0.06, 0.05, 0.04, 0.05, 0.01, 0.04, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.03, 0.02] }}
+            cotton_30: >
+              {{ [0.0, 0.16, 0.04, 0.06, 0.05, 0.04, 0.05, 0.01, 0.04, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.03, 0.02] }}
+            cotton_40: >
+              {{ [0.0, 0.16, 0.04, 0.06, 0.05, 0.04, 0.05, 0.01, 0.04, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.02, 0.0, 0.01, 0.03, 0.02] }}
+            cotton_60: >
+              {{ [0.04, 0.2, 0.21, 0.07, 0.04, 0.01, 0.16, 0.21, 0.2, 0.12, 0.0, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.0, 0.02, 0.01, 0.0, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.04] }}
+            cotton_90: >
+              {{ [0.01,0.18,0.19,0.2,0.2,0.11,0.13,0.2,0.21,0.19,0.2,0.19,0.2,0.2,0.2,0.2,0.2,0.06,0.01,0.01,0.01,0.01,0.0,0.01,0.01,0.01,0.0,0.01,0.01,0.01,0.01,0.01,0.0,0.03,0.02] }}
+        - name: "Washing machine expected costs now"
+          icon: mdi:currency-eur
+          unit_of_measurement: €
+          device_class: monetary
+          state: >
+            {% from 'electricity_prices.jinja' import calculate_price_at_time %}
+            {{ calculate_price_at_time(now(), 'sensor.washing_machine_energy_usage_pattern', 5) }}
+          attributes:
+            start_time: >
+              {{ now() }}
+            end_time: >
+              {{ now() + timedelta(hours=3, minutes=14) }}
+
+    - trigger:
+        - platform: time_pattern
+          # Update every night
+          hours: "0"
+          minutes: "1"
+        - platform: time_pattern
+          # Update again in the morning
+          hours: "7"
+          minutes: "0"
+        - platform: state
+          # Update when data for tomorrow becomes available
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+      sensor:
+        - name: "Washing machine best starting time today"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+            {% from 'electricity_prices.jinja' import calculate_best_starting_time_today %}
+            {{ calculate_best_starting_time_today('sensor.washing_machine_energy_usage_pattern', 5) }}
+
+    - trigger:
+        - platform: state
+          # Update when data for tomorrow becomes available
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+      sensor:
+        - name: "Washing machine best starting time tomorrow"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+            {% from 'electricity_prices.jinja' import calculate_best_starting_time_tomorrow %}
+            {{ calculate_best_starting_time_tomorrow('sensor.washing_machine_energy_usage_pattern', 5) }}
