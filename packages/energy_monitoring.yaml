@@ -1,0 +1,24 @@
+energy_monitoring_package:
+  powercalc:
+
+  sensor:
+    - platform: powercalc
+      entity_id: sensor.dummy
+      name: Home Assistant NUC
+      fixed:
+        power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
+    - platform: powercalc
+      create_group: Network devices
+      entities:
+        - entity_id: device_tracker.dream_machine_special_edition  # UDM-SE
+          fixed:
+            power: "{{ states('sensor.dream_machine_special_edition_cpu_utilization') | float(0) * 0.06 + 39.5 }}"
+        - entity_id: device_tracker.usw_16_poe  # USW-16-PoE
+          fixed:
+            power: 9.6
+        - entity_id: device_tracker.u6_iw  # In-Wall 1
+          power_sensor_id: sensor.usw_16_poe_port_1_poe_power
+    - platform: powercalc
+      create_group: All lights
+      include:
+        domain: light
