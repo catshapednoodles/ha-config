@@ -1,0 +1,9 @@
+central_lights_package:
+  template:
+    - binary_sensor:
+        - name: "Sun low elevation"
+          unique_id: sun_low_elevation
+          state: >
+            {% set cutoff = 6 if states('weather.combined_daily') in ['cloudy', 'fog', 'hail', 'lightning', 'lightning-rainy', 'pouring', 'rainy', 'snowy', 'snowy-rainy'] else 4 %}
+            {{ state_attr('sun.sun', 'elevation') < cutoff }}
+          icon: "mdi:weather-sunset"
