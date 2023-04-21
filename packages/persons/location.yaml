@@ -1,0 +1,11 @@
+location_package:
+  proximity:
+    home:
+      ignored_zones:
+        - work_ellen
+        - work_sicco
+      devices:
+        - person.sicco
+        - person.ellen
+      tolerance: 50
+      unit_of_measurement: km
