@@ -1,0 +1,61 @@
+electricity_negative_price_package:
+  template:
+    - binary_sensor:
+        - name: "Negative electricity price this hour"
+          unique_id: negative_electricity_price_this_hour
+          state: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) < 0 }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Negative electricity price today"
+          unique_id: negative_electricity_price_today
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min < 0 }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Negative electricity price tomorrow"
+          unique_id: negative_electricity_price_tomorrow
+          state: >
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'off') %}
+            off
+            {% else %}
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min < 0 }}
+            {% endif %}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+
+  automation:
+    - alias: "Energy: Notification for negative electricity price today"
+      id: 12ba7e57-eb1b-4819-9d4b-fa9096bccabf
+      trigger:
+        platform: time
+        at: "09:00:00"
+      condition:
+        condition: state
+        entity_id: binary_sensor.negative_electricity_price_today
+        state: "on"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Negative electricity price today"
+            message: "There are one or more hours with negative electricity prices today!"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:home-lightning-bolt"
+
+    - alias: "Energy: Notification for negative electricity price tomorrow"
+      id: b4d01fe8-453a-46bd-b6f6-2afec3a317ce
+      trigger:
+        platform: state
+        entity_id: binary_sensor.negative_electricity_price_tomorrow
+        to: "on"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Negative electricity price tomorrow"
+            message: "There are one or more hours with negative electricity prices tomorrow!"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:home-lightning-bolt"
