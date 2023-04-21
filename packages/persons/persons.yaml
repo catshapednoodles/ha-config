@@ -1,0 +1,32 @@
+persons_package:
+  group:
+    all_persons:
+      name: All persons
+      icon: mdi:account-group
+      entities:
+        - person.ellen
+        - person.sicco
+
+  notify:
+    ## Notify Groups
+    - platform: group
+      name: all_phones
+      services:
+        - service: mobile_app_pixel_6a_sicco
+        - service: mobile_app_pixel_6a_ellen
+    - platform: group
+      name: ellen_phone
+      services:
+        - service: mobile_app_pixel_6a_ellen
+    - platform: group
+      name: sicco_phone
+      services:
+        - service: mobile_app_pixel_6a_sicco
+
+  #   ## Telegram
+  #   - platform: telegram
+  #     name: telegram_sicco
+  #     chat_id: !secret telegram_chat_id
+  #   - platform: telegram
+  #     name: telegram_group
+  #     chat_id: !secret telegram_chat_id_2
