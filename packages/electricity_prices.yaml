@@ -10,9 +10,9 @@ electricity_prices_package:
       price_type: kWh
       additional_costs: >
         {% set VAT = 0.21 %}
-        {% set tax_kWh = 0.12599 %}
-        {% set opslag = 0.018 %} {# Tibber, ex. BTW #}
-        {{ (current_price * VAT ) + (tax_kWh + opslag) * (1 + VAT)|float }}
+        {% set tax_kWh = 0.12599 * (1 + VAT) %}
+        {% set opslag = 0.003 %} {# Zonneplan, incl. BTW #}
+        {{ (current_price * VAT ) + (tax_kWh + opslag) |float }}
 
   template:
     ## Sensors and helpers
