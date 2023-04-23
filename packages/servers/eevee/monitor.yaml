@@ -1,0 +1,5 @@
+eevee_monitor_package:
+  sensor:
+    - platform: systemmonitor
+      resources:
+        - type: processor_use

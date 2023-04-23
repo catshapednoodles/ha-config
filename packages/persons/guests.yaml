@@ -30,7 +30,7 @@ guests_package:
             sequence:
               - service: input_boolean.turn_on
                 entity_id: input_boolean.guest_mode
-              - service: notify.mobile_app_pixel_6a
+              - service: notify.sicco_phone
                 data:
                   title: "Guest wifi"
                   message: "Someone connected to the guest wifi network"

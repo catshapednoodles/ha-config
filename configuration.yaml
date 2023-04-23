@@ -44,6 +44,7 @@ recorder:
       - sensor.*_uptime
       - sensor.afvalinfo_*
       - sensor.power_highest_peak_time_*
+      - sensor.*_poe_power
 
 #################################################################
 ## Includes and other platforms
@@ -51,6 +52,16 @@ recorder:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# home_connect_alt: 
+#   client_id: !secret home_connect_alt_client_id
+#   client_secret: !secret home_connect_alt_client_secret
+
+sensor:
+  - platform: time_date
+    display_options:
+      - 'date_time'
+      - 'time'
 
 tts:
   - platform: google_translate
