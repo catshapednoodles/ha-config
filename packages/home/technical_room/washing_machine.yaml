@@ -9,6 +9,7 @@ washing_machine_package:
         - 40 degrees
         - 60 degrees
         - 90 degrees
+        - 90 degrees - Speed Perfect
 
   template:
     - sensor:
@@ -22,6 +23,7 @@ washing_machine_package:
               '40 degrees': 'cotton_40',
               '60 degrees': 'cotton_60',
               '90 degrees': 'cotton_90',
+              '90 degrees - Speed Perfect': 'cotton_90_speed',
             } %}
             {{ programs[states('input_select.washing_machine_program')] }}
           attributes:
@@ -35,6 +37,8 @@ washing_machine_package:
               {{ [0.04, 0.2, 0.21, 0.07, 0.04, 0.01, 0.16, 0.21, 0.2, 0.12, 0.0, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.01, 0.01, 0.0, 0.01, 0.01, 0.0, 0.02, 0.01, 0.0, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.04] }}
             cotton_90: >
               {{ [0.01,0.18,0.19,0.2,0.2,0.11,0.13,0.2,0.21,0.19,0.2,0.19,0.2,0.2,0.2,0.2,0.2,0.06,0.01,0.01,0.01,0.01,0.0,0.01,0.01,0.01,0.0,0.01,0.01,0.01,0.01,0.01,0.0,0.03,0.02] }}
+            cotton_90_speed: >
+              {{ [0.01,0.13,0.19,0.2,0.2,0.19,0.21,0.12,0.0,0.01,0.0,0.0,0.01,0.0,0.01,0.0,0.01,0.02,0.0] }}
         - name: "Washing machine expected costs now"
           icon: mdi:currency-eur
           unit_of_measurement: €
@@ -47,7 +51,11 @@ washing_machine_package:
               {{ now() }}
             end_time: >
               {{ now() + timedelta(hours=3, minutes=14) }}
-
+        - name: "Washing machine best starting time notify time"
+          icon: mdi:clock-alert
+          device_class: timestamp
+          state: >
+            {{ states('sensor.washing_machine_best_starting_time_today') | as_datetime - timedelta(minutes=5) }}
     - trigger:
         - platform: time_pattern
           # Update every night
@@ -61,6 +69,8 @@ washing_machine_package:
           # Update when data for tomorrow becomes available
           entity_id: binary_sensor.electricity_prices_for_tomorrow_available
           to: "on"
+        - platform: state
+          entity_id: input_select.washing_machine_program
       sensor:
         - name: "Washing machine best starting time today"
           icon: mdi:clock-start
@@ -81,3 +91,149 @@ washing_machine_package:
           state: >
             {% from 'electricity_prices.jinja' import calculate_best_starting_time_tomorrow %}
             {{ calculate_best_starting_time_tomorrow('sensor.washing_machine_energy_usage_pattern', 5) }}
+
+  script:
+    # Used in the Monitor Washing Machine States automation based on a blueprint
+    washing_machine_started:
+      alias: Washing Machine started
+      mode: single
+      icon: mdi:washing-machine
+      sequence:
+        - service: input_datetime.set_datetime
+          entity_id: input_datetime.washing_machine_started
+          data_template:
+            datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        - service: utility_meter.calibrate
+          data:
+            entity_id: sensor.washing_machine_current_consumption
+            value: 0
+        - service: notify.mobile_app_pixel_6a
+          data:
+            message: clear_notification
+            data:
+              tag: washing_machine
+        - service: notify.mobile_app_pixel_6a_ellen
+          data:
+            message: clear_notification
+            data:
+              tag: washing_machine
+
+    washing_machine_is_done:
+      alias: Washing Machine is Done
+      mode: single
+      icon: mdi:washing-machine
+      sequence:
+        - service: input_datetime.set_datetime
+          entity_id: input_datetime.washing_machine_done
+          data_template:
+            datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+        - if:
+          - condition: state
+            entity_id: person.sicco
+            state: home
+          then:
+          - service: notify.mobile_app_pixel_6a
+            data:
+              title: Utilities
+              message: Washing machine is done!
+              data:
+                channel: Utilities
+                tag: washing_machine
+                timeout: 3600
+                notification_icon: mdi:washing-machine
+        - if:
+          - condition: state
+            entity_id: person.ellen
+            state: home
+          then:
+          - service: notify.mobile_app_pixel_6a_ellen
+            data:
+              title: Utilities
+              message: Washing machine is done!
+              data:
+                channel: Utilities
+                tag: washing_machine
+                timeout: 3600
+                notification_icon: mdi:washing-machine
+
+    washing_machine_record_consumption:
+      alias: Washing Machine - Record consumption
+      mode: single
+      icon: mdi:record-rec
+      sequence:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.washing_machine
+          data:
+            value: ""
+        - service: input_number.set_value
+          target:
+            entity_id: input_number.washing_machine_kwh_counter
+          data:
+            value: 0
+        - alias: "Repeat the sequence AS LONG AS the conditions are true"
+          repeat:
+            while:
+              - condition: state
+                entity_id: input_boolean.washing_machine_job_cycle
+                state: "on"
+              # Don't do it too many times
+              - condition: template
+                value_template: "{{ repeat.index <= 50 }}"
+            sequence:
+              - delay: "00:05:00"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.washing_machine
+                data:
+                  value: >
+                    {% set delta = states('sensor.washing_machine_current_consumption') | float(0) - states('input_number.washing_machine_kwh_counter') | float(0) %}
+                    {{ states('input_text.washing_machine') }}{{ delta | round(2) }},
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.washing_machine_kwh_counter
+                data:
+                  value: "{{ states('sensor.washing_machine_current_consumption')}}"
+        - service: notify.mobile_app_pixel_6a
+          data:
+            title: Consumption recorded
+            message: >
+              Washing machine: {{ states('input_text.washing_machine') }}
+            data:
+              channel: "Utility recorder"
+              actions:
+                - action: "COPY_WASHING_MACHINE_VALUES"
+                  title: "Copy values"
+
+  automation:
+    ### Notifiers
+    - alias: "Utilities: Notify 5 minutes before ideal Washing machine starting time"
+      trigger:
+        - platform: time
+          at: sensor.washing_machine_best_starting_time_notify_time
+      condition:
+        - condition: state
+          entity_id: input_boolean.washing_machine_notifier
+          state: "on"
+      action:
+        - service: notify.telegram_sicco
+          data:
+            title: Washing machine
+            message: "Best starting time for washing machine is in 5 minutes"
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.washing_machine_notifier
+
+    ### Recorders
+    - alias: "Utilities: Copy Washing Machine values"
+      trigger:
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "COPY_WASHING_MACHINE_VALUES"
+      action:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.washing_machine_pattern
+          data:
+            value: >
+              {{ states('input_text.washing_machine') }}
