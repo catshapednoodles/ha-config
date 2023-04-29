@@ -1,0 +1,13 @@
+power_package:
+  template:
+    sensor:
+      - name: "Net power"
+        icon: mdi:flash
+        unique_id: fc2c44b0-ed1a-4c0b-beca-d45c57367cc0
+        state: >
+          {% set currently_delivered = states('sensor.dsmr_reading_electricity_currently_delivered') | float(0) %}
+          {% set currently_returned = states('sensor.dsmr_reading_electricity_currently_returned') | float(0) %}
+          {{ ((currently_delivered - currently_returned) * 1000) | round(0) }}
+        unit_of_measurement: W
+        state_class: measurement
+        device_class: power
