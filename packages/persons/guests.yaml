@@ -7,8 +7,7 @@ guests_package:
   template:
     - binary_sensor:
         - name: "Guest wifi active"
-          state: >
-            {{ states.device_tracker | selectattr('state', 'eq', 'home') | selectattr('attributes.essid', 'defined') | selectattr('attributes.essid', 'eq', "Prei-fi Gast") | list | count > 0 }}
+          state: !secret guest_wifi_template
 
   automation:
     - alias: "Guest mode: Toggle boolean"
