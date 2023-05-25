@@ -1,0 +1,27 @@
+office_lights_package:
+  adaptive_lighting:
+  - name: "Office"
+    lights:
+      - light.office_ceiling
+    min_brightness: 70
+    max_brightness: 100
+    autoreset_control_seconds: 3600
+
+  automation:
+    - alias: "Office: Light switch"
+      id: 0ea0ffc2-ef68-4440-a796-6f30617688d0
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Office Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.office_ceiling
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.office_ceiling

@@ -1,0 +1,44 @@
+front_door_lights_package:
+  adaptive_lighting:
+  - name: "Front door"
+    lights:
+      - light.front_door
+    min_brightness: 40
+    max_brightness: 100
+    autoreset_control_seconds: 1800
+
+  template:
+    - binary_sensor:
+        - name: "Sun low elevation outside"
+          unique_id: sun_low_elevation_outside
+          state: >
+            {% set cutoff = 2 %}
+            {{ state_attr('sun.sun', 'elevation') < cutoff }}
+          icon: "mdi:weather-sunset"
+
+  automation:
+    - alias: "Front Door: Turn on when sun is down"
+      id: 680ccc85-de92-412a-a85a-3cea121e7b54
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation_outside
+      action:
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.sun_low_elevation_outside
+                state: "on"
+            sequence:
+              - service: light.turn_on
+                data: {}
+                target:
+                  entity_id: light.front_door
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.sun_low_elevation_outside
+                state: "off"
+            sequence:
+              - service: light.turn_off
+                data: {}
+                target:
+                  entity_id: light.front_door

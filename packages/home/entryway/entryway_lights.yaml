@@ -1,0 +1,55 @@
+entryway_lights_package:
+  adaptive_lighting:
+  - name: "Entryway"
+    lights:
+      - light.entryway_ceiling
+    min_brightness: 40
+    max_brightness: 100
+    autoreset_control_seconds: 3600
+
+  automation:
+    - alias: "Entryway: Light switch"
+      id: f40f57a8-7dda-4240-a6a9-cf1fe27c6fd7
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Entryway Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.entryway_ceiling
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.entryway_ceiling
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.front_door
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.front_door
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.entryway_ceiling
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.front_door
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.entryway_ceiling
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.front_door

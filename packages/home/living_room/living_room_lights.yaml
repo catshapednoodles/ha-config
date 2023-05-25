@@ -1,0 +1,37 @@
+living_room_lights_package:
+  adaptive_lighting:
+  - name: "Living Room"
+    lights:
+      - light.living_room_ceiling
+    min_brightness: 50
+    max_brightness: 100
+    autoreset_control_seconds: 10800
+
+  automation:
+    - alias: "Living Room: Light switch"
+      id: 431f7145-6b90-4343-a4e2-a07f105bfb46
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Living Room Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.living_room_ceiling
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.living_room_ceiling
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.living_room_ceiling
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.living_room_ceiling
