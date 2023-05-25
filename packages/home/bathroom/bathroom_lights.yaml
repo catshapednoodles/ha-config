@@ -1,0 +1,39 @@
+bathroom_lights_package:
+  adaptive_lighting:
+  - name: "Bathroom"
+    lights:
+      - light.bathroom_ceiling
+      - light.bathroom_mirror
+    min_brightness: 68
+    max_brightness: 90
+    autoreset_control_seconds: 3600
+    max_sunrise_time: "08:00:00"
+
+  automation:
+    - alias: "Bathroom: Light switch"
+      id: 84fe8d75-a5b8-4749-be2a-7ea653a20ae7
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Bathroom Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.bathroom_mirror
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.bathroom_mirror
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.bathroom_ceiling
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.bathroom_ceiling
