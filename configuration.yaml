@@ -22,7 +22,9 @@ logbook:
       - input_boolean
       - media_player
     entity_globs:
+      - '*sensor.grocy*'
       - binary_sensor.pixel_6a*
+      - sensor.pixel_6a*
 
 lovelace:
   mode: storage
@@ -45,6 +47,10 @@ recorder:
       - sensor.afvalinfo_*
       - sensor.power_highest_peak_time_*
       - sensor.*_poe_power
+    entities:
+      - sensor.date_time
+      - sensor.time
+      
 
 #################################################################
 ## Includes and other platforms
@@ -53,9 +59,9 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
-# home_connect_alt: 
-#   client_id: !secret home_connect_alt_client_id
-#   client_secret: !secret home_connect_alt_client_secret
+home_connect_alt: 
+  client_id: !secret home_connect_alt_client_id
+  client_secret: !secret home_connect_alt_client_secret
 
 sensor:
   - platform: time_date
