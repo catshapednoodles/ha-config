@@ -1,0 +1,67 @@
+inverter_package:
+  automation:
+    - alias: "Inverter: Limit output during hours with negative electricity price"
+      id: d25c0588-d6db-4a0d-8b6a-863ce6483cf2
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+          from: "off"
+          to: "on"
+          id: negative_hour_start
+        - platform: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+          from: "on"
+          to: "off"
+          id: negative_hour_end
+      condition:
+      - condition: template
+        value_template: "{{ now() | as_timestamp > '2023-06-02' | as_datetime | as_timestamp }}"
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: negative_hour_start
+              sequence:
+                - service: number.set_value
+                  data:
+                    value: "1"
+                  target:
+                    entity_id: number.grid_export_limit
+            - conditions:
+                - condition: trigger
+                  id: negative_hour_end
+              sequence:
+                - service: number.set_value
+                  data:
+                    value: "100"
+                  target:
+                    entity_id: number.grid_export_limit
+        - service: notify.sicco_phone
+          data:
+            title: "Inverter output limit"
+            message: "Automation has been triggered, reminder to remove the condition in the future"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:reminder"
+
+    - alias: "Inverter: Notify"
+      id: c2135a93-eb01-45cb-bc59-7a714db4bce2
+      trigger:
+        - platform: numeric_state
+          entity_id: number.grid_export_limit
+          below: 100
+          for: "00:10:00"
+      condition:
+        - condition: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+          state: "off"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Inverter output limit"
+            message: "Limit has been below 100, please check the inverter settings"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:reminder"
