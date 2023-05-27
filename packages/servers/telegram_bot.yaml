@@ -1,0 +1,40 @@
+telegram_bot_package:
+  telegram_bot:
+    - platform: polling
+      api_key: !secret telegram_api
+      allowed_chat_ids:
+        - !secret telegram_chat_id
+        - !secret telegram_chat_id_2
+
+  automation:
+    - alias: "Telegram: Bot that replies pong to ping"
+      id: 9318982e-48f6-4b2d-9fb4-0682edf1f7eb
+      trigger:
+        platform: event
+        event_type: telegram_command
+        event_data:
+          command: "/ping"
+      action:
+        - service: telegram_bot.send_message
+          data:
+            target: "{{ trigger.event.data.chat_id }}"
+            message: "pong"
+            disable_notification: true
+
+    - alias: "Telegram: Cats meow"
+      id: 00276ebd-a162-454c-aa05-d727cdb26e42
+      trigger:
+        - platform: event
+          event_type: telegram_text
+      condition:
+        - or:
+          - condition: template
+            value_template: "{{ 'Elsa' in trigger.event.data.text }}"
+          - condition: template
+            value_template: "{{ 'Izzy' in trigger.event.data.text }}"
+      action:
+        - service: telegram_bot.send_message
+          data:
+            target: "{{ trigger.event.data.chat_id }}"
+            message: "Miauw 🐱"
+            disable_notification: true
