@@ -7,32 +7,32 @@ pikachu_download_package:
       moving:
         search_length: 24
 
-  # automation:
-  #   - alias: "Energy: Only download at cheap hours"
-  #     trigger:
-  #       - platform: state
-  #         entity_id: binary_sensor.nordpool_planner_activate_download_when_electricity_is_cheap
-  #         from: "off"
-  #         to: "on"
-  #         id: download_start
-  #       - platform: state
-  #         entity_id: binary_sensor.nordpool_planner_activate_download_when_electricity_is_cheap
-  #         from: "on"
-  #         to: "off"
-  #         id: download_end
-  #     action:
-  #       - choose:
-  #           - conditions:
-  #               - condition: trigger
-  #                 id: download_start
-  #             sequence:
-  #               - service: sabnzbd.resume
-  #                 data:
-  #                   api_key: !secret sabnzbd_api
-  #           - conditions:
-  #               - condition: trigger
-  #                 id: download_end
-  #             sequence:
-  #               - service: sabnzbd.pause
-  #                 data:
-  #                   api_key: !secret sabnzbd_api
+  automation:
+    - alias: "Energy: Only download at cheap hours"
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.nordpool_planner_activate_download_when_electricity_is_cheap
+          from: "off"
+          to: "on"
+          id: download_start
+        - platform: state
+          entity_id: binary_sensor.nordpool_planner_activate_download_when_electricity_is_cheap
+          from: "on"
+          to: "off"
+          id: download_end
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: download_start
+              sequence:
+                - service: sabnzbd.resume
+                  data:
+                    api_key: !secret sabnzbd_api
+            - conditions:
+                - condition: trigger
+                  id: download_end
+              sequence:
+                - service: sabnzbd.pause
+                  data:
+                    api_key: !secret sabnzbd_api
