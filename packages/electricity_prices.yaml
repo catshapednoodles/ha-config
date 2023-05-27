@@ -95,6 +95,16 @@ electricity_prices_package:
             {{ (now() >= l[0].start and now() <= l[0].end) }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Electricity cheapest 4 hours"
+          unique_id: electricity_cheapest_4_hours
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value') %}
+            {{ (now() >= l[0].start and now() <= l[0].end)
+              or (now() >= l[1].start and now() <= l[1].end)
+              or (now() >= l[2].start and now() <= l[2].end)
+              or (now() >= l[3].start and now() <= l[3].end) }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
         - name: "Electricity most expensive 4 hours"
           unique_id: electricity_most_expensive_4_hours
           state: >
