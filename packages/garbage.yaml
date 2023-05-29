@@ -1,7 +1,7 @@
 garbage_package:
   input_boolean:
     waste_reminder:
-      name: Waste reminder enabled
+      name: Waste reminder
       icon: mdi:delete-alert
 
   sensor:
@@ -39,3 +39,24 @@ garbage_package:
             {{ not(is_state('sensor.afvalinfo_afval_morgen', 'none')) and now().hour > 15 }}
           icon: >
             {{ 'mdi:delete-clock' if this.state == 'on' else 'mdi:delete-off' }}
+
+  automation:
+    - alias: "Notification: Garbage day tomorrow"
+      trigger:
+        - platform: time
+          at: "18:30:00"
+      condition:
+        - condition: state
+          entity_id: input_boolean.waste_reminder
+          state: "on"
+        - condition: template
+          value_template: "{{ not is_state('sensor.afvalinfo_afval_morgen', 'none') }}"
+      action:
+        - service: notify.all_phones
+          data:
+            title: Garbage
+            message: "It's garbage day tomorrow for: {{ states('sensor.afvalinfo_afval_morgen') }}"
+            data:
+              channel: "Garbage"
+              importance: high
+              notification_icon: "mdi:trash-can"
