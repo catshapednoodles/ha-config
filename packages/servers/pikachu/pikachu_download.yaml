@@ -9,6 +9,7 @@ pikachu_download_package:
 
   automation:
     - alias: "Energy: Only download at cheap hours"
+      id: 2d2226f0-a45d-488e-9c26-5f7baab8d725
       trigger:
         - platform: state
           entity_id: binary_sensor.nordpool_planner_activate_download_when_electricity_is_cheap
