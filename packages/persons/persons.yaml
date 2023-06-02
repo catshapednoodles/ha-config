@@ -23,10 +23,10 @@ persons_package:
       services:
         - service: mobile_app_pixel_6a_sicco
 
-  #   ## Telegram
-  #   - platform: telegram
-  #     name: telegram_sicco
-  #     chat_id: !secret telegram_chat_id
-  #   - platform: telegram
-  #     name: telegram_group
-  #     chat_id: !secret telegram_chat_id_2
+    ## Telegram
+    - platform: telegram
+      name: telegram_sicco
+      chat_id: !secret telegram_chat_id
+    - platform: telegram
+      name: telegram_group
+      chat_id: !secret telegram_chat_id_2
