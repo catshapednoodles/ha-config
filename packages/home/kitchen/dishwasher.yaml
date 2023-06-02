@@ -1,0 +1,260 @@
+dishwasher_package:
+  input_boolean:
+    dishwasher_ready_to_start:
+      name: Dishwasher ready to start
+      icon: mdi:dishwasher
+
+  input_number:
+    dishwasher_max_waiting_hours:
+      name: Dishwasher maximum waiting time
+      icon: mdi:clock-edit
+      min: 1
+      max: 24
+      mode: slider
+      unit_of_measurement: hr(s)
+
+  template:
+    - binary_sensor:
+        - name: "Dishwasher done"
+          icon: mdi:dishwasher
+          state: >
+            {{ is_state('sensor.403010387033006572_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Finished') }}
+    
+    - sensor:
+        - name: "Dishwasher best starting time"
+          icon: mdi:clock-start
+          device_class: timestamp
+          availability: "{{ true }}"
+          state: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {% set time = sorted_list[0].start | as_datetime %}
+              {{ time }}
+          attributes:
+            lowest_costs: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {{ sorted_list[0].costs }}
+            costs_now: >
+              {% set kwh_pattern = state_attr('sensor.dishwasher_energy_usage_pattern', states('sensor.dishwasher_energy_usage_pattern'))%}
+              {% set resolution_in_minutes = 5 %}
+              {% set ns = namespace(costs=0, time=now()) %}
+              {% for kwh in kwh_pattern %}
+                {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+                {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
+                {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+              {% endfor %}
+              {{ ns.costs | round(5)}}
+        - name: "Dishwasher energy usage pattern"
+          icon: mdi:dishwasher
+          state: >-
+            {% set programs = {
+              'Dishcare.Dishwasher.Program.Eco50': 'eco',
+              'Dishcare.Dishwasher.Program.Auto2': 'auto',
+            } %}
+            {% if states('sensor.403010387033006572_selected_program') in programs %}
+              {% set program = programs[states('sensor.403010387033006572_selected_program')] %}
+              {% set half_load = '_half' if is_state('binary_sensor.403010387033006572_dishcare_dishwasher_option_halfload', 'on') else '' %}
+              {% set intensiv = '_intensiv' if is_state('binary_sensor.403010387033006572_dishcare_dishwasher_option_intensivzone', 'on') else '' %}
+              {% set state = program + half_load + intensiv %}
+              {{ state if state_attr('sensor.dryer_energy_usage_pattern', state) != None else 'default' }}
+            {% else %}
+              default
+            {% endif %}
+          attributes:
+            default: "{{ this.attributes.eco }}"
+            auto: >
+              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+            eco: >
+              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+
+    - trigger:
+        - platform: state
+          # Trigger when remote start is activated
+          entity_id: input_boolean.dishwasher_ready_to_start
+          to: "on"
+        - platform: state
+          # Trigger when input_number is changed
+          entity_id: input_number.dishwasher_max_waiting_hours
+      sensor:
+        - name: "Dishwasher best starting time list"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+            {{ now() }}
+          attributes:
+            list: >
+              {% set kwh_pattern = state_attr('sensor.dishwasher_energy_usage_pattern', states('sensor.dishwasher_energy_usage_pattern'))%}
+              {% set resolution_in_minutes = 5 %}
+              {% set minutes = kwh_pattern | count * resolution_in_minutes %}
+              {% set total_run_time = timedelta(minutes=minutes) %}
+              {% set start_time = now().replace(second=0) %}
+              {# Calculate start time to nearest 'resolution' #}
+              {% if start_time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
+                {% set start_time = start_time + timedelta(minutes=(resolution_in_minutes - start_time.minute%resolution_in_minutes)) %}
+              {% else %}
+                {% set start_time = start_time - timedelta(minutes=start_time.minute%resolution_in_minutes) %}
+              {% endif %}
+              {% set list = namespace(expected_costs=[], time=start_time) %}
+              {# Calculating for next x hours #}
+              {% set amount_of_calculations = states('input_number.dishwasher_max_waiting_hours') | int(12) * (60 // resolution_in_minutes) + 1 %}
+              {% for _ in range(0, amount_of_calculations) %}
+                {% set time_loop = list.time %}
+                {% set only_today = (time_loop + total_run_time).day == start_time.day %}
+                {% if only_today or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                  {% set ns = namespace(costs=0, time=time_loop) %}
+                  {% for kwh in kwh_pattern %}
+                    {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+                    {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
+                    {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+                  {% endfor %}
+                  {% set start_time = time_loop %}
+                  {% set add_item = {'start': start_time|as_timestamp|timestamp_local, 'costs': ns.costs | round(5)} %}
+                  {% set list.expected_costs = list.expected_costs + [add_item] %}
+                {% endif %}
+                {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
+              {% endfor %}
+              {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
+              {{ sorted_list }}
+
+  script:
+    start_dishwasher:
+      alias: Start dishwasher
+      mode: single
+      icon: mdi:dishwasher
+      sequence:
+        - wait_template: "{{ is_state('binary_sensor.403010387033006572_bsh_common_status_doorstate', 'off') }}"
+          timeout: "00:10:00"
+        - if:
+            - "{{ not wait.completed }}"
+          then:
+            - service: notify.telegram_sicco
+              data:
+                title: Dishwasher
+                message: "Dishwasher could not start, door was still open after 10 minutes"
+            - stop: "Dishwasher could not start, door was still open after 10 minutes"
+        - service: switch.turn_on
+          target:
+            entity_id: switch.403010387033006572_bsh_common_setting_powerstate
+        - wait_template: "{{ is_state('sensor.403010387033006572_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Ready') }}"
+          timeout: "00:01:00"
+        - if:
+            - '{{ wait.completed }}'
+          then:
+            - service: button.press
+              target:
+                entity_id: button.403010387033006572_start_pause
+            - service: notify.telegram_sicco
+              data:
+                title: Dishwasher
+                message: "Best starting time for dishwasher is now, it should start"
+          else:
+            - service: notify.telegram_sicco
+              data:
+                title: Dishwasher
+                message: "Dishwasher did not turn on. Check if there are any problems"
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.dishwasher_ready_to_start
+
+    dishwasher_record_consumption:
+      alias: Dishwasher - Record consumption
+      mode: single
+      icon: mdi:record-rec
+      sequence:
+        - service: utility_meter.calibrate
+          data:
+            entity_id: sensor.dishwasher_current_consumption
+            value: 0
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.dishwasher
+          data:
+            value: ""
+        - service: input_number.set_value
+          target:
+            entity_id: input_number.dishwasher_kwh_counter
+          data:
+            value: 0
+        - alias: "Repeat the sequence AS LONG AS the conditions are true"
+          repeat:
+            while:
+              - condition: state
+                entity_id: input_boolean.dishwasher_job_cycle
+                state: "on"
+              # Don't do it too many times
+              - condition: template
+                value_template: "{{ repeat.index <= 50 }}"
+            sequence:
+              - delay: "00:05:00"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.dishwasher
+                data:
+                  value: >
+                    {% set delta = states('sensor.dishwasher_current_consumption') | float(0) - states('input_number.dishwasher_kwh_counter') | float(0) %}
+                    {{ states('input_text.dishwasher') }}{{ delta | round(2) }},
+              - service: input_number.set_value
+                target:
+                  entity_id: input_number.dishwasher_kwh_counter
+                data:
+                  value: "{{ states('sensor.dishwasher_current_consumption')}}"
+        - service: notify.mobile_app_pixel_6a
+          data:
+            title: Consumption recorded
+            message: >
+              Dishwasher: {{ states('input_text.dishwasher') }}
+            data:
+              channel: "Utility recorder"
+              actions:
+                - action: "COPY_DISHWASHER_VALUES"
+                  title: "Copy values"
+
+  automation:
+    - alias: "Dishwasher: Start at best time"
+      id: 470e151d-48f8-40ae-b941-c11236707822
+      trigger:
+        platform: time
+        at: sensor.dishwasher_best_starting_time
+      condition:
+        - not:
+          - condition: state
+            entity_id: sensor.403010387033006572_bsh_common_status_operationstate
+            state: "BSH.Common.EnumType.OperationState.Run"
+      action:
+        - service: script.start_dishwasher
+        - service: script.turn_on
+          entity_id: script.dishwasher_record_consumption
+
+    - alias: "Dishwasher: Ready to start"
+      id: 14f4a98c-d409-4e5a-aaa1-beb98002935e
+      trigger:
+        - platform: state
+          entity_id: switch.403010387033006572_bsh_common_setting_powerstate
+          to: "on"
+      condition:
+        - not:
+          - condition: state
+            entity_id: sensor.403010387033006572_bsh_common_status_operationstate
+            state: "BSH.Common.EnumType.OperationState.Run"
+        - condition: state
+          entity_id: input_boolean.dishwasher_ready_to_start
+          state: "off"
+      action:
+        - wait_template: "{{ is_state('binary_sensor.403010387033006572_bsh_common_status_doorstate', 'off') }}"
+          timeout: "00:10:00"
+          continue_on_timeout: true
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.dishwasher_ready_to_start
+
+    - alias: "Utilities: Copy Dishwasher values"
+      id: ee605f5e-93bf-4611-886c-8d65777a0c84
+      trigger:
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "COPY_DISHWASHER_VALUES"
+      action:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.dishwasher_pattern
+          data:
+            value: >
+              {{ states('input_text.dishwasher') }}
