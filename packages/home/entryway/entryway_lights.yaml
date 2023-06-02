@@ -7,6 +7,11 @@ entryway_lights_package:
     max_brightness: 100
     autoreset_control_seconds: 3600
 
+  input_boolean:
+    automatic_entryway_lights:
+      name: Automatic entryway lights
+      icon: mdi:lightbulb-auto
+
   automation:
     - alias: "Entryway: Light switch"
       id: f40f57a8-7dda-4240-a6a9-cf1fe27c6fd7
@@ -39,17 +44,34 @@ entryway_lights_package:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.entryway_ceiling
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.front_door
+              entity_id: 
+                - light.entryway_ceiling
+                - light.front_door
           button_2_and_4_pressed:
           - service: light.turn_off
             data: {}
             target:
-              entity_id: light.entryway_ceiling
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.front_door
+              entity_id: 
+                - light.entryway_ceiling
+                - light.front_door
+
+    - alias: "Entryway: turn on lights when someone gets home"
+      trigger:
+        - platform: state
+          entity_id: person.sicco
+          to: 'home'
+        - platform: state
+          entity_id: person.ellen
+          to: 'home'
+      condition:
+        - condition: state
+          entity_id: binary_sensor.sun_low_elevation
+          state: "on"
+        - condition: state
+          entity_id: input_boolean.automatic_entryway_lights
+          state: "on"
+      action:
+      - service: light.turn_on
+        target:
+          entity_id:
+            - light.entryway_ceiling

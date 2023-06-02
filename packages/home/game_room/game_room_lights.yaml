@@ -63,3 +63,17 @@ game_room_lights_package:
             data: {}
             target:
               entity_id: light.game_room
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.game_room_ceiling
+                - light.game_room
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.game_room_ceiling
+                - light.game_room

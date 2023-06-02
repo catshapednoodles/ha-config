@@ -1,0 +1,43 @@
+bedroom_lights_package:
+  adaptive_lighting:
+  - name: "Bedroom"
+    lights:
+      - light.bedroom_ceiling
+    min_brightness: 70
+    max_brightness: 100
+    autoreset_control_seconds: 3600
+  - name: "Bedroom Closet"
+    lights:
+      - light.closet_lights
+    min_brightness: 50
+    max_brightness: 100
+    autoreset_control_seconds: 600
+
+  automation:
+    - alias: "Bedroom: Light switch"
+      id: 5f5dedfa-dc52-4c61-9adc-59c4cbbda0ca
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Bedroom Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.bed_headboard
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.bed_headboard
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.bedroom_ceiling
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.bedroom_ceiling
