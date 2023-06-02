@@ -46,6 +46,12 @@ electricity_prices_package:
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
 
     - sensor:
+        - name: "Current market price for electricity"  # Incl. BTW
+          unique_id: current_market_price_for_electricity
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (0.12599 * 1.21 + 0.003) ) | round(3) }}
         - name: "Average electricity price today"
           unique_id: average_electricity_price_today
           unit_of_measurement: €/kWh
@@ -103,6 +109,13 @@ electricity_prices_package:
               or (now() >= l[1].start and now() <= l[1].end)
               or (now() >= l[2].start and now() <= l[2].end)
               or (now() >= l[3].start and now() <= l[3].end) }}
+          availability: >
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Electricity most expensive hour"
+          unique_id: electricity_most_expensive_hour
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value', reverse=true) %}
+            {{ (now() >= l[0].start and now() <= l[0].end) }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
         - name: "Electricity most expensive 4 hours"
