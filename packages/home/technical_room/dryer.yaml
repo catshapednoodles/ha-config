@@ -1,0 +1,412 @@
+dryer_package:
+  input_datetime:
+    dryer_starting_time:
+      name: Dryer starting time options
+      icon: mdi:tumble-dryer
+      has_date: true
+      has_time: true
+
+  input_number:
+    dryer_max_waiting_hours:
+      name: Dryer maximum waiting time
+      icon: mdi:clock-edit
+      min: 1
+      max: 12
+      mode: slider
+      unit_of_measurement: hr(s)
+
+  input_select:
+    dryer_starting_time_options:
+      name: Dryer starting time options
+      icon: mdi:tumble-dryer
+      options:
+        - First
+        - Second
+        - Third
+        - Now
+
+  template:
+    - binary_sensor:
+        - name: "Dryer ready to start"
+          icon: mdi:tumble-dryer
+          delay_on: "00:00:03"
+          state: >
+            {{ is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolactive', 'on')
+              and is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolstartallowed', 'on')
+              and is_state('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Ready')}}
+        - name: "Dryer on but not ready to start"
+          icon: mdi:tumble-dryer
+          delay_on: "00:00:03"
+          state: >
+            {{( 
+                (is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolactive', 'on') and is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolstartallowed', 'off'))
+              or 
+                (is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolactive', 'off') and is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolstartallowed', 'on'))
+              )
+              and is_state('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Ready')}}
+        - name: "Dryer done"
+          icon: mdi:tumble-dryer
+          state: >
+            {{ is_state('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Finished') }}
+        - name: "Dryer done and wrinkleguard active"
+          icon: mdi:tumble-dryer
+          state: >
+            {% if has_value('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_option_remainingprogramtime') %}
+              {{ as_datetime(states('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_option_remainingprogramtime')) < now() 
+                and states('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_wrinkleguard') != 'LaundryCare.Dryer.EnumType.WrinkleGuard.Off' 
+                and is_state('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Run') }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+
+    - sensor:
+        - name: "Dryer best starting time"
+          icon: mdi:clock-start
+          device_class: timestamp
+          availability: "{{ true }}"
+          state: >
+              {% set sorted_list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {% set time = sorted_list[0].start | as_datetime %}
+              {{ time }}
+          attributes:
+            lowest_costs: >
+              {% set sorted_list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {{ sorted_list[0].costs }}
+            costs_now: >
+              {% set kwh_pattern = state_attr('sensor.dryer_energy_usage_pattern', states('sensor.dryer_energy_usage_pattern'))%}
+              {% set resolution_in_minutes = 5 %}
+              {% set ns = namespace(costs=0, time=now()) %}
+              {% for kwh in kwh_pattern %}
+                {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+                {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
+                {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+              {% endfor %}
+              {{ ns.costs | round(5)}}
+            second_lowest_costs: >
+              {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {% set start_time = list[0].start | as_datetime - timedelta(minutes=59) %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list if item.start | as_datetime < start_time %}
+              {% set ns.list = ns.list + [item] %}
+              {% endfor %}
+              {% if ns.list == [] %}
+              {{ list[0].costs }}
+              {% else %}
+              {{ ns.list[0].costs }}
+              {% endif %}
+            second_lowest_time: >
+              {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {% set start_time = list[0].start | as_datetime - timedelta(minutes=59) %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list if item.start | as_datetime < start_time %}
+              {% set ns.list = ns.list + [item] %}
+              {% endfor %}
+              {% if ns.list == [] %}
+              {{ now() + timedelta(seconds=5) }}
+              {% else %}
+              {{ ns.list[0].start }}
+              {% endif %}
+            third_lowest_costs: >
+              {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {% set start_time = this.attributes.second_lowest_time | as_datetime - timedelta(minutes=59) %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list if item.start | as_datetime < start_time %}
+              {% set ns.list = ns.list + [item] %}
+              {% endfor %}
+              {% if ns.list == [] %}
+              {{ this.attributes.second_lowest_costs }}
+              {% else %}
+              {{ ns.list[0].costs }}
+              {% endif %}
+            third_lowest_time: >
+              {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
+              {% set start_time = this.attributes.second_lowest_time | as_datetime - timedelta(minutes=59) %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list if item.start | as_datetime < start_time %}
+              {% set ns.list = ns.list + [item] %}
+              {% endfor %}
+              {% if ns.list == [] %}
+              {{ now() + timedelta(seconds=5) }}
+              {% else %}
+              {{ ns.list[0].start }}
+              {% endif %}
+        - name: "Dryer energy usage pattern"
+          icon: mdi:tumble-dryer
+          state: >-
+            {% set programs = {
+              'LaundryCare.Dryer.Program.Cotton': 'cotton',
+              'LaundryCare.Dryer.Program.Synthetic': 'synthetic',
+              'LaundryCare.Dryer.Program.WoolFinish': 'wool',
+            } %}
+            {% set targets = {
+              'LaundryCare.Dryer.EnumType.DryingTarget.CupboardDry': 'cupboard_dry',
+              'LaundryCare.Dryer.EnumType.DryingTarget.CupboardDryPlus': 'cupboard_dry_plus',
+            } %}
+            {% set adjustments = {
+              'LaundryCare.Dryer.EnumType.DryingTargetAdjustment.Off': 'off',
+              'LaundryCare.Dryer.EnumType.DryingTargetAdjustment.Plus2': '2',
+            } %}
+            {% if states('sensor.siemens_wt8hxm75nl_68a40e926546_selected_program') in programs 
+              and states('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_dryingtarget') in targets
+              and states('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_dryingtargetadjustment') in adjustments %}
+              {% set program = programs[states('sensor.siemens_wt8hxm75nl_68a40e926546_selected_program')] %}
+              {% set target = targets[states('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_dryingtarget')] %}
+              {% set adjustment = adjustments[states('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_dryingtargetadjustment')] %}
+              {% set state = program + '_' + target + '_' + adjustment %}
+              {{ state if state_attr('sensor.dryer_energy_usage_pattern', state) != None else 'default' }}
+            {% elif states('sensor.siemens_wt8hxm75nl_68a40e926546_selected_program') in programs 
+              and is_state('sensor.siemens_wt8hxm75nl_68a40e926546_laundrycare_dryer_option_dryingtarget', 'unavailable') %}
+              {% set program = programs[states('sensor.siemens_wt8hxm75nl_68a40e926546_selected_program')] %}
+              {% set state = program %}
+              {{ state if state_attr('sensor.dryer_energy_usage_pattern', state) != None else 'default' }}
+            {% else %}
+              default
+            {% endif %}
+          attributes:
+            default: "{{ this.attributes.cotton_cupboard_dry_off }}"
+            cotton_cupboard_dry_off: >
+              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+            cotton_cupboard_dry_2: >
+              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+            cotton_cupboard_dry_plus_off: >
+              {{ [0.03,0.04,0.03,0.03,0.04,0.03,0.04,0.04,0.03,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.03,0.04,0.02,0.01,] }}
+            cotton_cupboard_dry_plus_2: >
+              {{ [0.03,0.04,0.03,0.03,0.04,0.03,0.04,0.04,0.03,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.03,0.04,0.02,0.01,] }}
+            synthetic_cupboard_dry_off: >
+              {{ [0.03,0.04,0.03,0.03,0.04,0.02,0.04,0.03,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.02,0.01,0.01] }}
+            wool: >
+              {{ [0.02,0.01] }}
+
+    - trigger:
+        - platform: state
+          # Trigger when remote start is activated
+          entity_id: binary_sensor.dryer_ready_to_start
+          to: "on"
+        - platform: state
+          # Trigger when input_number is changed
+          entity_id: input_number.dryer_max_waiting_hours
+      sensor:
+        - name: "Dryer best starting time list"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+            {{ now() }}
+          attributes:
+            list: >
+              {% set kwh_pattern = state_attr('sensor.dryer_energy_usage_pattern', states('sensor.dryer_energy_usage_pattern'))%}
+              {% set resolution_in_minutes = 5 %}
+              {% set minutes = kwh_pattern | count * resolution_in_minutes %}
+              {% set total_run_time = timedelta(minutes=minutes) %}
+              {% set start_time = now().replace(second=0) %}
+              {# Calculate start time to nearest 'resolution' #}
+              {% if start_time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
+                {% set start_time = start_time + timedelta(minutes=(resolution_in_minutes - start_time.minute%resolution_in_minutes)) %}
+              {% else %}
+                {% set start_time = start_time - timedelta(minutes=start_time.minute%resolution_in_minutes) %}
+              {% endif %}
+              {% set list = namespace(expected_costs=[], time=start_time) %}
+              {# Calculating for next x hours #}
+              {% set amount_of_calculations = states('input_number.dryer_max_waiting_hours') | int(11) * (60 // resolution_in_minutes) + 1 %}
+              {% for _ in range(0, amount_of_calculations) %}
+                {% set time_loop = list.time %}
+                {% set only_today = (time_loop + total_run_time).day == start_time.day %}
+                {% if only_today or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                  {% set ns = namespace(costs=0, time=time_loop) %}
+                  {% for kwh in kwh_pattern %}
+                    {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
+                    {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
+                    {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
+                  {% endfor %}
+                  {% set start_time = time_loop %}
+                  {% set add_item = {'start': start_time|as_timestamp|timestamp_local, 'costs': ns.costs | round(5)} %}
+                  {% set list.expected_costs = list.expected_costs + [add_item] %}
+                {% endif %}
+                {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
+              {% endfor %}
+              {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
+              {{ sorted_list }}
+
+  automation:
+    - alias: "Dryer: Set starting time"
+      id: c7701f94-83cf-48c1-9c00-82b6972a4429
+      trigger:
+      - platform: state
+        entity_id: input_select.dryer_starting_time_options
+      - platform: state
+        entity_id: binary_sensor.dryer_ready_to_start
+        to: "on"
+      condition:
+        - not:
+          - condition: state
+            entity_id: sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate
+            state: "BSH.Common.EnumType.OperationState.Run"
+      action:
+        - choose:
+          - alias: "Ideal starting time"
+            conditions:
+              - "{{ states('input_select.dryer_starting_time_options') == 'First' }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                data:
+                  datetime: >
+                    {% set kwh_pattern = state_attr('sensor.dryer_energy_usage_pattern', states('sensor.dryer_energy_usage_pattern'))%}
+                    {% if kwh_pattern | sum < 0.06 %}
+                      {{ now() + timedelta(seconds=5) }}
+                    {% else %}
+                      {{ states('sensor.dryer_best_starting_time') | as_datetime | as_local if states('sensor.dryer_best_starting_time') | as_datetime > now() else now() + timedelta(seconds=5) }}
+                    {% endif %}
+                target:
+                  entity_id: input_datetime.dryer_starting_time
+          - alias: "Second best starting time"
+            conditions:
+              - "{{ states('input_select.dryer_starting_time_options') == 'Second' }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                data:
+                  datetime: "{{ state_attr('sensor.dryer_best_starting_time', 'second_lowest_time') | as_datetime | as_local }}"
+                target:
+                  entity_id: input_datetime.dryer_starting_time
+          - alias: "Third best starting time"
+            conditions:
+              - "{{ states('input_select.dryer_starting_time_options') == 'Third' }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                data:
+                  datetime: "{{ state_attr('sensor.dryer_best_starting_time', 'third_lowest_time') | as_datetime | as_local }}"
+                target:
+                  entity_id: input_datetime.dryer_starting_time
+          - alias: "Start now"
+            conditions:
+              - "{{ states('input_select.dryer_starting_time_options') == 'Now' }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                data:
+                  datetime: "{{ now() + timedelta(seconds=1) }}"
+                target:
+                  entity_id: input_datetime.dryer_starting_time
+
+    - alias: "Dryer: Reset starting time"
+      id: c2d6f881-ece0-4f6d-b2c0-70af5de33279
+      trigger:
+        platform: state
+        entity_id: binary_sensor.dryer_ready_to_start
+        to: "off"
+        for: "00:10:00"
+      action:
+        - service: input_select.select_option
+          data:
+            option: First
+          target:
+            entity_id: input_select.dryer_starting_time_options
+
+    - alias: "Dryer: Start at best time"
+      id: b936c213-aac1-4150-9ad0-69bc6d983528
+      trigger:
+        platform: time
+        at: input_datetime.dryer_starting_time
+      condition:
+        - not:
+          - condition: state
+            entity_id: sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate
+            state: "BSH.Common.EnumType.OperationState.Run"
+      action:
+        - service: button.press
+          target:
+            entity_id: button.siemens_wt8hxm75nl_68a40e926546_start_pause
+        - service: notify.telegram_sicco
+          data:
+            title: Dryer
+            message: "Best starting time for dryer is now, dryer should start"
+        - delay: "00:01:00"
+        - service: input_select.select_option
+          data:
+            option: First
+          target:
+            entity_id: input_select.dryer_starting_time_options
+
+    - alias: "Dryer: Finished running"
+      id: 55a391ab-2cdc-4c37-9408-28e9ce2eb3ef
+      trigger:
+        platform: state
+        entity_id: binary_sensor.dryer_done_and_wrinkleguard_active
+        to: "on"
+      action:
+        - if:
+          - condition: state
+            entity_id: person.sicco
+            state: home
+          then:
+          - service: notify.sicco_phone
+            data:
+              title: Dryer
+              message: "Dryer is done!"
+              data:
+                channel: "Utilities"
+                tag: utilities
+                timeout: 3600
+                notification_icon: "mdi:tumble-dryer"
+        - if:
+          - condition: state
+            entity_id: person.ellen
+            state: home
+          then:
+          - service: notify.ellen_phone
+            data:
+              title: Dryer
+              message: "Dryer is done!"
+              data:
+                channel: "Utilities"
+                tag: utilities
+                timeout: 3600
+                notification_icon: "mdi:tumble-dryer"
+
+    - alias: "Dryer: Send notification when remote start is not active"
+      id: 367db36c-d9d0-43bd-abd5-a122421ee582
+      trigger:
+        platform: state
+        entity_id: binary_sensor.dryer_on_but_not_ready_to_start
+        to: "on"
+        for: "00:05:00"
+      action:
+        - if:
+          - condition: state
+            entity_id: person.sicco
+            state: home
+          then:
+          - service: notify.sicco_phone
+            data:
+              title: Dryer
+              message: "Dryer is on, but remote start is not active."
+              data:
+                channel: "Utilities"
+                tag: utilities
+                timeout: 3600
+                notification_icon: "mdi:tumble-dryer"
+        - if:
+          - condition: state
+            entity_id: person.ellen
+            state: home
+          then:
+          - service: notify.ellen_phone
+            data:
+              title: Dryer
+              message: "Dryer is on, but remote start is not active."
+              data:
+                channel: "Utilities"
+                tag: utilities
+                timeout: 3600
+                notification_icon: "mdi:tumble-dryer"
+
+    - alias: "Dryer: Turn off after it is done"
+      id: 5ad813d8-1c64-4984-9d35-d7f797178cb5
+      trigger:
+        platform: state
+        entity_id: binary_sensor.dryer_done
+        to: "on"
+        for: "00:40:00"
+      action:
+        service: select.select_option
+        data:
+          option: BSH.Common.EnumType.PowerState.MainsOff
+        target:
+          entity_id: select.siemens_wt8hxm75nl_68a40e926546_bsh_common_setting_powerstate
