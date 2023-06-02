@@ -1,4 +1,33 @@
 washing_machine_package:
+  input_boolean:
+    washing_machine_notifier:
+      name: Washing machine notifier
+      icon: mdi:washing-machine-alert
+    # Used in the Monitor Washing Machine States automation based on a blueprint
+    washing_machine_job_cycle:
+      name: Washing Machine - Job Cycle
+      icon: mdi:washing-machine
+    washing_machine_automation_self_trigger:
+      name: Washing Machine - Automation Self-trigger
+      icon: mdi:washing-machine
+
+  input_datetime:
+    washing_machine_started:
+      name: Washing machine last started
+      has_date: true
+      has_time: true
+    washing_machine_done:
+      name: Washing machine last done
+      has_date: true
+      has_time: true
+
+  input_number:
+    washing_machine_kwh_counter:
+      name: Washing machine kWh counter
+      min: 0
+      max: 15
+      step: 0.01
+
   input_select:
     washing_machine_program:
       name: Washing machine program
@@ -10,6 +39,35 @@ washing_machine_package:
         - 60 degrees
         - 90 degrees
         - 90 degrees - Speed Perfect
+    # Used in the Monitor Washing Machine States automation based on a blueprint
+    washing_machine_state_machine:
+      name: Washing Machine - State Machine
+      options:
+        - unplugged
+        - idle
+        - paused
+        - detached_overload
+        - job_ongoing
+        - job_completed
+      icon: mdi:washing-machine
+
+  input_text:
+    washing_machine:
+      name: Washing machine
+      icon: mdi:washing-machine
+      max: 255
+    washing_machine_pattern:
+      name: Washing machine pattern
+      icon: mdi:washing-machine
+      max: 255
+
+  timer:
+    # Used in the Monitor Washing Machine States automation based on a blueprint
+    washing_machine_delayed_job_completion_timer:
+      name: Washing Machine - Delayed Job Completion Timer
+      duration: "00:15:00" # <- Note that the time here. Leave as it is (15 min)
+      restore: true
+      icon: mdi:washing-machine
 
   template:
     - sensor:
