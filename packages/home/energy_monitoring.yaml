@@ -1,5 +1,6 @@
 energy_monitoring_package:
   powercalc:
+    enable_autodiscovery: false
 
   sensor:
     - platform: powercalc
@@ -26,28 +27,3 @@ energy_monitoring_package:
       create_group: All lights
       include:
         domain: light
-    - platform: powercalc
-      entities:
-        - entity_id: light.bathroom_ceiling_1
-        - entity_id: light.bathroom_ceiling_2
-        - entity_id: light.bathroom_ceiling_3
-        - entity_id: light.bathroom_mirror
-        - entity_id: light.closet_lights
-        - entity_id: light.ellens_room_main_1
-        - entity_id: light.ellens_room_main_2
-        - entity_id: light.entryway_ceiling
-        - entity_id: light.front_door_1
-        - entity_id: light.front_door_2
-        - entity_id: light.game_room_ceiling_1
-        - entity_id: light.game_room_ceiling_2
-        - entity_id: light.game_room_ceiling_3
-        - entity_id: light.kitchen_ceiling_1
-        - entity_id: light.kitchen_ceiling_2
-        - entity_id: light.kitchen_ceiling_3
-        - entity_id: light.kitchen_ceiling_4
-        - entity_id: light.living_room_ceiling_1
-        - entity_id: light.living_room_ceiling_2
-        - entity_id: light.living_room_ceiling_3
-        - entity_id: light.office_ceiling_1
-        - entity_id: light.office_ceiling_2
-        - entity_id: light.office_ceiling_3
