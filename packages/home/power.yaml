@@ -11,3 +11,19 @@ power_package:
         unit_of_measurement: W
         state_class: measurement
         device_class: power
+      - name: "Net grid usage"
+        icon: mdi:home-import-outline
+        unique_id: 19e45ee0-de1a-4d0a-8101-4936f42971b0
+        state: >
+          {{ max(0, states('sensor.net_power') | float(0) ) | round(0) }}
+        unit_of_measurement: W
+        state_class: measurement
+        device_class: power
+      - name: "Net grid return"
+        icon: mdi:transmission-tower-import
+        unique_id: 69b9f304-47e2-49ac-b395-ed865477a800
+        state: >
+          {{ (min(0, states('sensor.net_power') | float(0) ) * -1 ) | round(0) }}
+        unit_of_measurement: W
+        state_class: measurement
+        device_class: power
