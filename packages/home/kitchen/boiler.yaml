@@ -1,0 +1,23 @@
+boiler_package:
+  automation:
+    - alias: "Boiler: Stop heating up on most expensive hour"
+      id: 5416039b-0d69-4501-9ba6-fef7c9e49069
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.electricity_most_expensive_hour
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_off
+                  entity_id: switch.boiler
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "off"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.boiler

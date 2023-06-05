@@ -1,26 +1,27 @@
 inverter_package:
+  template:
+    - binary_sensor:
+        - name: "Electricity market price too low"
+          unique_id: electricity_market_price_too_low
+          state: >
+            {{ states('sensor.current_market_price_for_electricity') | float(1) < -0.04 }}
+          availability: >
+            {{ states('sensor.current_market_price_for_electricity') | is_number }}
+
   automation:
-    - alias: "Inverter: Limit output during hours with negative electricity price"
+    - alias: "Inverter: Limit output during hours with low electricity prices"
       id: d25c0588-d6db-4a0d-8b6a-863ce6483cf2
       trigger:
         - platform: state
           entity_id: binary_sensor.negative_electricity_price_this_hour
-          from: "off"
-          to: "on"
-          id: negative_hour_start
         - platform: state
-          entity_id: binary_sensor.negative_electricity_price_this_hour
-          from: "on"
-          to: "off"
-          id: negative_hour_end
-      condition:
-      - condition: template
-        value_template: "{{ now() | as_timestamp > '2023-06-02' | as_datetime | as_timestamp }}"
+          entity_id: binary_sensor.electricity_market_price_too_low
       action:
         - choose:
             - conditions:
-                - condition: trigger
-                  id: negative_hour_start
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
               sequence:
                 - service: number.set_value
                   data:
@@ -28,22 +29,21 @@ inverter_package:
                   target:
                     entity_id: number.grid_export_limit
             - conditions:
-                - condition: trigger
-                  id: negative_hour_end
+                - condition: state
+                  entity_id: binary_sensor.electricity_market_price_too_low
+                  state: "on"
               sequence:
                 - service: number.set_value
                   data:
-                    value: "100"
+                    value: "10"
                   target:
                     entity_id: number.grid_export_limit
-        - service: notify.sicco_phone
-          data:
-            title: "Inverter output limit"
-            message: "Automation has been triggered, reminder to remove the condition in the future"
-            data:
-              channel: "Energy"
-              importance: high
-              notification_icon: "mdi:reminder"
+          default:
+            - service: number.set_value
+              data:
+                value: "100"
+              target:
+                entity_id: number.grid_export_limit
 
     - alias: "Inverter: Notify"
       id: c2135a93-eb01-45cb-bc59-7a714db4bce2
@@ -56,11 +56,14 @@ inverter_package:
         - condition: state
           entity_id: binary_sensor.negative_electricity_price_this_hour
           state: "off"
+        - condition: state
+          entity_id: binary_sensor.electricity_market_price_too_low
+          state: "off"
       action:
         - service: notify.sicco_phone
           data:
             title: "Inverter output limit"
-            message: "Limit has been below 100, please check the inverter settings"
+            message: "Limit has been below 100 for 10 minutes, please check the inverter settings"
             data:
               channel: "Energy"
               importance: high
