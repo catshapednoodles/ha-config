@@ -13,6 +13,10 @@ dishwasher_package:
       mode: slider
       unit_of_measurement: hr(s)
 
+  utility_meter:
+    dishwasher_current_consumption:
+      source: sensor.dishwasher_energy
+
   template:
     - binary_sensor:
         - name: "Dishwasher done"
@@ -214,6 +218,9 @@ dishwasher_package:
         platform: time
         at: sensor.dishwasher_best_starting_time
       condition:
+        - condition: state
+          entity_id: input_boolean.dishwasher_ready_to_start
+          state: "on"
         - not:
           - condition: state
             entity_id: sensor.403010387033006572_bsh_common_status_operationstate
