@@ -13,11 +13,7 @@ boiler_package:
       mode: queued
       trigger:
         - platform: state
-          entity_id: binary_sensor.electricity_most_expensive_2_hours
-        - platform: state
-          entity_id: binary_sensor.electricity_most_expensive_2_hours
-          to: "on"
-          for: "01:00:01"
+          entity_id: binary_sensor.nordpool_planner_next_hour_is_more_expensive
       action:
         - choose:
             - conditions:
@@ -26,7 +22,7 @@ boiler_package:
                   state: "on"
                 - alias: "Make sure boiler is not off at cheapest hour if 2 most expensive hours are consecutive"
                   condition: state
-                  entity_id: binary_sensor.next_hour_is_more_expensive
+                  entity_id: binary_sensor.nordpool_planner_next_hour_is_more_expensive
                   state: "off"
               sequence:
                 - service: switch.turn_off
