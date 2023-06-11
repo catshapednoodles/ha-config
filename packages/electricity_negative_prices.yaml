@@ -13,6 +13,10 @@ electricity_negative_price_package:
             {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min < 0 }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+    - trigger:
+        - platform: state
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+      binary_sensor:
         - name: "Negative electricity price tomorrow"
           unique_id: negative_electricity_price_tomorrow
           state: >
