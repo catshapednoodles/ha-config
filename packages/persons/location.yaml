@@ -1,4 +1,10 @@
 location_package:
+  device_tracker:
+    - platform: ping
+      hosts:
+        ellen_mobile: !secret ellen_mobile_ip
+        sicco_mobile: !secret sicco_mobile_ip
+
   proximity:
     home:
       ignored_zones:
