@@ -7,9 +7,76 @@ bathroom_lights_package:
     min_brightness: 68
     max_brightness: 90
     autoreset_control_seconds: 3600
-    max_sunrise_time: "08:00:00"
+    max_sunrise_time: "09:00:00"
+
+  input_boolean:
+    automatic_bathroom_lights:
+      name: Automatic bathroom lights
+      icon: mdi:lightbulb-auto
+
+  input_number:
+    bathroom_lights_time_on:
+      name: Bathroom lights time on
+      icon: mdi:clock-start
+      initial: 10
+      min: 1
+      max: 30
+      mode: box
+
+  template:
+    - binary_sensor:
+        - name: "Activity in Bathroom"
+          unique_id: activity_in_bathroom
+          state: >
+            {{ is_state("binary_sensor.bathroom_motion_sensor_occupancy", "on") }}
 
   automation:
+    - alias: "Bathroom: Toggle lights on motion"
+      id: b88444fd-f079-4658-8a55-b72b894d06cb
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_bathroom
+          from: "off"
+          to: "on"
+          id: activity
+        - platform: state
+          entity_id: binary_sensor.activity_in_bathroom
+          from: "on"
+          to: "off"
+          for:
+            minutes: "{{ states('input_number.bathroom_lights_time_on')|int(1) }}"
+          id: no_activity
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_bathroom_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low
+            - conditions:
+                - condition: trigger
+                  id: activity
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id:
+                      - light.bathroom_ceiling
+                      - light.bathroom_mirror
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: trigger
+                  id: no_activity
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.bathroom_ceiling
+                      - light.bathroom_mirror
+
     - alias: "Bathroom: Light switch"
       id: 84fe8d75-a5b8-4749-be2a-7ea653a20ae7
       description: ''
