@@ -25,12 +25,12 @@ logbook:
       - '*sensor.grocy*'
       - binary_sensor.pixel_6a*
       - sensor.pixel_6a*
+      - sensor.*_switch*_action
 
 lovelace:
   mode: storage
 
 recorder:
-  db_url: !secret recorder_url
   purge_keep_days: 32
   exclude:
     domains:
