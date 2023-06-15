@@ -14,6 +14,18 @@ electricity_prices_package:
         {% set opslag = 0.003 %} {# Zonneplan, incl. BTW #}
         {{ (current_price * VAT ) + (tax_kWh + opslag) |float }}
 
+  utility_meter:
+    yearly_electricity_usage:
+      source: sensor.dsmr_current_year_electricity_merged
+      unique_id: 11852318-3cdc-4433-a2bf-37b320a8a093
+      cron: "0 0 1 7 *"
+      periodically_resetting: true
+    yearly_electricity_return:
+      source: sensor.dsmr_current_year_electricity_returned_merged
+      unique_id: 81b751e7-12c2-493c-ba28-0a5b0ec078de
+      cron: "0 0 1 7 *"
+      periodically_resetting: true
+
   template:
     ## Sensors and helpers
     - binary_sensor:
@@ -44,14 +56,30 @@ electricity_prices_package:
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) < 0.17 }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Energy tax included this year"
+          unique_id: energy_tax_included_this_year
+          icon: mdi:cash
+          state: >
+            {{ states('sensor.yearly_electricity_usage') | float(0) > states('sensor.yearly_electricity_return') | float(0) }}
 
     - sensor:
-        - name: "Current market price for electricity"  # Incl. BTW
-          unique_id: current_market_price_for_electricity
+        - name: "Current price for electricity return"    # Incl. BTW
+          unique_id: current_price_for_electricity_return
           unit_of_measurement: €/kWh
           device_class: monetary
           state: >
             {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (0.12599 * 1.21 + 0.003) ) | round(3) }}
+        - name: "Current price for electricity usage"     # Incl. BTW
+          unique_id: current_price_for_electricity_usage
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {% set energy_tax_included_in_price = is_state('binary_sensor.energy_tax_included_this_year', 'on') %}
+            {% if energy_tax_included_in_price %}
+              {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0)) | round(3) }}
+            {% else %}
+              {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (0.12599 * 1.21)) | round(3) }}
+            {% endif %}
         - name: "Average electricity price today"
           unique_id: average_electricity_price_today
           unit_of_measurement: €/kWh
