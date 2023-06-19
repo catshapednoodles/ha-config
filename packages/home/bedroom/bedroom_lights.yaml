@@ -3,7 +3,7 @@ bedroom_lights_package:
   - name: "Bedroom"
     lights:
       - light.bedroom_ceiling
-    min_brightness: 30
+    min_brightness: 25
     max_brightness: 80
     autoreset_control_seconds: 10800
   - name: "Bedroom Headboard"
@@ -12,12 +12,6 @@ bedroom_lights_package:
     min_brightness: 40
     max_brightness: 80
     autoreset_control_seconds: 10800
-  - name: "Bedroom Closet"
-    lights:
-      - light.closet_lights
-    min_brightness: 50
-    max_brightness: 100
-    autoreset_control_seconds: 600
 
   automation:
     - alias: "Bedroom: Light switch"
@@ -117,3 +111,28 @@ bedroom_lights_package:
               entity_id:
                 - light.bed_headboard
                 - light.bedroom_ceiling
+
+    - alias: "Bedroom: Closet lights"
+      id: 34847718-3608-46af-a59f-d3f806f90c3a
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: input_boolean.someone_is_sleeping
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.someone_is_sleeping
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    brightness_pct: 30
+                  target:
+                    entity_id: light.closet_lights
+          default:
+            - service: light.turn_on
+              data:
+                brightness_pct: 100
+              target:
+                entity_id: light.closet_lights

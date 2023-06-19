@@ -7,7 +7,7 @@ bathroom_lights_package:
     min_brightness: 68
     max_brightness: 90
     autoreset_control_seconds: 3600
-    max_sunrise_time: "09:00:00"
+    sunrise_time: "09:00:00"
 
   input_boolean:
     automatic_bathroom_lights:
@@ -89,18 +89,88 @@ bathroom_lights_package:
             data: {}
             target:
               entity_id: light.bathroom_mirror
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Mirror/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Mirror/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.bathroom_mirror
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Mirror/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Mirror/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_3_pressed:
           - service: light.turn_on
             data: {}
             target:
               entity_id: light.bathroom_ceiling
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_4_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.bathroom_ceiling
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Bathroom Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.bathroom_mirror
+                - light.bathroom_ceiling
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.bathroom_mirror
+                - light.bathroom_ceiling

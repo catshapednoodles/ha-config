@@ -1,11 +1,19 @@
 game_room_lights_package:
   adaptive_lighting:
-  - name: "Game Room"
-    lights:
-      - light.game_room_ceiling
-    min_brightness: 70
-    max_brightness: 100
-    autoreset_control_seconds: 3600
+    - name: "Game Room"
+      lights:
+        - light.game_room_ceiling
+      min_brightness: 70
+      max_brightness: 100
+      autoreset_control_seconds: 3600
+
+  light:
+    - platform: group
+      name: "Game Room Ceiling"
+      entities:
+        - light.game_room_ceiling_1
+        - light.game_room_ceiling_2
+        - light.game_room_ceiling_3
 
   automation:
     - alias: "Game Room: Light switch"
