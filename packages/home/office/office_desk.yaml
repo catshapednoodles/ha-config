@@ -1,0 +1,88 @@
+office_desk_package:
+  template:
+    - binary_sensor:
+        - name: "Work laptop at desk and active"
+          unique_id: work_laptop_at_desk_and_active
+          state: >
+            {{ is_state('device_tracker.macbook_air', 'home')
+              and is_state_attr('binary_sensor.macbook_air_active', 'Screen Off', false)
+              and not(is_state('sensor.macbook_air_displays', '1')) }}
+          icon: >
+            {{ 'mdi:laptop' if this.state == 'on' else 'mdi:laptop-off' }}
+
+  automation:
+    - alias: "Office: Turn on desk devices"
+      id: d28000c0-b78a-40c6-83ca-73de09e1c81e
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          to: "off"
+          for: "00:01:00"
+      action:
+        - choose:
+            - alias: "Work at desk"
+              conditions:
+                - condition: time
+                  after: "07:50:00"
+                - condition: state
+                  entity_id: person.sicco
+                  state: "home"
+                - condition: state
+                  entity_id: binary_sensor.sicco_workday_today
+                  state: "on"
+                - condition: state
+                  entity_id: switch.office_desk
+                  state: "off"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.office_desk
+                - wait_template: "{{ is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') }}"
+                  timeout: "00:45:00"
+                - if:
+                    - "{{ not wait.completed }}"
+                  then:
+                    - service: switch.turn_off
+                      entity_id: switch.office_desk
+            - alias: "Patch Friday"
+              conditions:
+                - condition: time
+                  weekday:
+                    - fri
+                - condition: state
+                  entity_id: person.sicco
+                  state: "home"
+                - condition: state
+                  entity_id: binary_sensor.sicco_workday_today
+                  state: "on"
+                - condition: state
+                  entity_id: switch.office_desk
+                  state: "off"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.office_desk
+                - wait_template: "{{ is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') }}"
+                  timeout: "00:15:00"
+                - if:
+                    - "{{ not wait.completed }}"
+                  then:
+                    - service: switch.turn_off
+                      entity_id: switch.office_desk
+
+    - alias: "Office: Turn off desk devices"
+      id: ac1cf1a8-102d-4c43-8548-8c0e0101c3dd
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.work_laptop_at_desk_and_active
+          to: "off"
+          for: "00:00:10"
+        - platform: time
+          at: "18:00:00"
+      condition:
+        - condition: time
+          after: "16:30:00"
+        - condition: state
+          entity_id: switch.office_desk
+          state: "on"
+      action:
+        - service: switch.turn_off
+          entity_id: switch.office_desk
