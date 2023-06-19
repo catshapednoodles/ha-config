@@ -45,7 +45,7 @@ inverter_package:
               target:
                 entity_id: number.grid_export_limit
 
-    - alias: "Inverter: Notify"
+    - alias: "Inverter: Send notification when inverter has output limit without reason"
       id: c2135a93-eb01-45cb-bc59-7a714db4bce2
       trigger:
         - platform: numeric_state
@@ -63,8 +63,24 @@ inverter_package:
         - service: notify.sicco_phone
           data:
             title: "Inverter output limit"
-            message: "Limit has been below 100 for 10 minutes, please check the inverter settings"
+            message: "Limit has been limited for 10 minutes without reason, please check the inverter settings"
             data:
               channel: "Energy"
               importance: high
-              notification_icon: "mdi:reminder"
+              notification_icon: "mdi:alert"
+
+    - alias: "Inverter: Send notification when inverter has error"
+      id: b88d2f7a-8e5d-4887-b1db-473e47d21359
+      trigger:
+        - platform: state
+          entity_id: sensor.work_mode
+          to: "Error"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Inverter error"
+            message: "Inverter has thrown an error. Check if there's anything wrong"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:alert"
