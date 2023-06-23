@@ -1,0 +1,267 @@
+sleep_package:
+  input_boolean:
+    sleep_mode:
+      name: Sleep mode
+      icon: mdi:bed-king
+    someone_is_sleeping:
+      name: Someone is sleeping
+      icon: mdi:bed
+    sicco_is_sleeping:
+      name: Sicco is sleeping
+      icon: mdi:sleep
+
+  template:
+    - binary_sensor:
+        - name: "Ellen is sleeping"
+          unique_id: ellen_is_sleeping
+          state: >
+            {{ is_state("binary_sensor.pixel_6a_ellen_is_charging", "on")
+              and is_state("person.ellen", "home")
+              and (now().hour > 21 or now().hour < 7 ) }}
+
+  script:
+    handle_turn_off_someone_is_sleeping:
+      alias: Handle turn off 'someone is sleeping'
+      sequence:
+        choose:
+        - conditions:
+          - condition: state
+            entity_id: binary_sensor.ellen_is_sleeping
+            state: 'on'
+          - condition: state
+            entity_id: person.ellen
+            state: home
+          - condition: state
+            entity_id: binary_sensor.sicco_workday_today
+            state: 'on'
+          sequence:
+          - wait_for_trigger:
+              platform: state
+              entity_id: binary_sensor.ellen_is_sleeping
+              from: 'on'
+              to: 'off'
+            timeout: 01:30:00
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.someone_is_sleeping
+        - conditions:
+          - or:
+            - condition: time
+              after: '23:30:00'
+            - condition: time
+              before: 05:00:00
+          sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.someone_is_sleeping
+          - delay: 01:00:00
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.someone_is_sleeping
+        default:
+        - service: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.someone_is_sleeping
+      mode: restart
+
+  automation:
+    - alias: "Sleep: sleep mode turned on"
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+          to: "on"
+      action:
+        - service: switch.turn_on
+          target:
+            entity_id:
+              - switch.adaptive_lighting_sleep_mode_bathroom
+        - service: light.turn_off
+          data:
+            entity_id:
+              - light.inside_lights
+              - light.game_room
+              - light.ellens_room_cotton_ball_string
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.someone_is_sleeping
+    #     - service: switch.turn_off
+    #       entity_id: switch.window_lights
+    #     - service: switch.turn_off
+    #       entity_id: switch.game_room_desk
+    #     - service: switch.turn_on
+    #       target:
+    #         entity_id:
+    #           - switch.adaptive_lighting_sleep_mode_default
+    #           - switch.adaptive_lighting_sleep_mode_living_room
+    #           - switch.adaptive_lighting_sleep_mode_hallway
+    #           - switch.adaptive_lighting_sleep_mode_entryway
+    #     - service: input_boolean.turn_off
+    #       target:
+    #         entity_id:
+    #           - input_boolean.automatic_office_lights
+    #           - input_boolean.automatic_game_room_lights
+    #           - input_boolean.automatic_living_room_lights
+    #           - input_boolean.automatic_attic_lights
+    #           - input_boolean.automatic_ellens_room_lights
+    #     - service: switch.turn_off
+    #       entity_id: switch.galaxy_tab_a_2016_motion_detection
+    #     - service: input_select.select_option
+    #       target:
+    #         entity_id: input_select.lightstrip_active_scene
+    #       data:
+    #         option: none
+    #     - delay: "00:00:10"
+    #     - service: light.turn_off
+    #       data:
+    #         entity_id: all
+    #     - delay: "00:00:05"
+    #     - service: switch.turn_off
+    #       entity_id: switch.window_lights
+    #     - service: switch.turn_off
+    #       entity_id: switch.game_room_desk
+
+    - alias: "Sleep: sleep mode turned off"
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+          to: "off"
+      action:
+        - service: switch.turn_off
+          target:
+            entity_id:
+              - switch.adaptive_lighting_sleep_mode_bathroom
+    #     - service: input_boolean.turn_on
+    #       target:
+    #         entity_id:
+    #           - input_boolean.automatic_office_lights
+    #           - input_boolean.automatic_game_room_lights
+    #           - input_boolean.automatic_kitchen_lights
+    #           - input_boolean.automatic_living_room_lights
+    #           - input_boolean.automatic_attic_lights
+    #           - input_boolean.automatic_ellens_room_lights
+    #           - input_boolean.automatic_hallway_lights
+
+    - alias: "Sleep: Turn off sleep mode - Automatic"
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+          to: "off"
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.sleep_mode
+        # - service: input_boolean.turn_on
+        #   target:
+        #     entity_id:
+        #       - input_boolean.automatic_bedroom_lights
+        #       - input_boolean.automatic_office_lights
+        #       - input_boolean.automatic_game_room_lights
+        #       - input_boolean.automatic_kitchen_lights
+        #       - input_boolean.automatic_living_room_lights
+        #       - input_boolean.automatic_attic_lights
+        #       - input_boolean.automatic_ellens_room_lights
+        #       - input_boolean.automatic_hallway_lights
+
+    - alias: "Sleep: Set someone is sleeping"
+      trigger:
+        platform: state
+        entity_id: binary_sensor.ellen_is_sleeping
+        to: "on"
+        for: "01:00:00"
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.someone_is_sleeping
+
+    - alias: "Sleep: Turn off someone is sleeping"
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.ellen_is_sleeping
+          to: "off"
+        - platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          to: "off"
+      condition:
+        - condition: state
+          entity_id: binary_sensor.ellen_is_sleeping
+          state: "off"
+        - condition: state
+          entity_id: input_boolean.sicco_is_sleeping
+          state: "off"
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.someone_is_sleeping
+
+    - alias: "Sleep: Turn off sleep mode"
+      trigger:
+      - platform: time
+        at: "06:20:00"
+      - platform: state
+        entity_id: binary_sensor.ellen_is_sleeping
+        to: "off"
+        for: "00:00:10"
+      condition:
+      - condition: time
+        after: "05:00:00"
+        before: "07:00:00"
+      action:
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.sleep_mode
+
+    - alias: "Sleep: Toggle from Sleep As Android webhook"
+      trigger:
+        - platform: webhook
+          webhook_id: !secret sleep_as_android_webhook
+          allowed_methods:
+            - POST
+          local_only: true
+      condition:
+        - condition: state
+          entity_id: person.sicco
+          state: home
+      action:
+        choose:
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_started' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sleep_mode
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_resumed' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sleep_mode
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_stopped' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sleep_mode
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+              - service: script.turn_on
+                entity_id: script.handle_turn_off_someone_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_paused' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sleep_mode
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'alarm_alert_dismiss' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sleep_mode
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+              - service: script.turn_on
+                entity_id: script.handle_turn_off_someone_is_sleeping
+              # - service: script.turn_on
+              #   entity_id: script.good_morning
+      mode: restart
