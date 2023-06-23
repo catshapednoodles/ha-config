@@ -6,3 +6,28 @@ central_heating_package:
       filter_type: triangle
       normalize: max_min
 # https://gathering.tweakers.net/forum/list_message/73381860#73381860
+
+  automation:
+    - alias: "Notification: High dew point detected"
+      id: b7d58d60-1f96-4006-95b1-76309ef694d7
+      trigger:
+        - platform: numeric_state
+          entity_id:
+            - sensor.bedroom_dew_point
+            - sensor.ellen_s_room_dew_point
+            - sensor.kitchen_dew_point
+            - sensor.living_room_dew_point
+            - sensor.office_dew_point
+          above: 16
+          for:
+            minutes: 10
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "High dew point detected"
+            message: "{{ trigger.to_state.name }} is above 16°C. Raise water temperature if necessary."
+            data:
+              tag: climate_dew_point
+              channel: "Climate"
+              importance: max
+              notification_icon: "mdi:waves-arrow-up"
