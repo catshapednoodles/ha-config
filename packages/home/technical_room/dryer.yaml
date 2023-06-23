@@ -328,7 +328,7 @@ dryer_package:
       id: 55a391ab-2cdc-4c37-9408-28e9ce2eb3ef
       trigger:
         platform: state
-        entity_id: binary_sensor.dryer_done_and_wrinkleguard_active
+        entity_id: binary_sensor.dryer_done
         to: "on"
       action:
         - if:

@@ -5,6 +5,11 @@ dishwasher_package:
       icon: mdi:dishwasher
 
   input_number:
+    dishwasher_kwh_counter:
+      name: Dishwasher kWh counter
+      min: 0
+      max: 15
+      step: 0.01
     dishwasher_max_waiting_hours:
       name: Dishwasher maximum waiting time
       icon: mdi:clock-edit
@@ -12,6 +17,16 @@ dishwasher_package:
       max: 24
       mode: slider
       unit_of_measurement: hr(s)
+
+  input_text:
+    dishwasher:
+      name: Dishwasher
+      icon: mdi:dishwasher
+      max: 255
+    dishwasher_pattern:
+      name: Dishwasher pattern
+      icon: mdi:dishwasher
+      max: 255
 
   utility_meter:
     dishwasher_current_consumption:
@@ -25,28 +40,6 @@ dishwasher_package:
             {{ is_state('sensor.403010387033006572_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Finished') }}
     
     - sensor:
-        - name: "Dishwasher best starting time"
-          icon: mdi:clock-start
-          device_class: timestamp
-          availability: "{{ true }}"
-          state: >
-              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
-              {% set time = sorted_list[0].start | as_datetime %}
-              {{ time }}
-          attributes:
-            lowest_costs: >
-              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
-              {{ sorted_list[0].costs }}
-            costs_now: >
-              {% set kwh_pattern = state_attr('sensor.dishwasher_energy_usage_pattern', states('sensor.dishwasher_energy_usage_pattern'))%}
-              {% set resolution_in_minutes = 5 %}
-              {% set ns = namespace(costs=0, time=now()) %}
-              {% for kwh in kwh_pattern %}
-                {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
-                {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
-                {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
-              {% endfor %}
-              {{ ns.costs | round(5)}}
         - name: "Dishwasher energy usage pattern"
           icon: mdi:dishwasher
           state: >-
@@ -66,9 +59,25 @@ dishwasher_package:
           attributes:
             default: "{{ this.attributes.eco }}"
             auto: >
-              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0,] }}
             eco: >
               {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.dishwasher_best_starting_time_list
+      sensor:
+        - name: "Dishwasher best starting time"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {% set time = sorted_list[0].start | as_datetime %}
+              {{ time if time > now() else now() + timedelta(seconds=5) }}
+          attributes:
+            lowest_costs: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {{ sorted_list[0].costs }}
 
     - trigger:
         - platform: state
@@ -99,7 +108,7 @@ dishwasher_package:
               {% endif %}
               {% set list = namespace(expected_costs=[], time=start_time) %}
               {# Calculating for next x hours #}
-              {% set amount_of_calculations = states('input_number.dishwasher_max_waiting_hours') | int(12) * (60 // resolution_in_minutes) + 1 %}
+              {% set amount_of_calculations = states('input_number.dishwasher_max_waiting_hours') | int(18) * (60 // resolution_in_minutes) + 1 %}
               {% for _ in range(0, amount_of_calculations) %}
                 {% set time_loop = list.time %}
                 {% set only_today = (time_loop + total_run_time).day == start_time.day %}
@@ -181,8 +190,8 @@ dishwasher_package:
           repeat:
             while:
               - condition: state
-                entity_id: input_boolean.dishwasher_job_cycle
-                state: "on"
+                entity_id: sensor.403010387033006572_bsh_common_status_operationstate
+                state: "BSH.Common.EnumType.OperationState.Run"
               # Don't do it too many times
               - condition: template
                 value_template: "{{ repeat.index <= 50 }}"
@@ -200,7 +209,7 @@ dishwasher_package:
                   entity_id: input_number.dishwasher_kwh_counter
                 data:
                   value: "{{ states('sensor.dishwasher_current_consumption')}}"
-        - service: notify.mobile_app_pixel_6a
+        - service: notify.sicco_phone
           data:
             title: Consumption recorded
             message: >
@@ -249,6 +258,17 @@ dishwasher_package:
           timeout: "00:10:00"
           continue_on_timeout: true
         - service: input_boolean.turn_on
+          entity_id: input_boolean.dishwasher_ready_to_start
+
+    - alias: "Dishwasher: Turn off ready to start"
+      id: 5aa7a8d5-9416-42f8-ae00-accb439a70d1
+      trigger:
+        - platform: state
+          entity_id: sensor.403010387033006572_bsh_common_status_operationstate
+          to: "BSH.Common.EnumType.OperationState.Run"
+          for: "00:05:00"
+      action:
+        - service: input_boolean.turn_off
           entity_id: input_boolean.dishwasher_ready_to_start
 
     - alias: "Utilities: Copy Dishwasher values"
