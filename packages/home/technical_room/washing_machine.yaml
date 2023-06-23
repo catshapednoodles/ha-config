@@ -11,16 +11,6 @@ washing_machine_package:
       name: Washing Machine - Automation Self-trigger
       icon: mdi:washing-machine
 
-  input_datetime:
-    washing_machine_started:
-      name: Washing machine last started
-      has_date: true
-      has_time: true
-    washing_machine_done:
-      name: Washing machine last done
-      has_date: true
-      has_time: true
-
   input_number:
     washing_machine_kwh_counter:
       name: Washing machine kWh counter
@@ -68,6 +58,10 @@ washing_machine_package:
       duration: "00:15:00" # <- Note that the time here. Leave as it is (15 min)
       restore: true
       icon: mdi:washing-machine
+
+  utility_meter:
+    washing_machine_current_consumption:
+      source: sensor.washing_machine_energy
 
   template:
     - sensor:
@@ -157,20 +151,12 @@ washing_machine_package:
       mode: single
       icon: mdi:washing-machine
       sequence:
-        - service: input_datetime.set_datetime
-          entity_id: input_datetime.washing_machine_started
-          data_template:
-            datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
-        - service: utility_meter.calibrate
-          data:
-            entity_id: sensor.washing_machine_current_consumption
-            value: 0
-        - service: notify.mobile_app_pixel_6a
+        - service: notify.sicco_phone
           data:
             message: clear_notification
             data:
               tag: washing_machine
-        - service: notify.mobile_app_pixel_6a_ellen
+        - service: notify.ellen_phone
           data:
             message: clear_notification
             data:
@@ -190,7 +176,7 @@ washing_machine_package:
             entity_id: person.sicco
             state: home
           then:
-          - service: notify.mobile_app_pixel_6a
+          - service: notify.sicco_phone
             data:
               title: Utilities
               message: Washing machine is done!
@@ -204,7 +190,7 @@ washing_machine_package:
             entity_id: person.ellen
             state: home
           then:
-          - service: notify.mobile_app_pixel_6a_ellen
+          - service: notify.ellen_phone
             data:
               title: Utilities
               message: Washing machine is done!
@@ -219,6 +205,10 @@ washing_machine_package:
       mode: single
       icon: mdi:record-rec
       sequence:
+        - service: utility_meter.calibrate
+          data:
+            entity_id: sensor.washing_machine_current_consumption
+            value: 0
         - service: input_text.set_value
           target:
             entity_id: input_text.washing_machine
@@ -252,7 +242,7 @@ washing_machine_package:
                   entity_id: input_number.washing_machine_kwh_counter
                 data:
                   value: "{{ states('sensor.washing_machine_current_consumption')}}"
-        - service: notify.mobile_app_pixel_6a
+        - service: notify.sicco_phone
           data:
             title: Consumption recorded
             message: >
@@ -295,3 +285,28 @@ washing_machine_package:
           data:
             value: >
               {{ states('input_text.washing_machine') }}
+
+    - alias: 'Washing machine: Status monitor'
+      id: 8ffbb780-8d85-47d3-a5b1-849c39f53024
+      description: ''
+      use_blueprint:
+        path: leofabri/appliance-status-monitor.yaml
+        input:
+          appliance_socket: switch.washing_machine
+          appliance_power_sensor: sensor.washing_machine_power
+          appliance_state_machine: input_select.washing_machine_state_machine
+          appliance_job_cycle: input_boolean.washing_machine_job_cycle
+          delayed_job_completion_timer: timer.washing_machine_delayed_job_completion_timer
+          automation_self_trigger: input_boolean.washing_machine_automation_self_trigger
+          actions_new_job_cycle_begins:
+          - service: script.turn_on
+            data: {}
+            target:
+              entity_id:
+              - script.washing_machine_started
+              - script.washing_machine_record_consumption
+          actions_job_cycle_ends:
+          - service: script.turn_on
+            data: {}
+            target:
+              entity_id: script.washing_machine_is_done
