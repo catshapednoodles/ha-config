@@ -7,6 +7,12 @@ living_room_lights_package:
     min_brightness: 55
     max_brightness: 100
     autoreset_control_seconds: 10800
+    detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_living_room_lights:
+      name: Automatic living room lights
+      icon: mdi:lightbulb-auto
 
   automation:
     - alias: "Living Room: Light switch"

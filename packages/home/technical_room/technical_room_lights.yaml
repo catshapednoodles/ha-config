@@ -1,0 +1,63 @@
+technical_room_lights_package:
+  input_boolean:
+    automatic_technical_room_lights:
+      name: Automatic technical room lights
+      icon: mdi:lightbulb-auto
+
+  input_number:
+    technical_room_lights_time_on:
+      name: Technical room lights time on
+      icon: mdi:clock-start
+      initial: 1
+      min: 1
+      max: 30
+      mode: box
+
+  template:
+    - binary_sensor:
+        - name: "Activity in Technical Room"
+          unique_id: activity_in_technical_room
+          state: >
+            {{ is_state("binary_sensor.technical_room_motion_sensor_occupancy", "on") }}
+
+  automation:
+    - alias: "Technical Room: Toggle lights on motion"
+      id: 85d60cc8-1894-4e8d-9c77-a90ce393c0f3
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_technical_room
+          from: "off"
+          to: "on"
+          id: activity
+        - platform: state
+          entity_id: binary_sensor.activity_in_technical_room
+          from: "on"
+          to: "off"
+          for:
+            minutes: "{{ states('input_number.technical_room_lights_time_on')|int(1) }}"
+          id: no_activity
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_technical_room_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity
+            - conditions:
+                - condition: trigger
+                  id: activity
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id:
+                      - light.technical_room_light
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: trigger
+                  id: no_activity
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.technical_room_light

@@ -6,12 +6,19 @@ bedroom_lights_package:
     min_brightness: 25
     max_brightness: 80
     autoreset_control_seconds: 10800
+    detect_non_ha_changes: true
   - name: "Bedroom Headboard"
     lights:
       - light.bed_headboard
     min_brightness: 40
     max_brightness: 80
     autoreset_control_seconds: 10800
+    detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_bedroom_lights:
+      name: Automatic bedroom lights
+      icon: mdi:lightbulb-auto
 
   automation:
     - alias: "Bedroom: Light switch"

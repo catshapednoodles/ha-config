@@ -1,11 +1,17 @@
 ellens_room_lights_package:
   adaptive_lighting:
-  - name: "Ellen's Room"
-    lights:
-      - light.ellens_room_main
-    min_brightness: 70
-    max_brightness: 100
-    autoreset_control_seconds: 3600
+    - name: "Ellen's Room"
+      lights:
+        - light.ellens_room_main
+      min_brightness: 70
+      max_brightness: 100
+      autoreset_control_seconds: 10800
+      detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_ellens_room_lights:
+      name: Automatic Ellen's Room lights
+      icon: mdi:lightbulb-auto
 
   automation:
     - alias: "Ellen's Room: Light switch"
@@ -20,8 +26,94 @@ ellens_room_lights_package:
             data: {}
             target:
               entity_id: light.ellens_room_main
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Main/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Main/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.ellens_room_main
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Main/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Main/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: 
+                - light.ellens_room_shelf
+                - light.ellens_room_cotton_ball_string
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Shelf/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Shelf/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: 
+                - light.ellens_room_shelf
+                - light.ellens_room_cotton_ball_string
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Shelf/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ellens Room Shelf/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.ellens_room_main
+                - light.ellens_room_shelf
+                - light.ellens_room_cotton_ball_string
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.ellens_room_main
+                - light.ellens_room_shelf
+                - light.ellens_room_cotton_ball_string

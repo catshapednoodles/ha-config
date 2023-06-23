@@ -6,6 +6,12 @@ front_door_lights_package:
     min_brightness: 40
     max_brightness: 100
     autoreset_control_seconds: 1800
+    detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_front_door_lights:
+      name: Automatic front door lights
+      icon: mdi:lightbulb-auto
 
   template:
     - binary_sensor:
