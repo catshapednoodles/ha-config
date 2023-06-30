@@ -22,11 +22,21 @@ office_lights_package:
         input:
           controller: Office Switch
           button_1_pressed:
+          - service: switch.turn_on
+            data: {}
+            target:
+              entity_id: switch.office_desk
+          button_2_pressed:
+          - service: switch.turn_off
+            data: {}
+            target:
+              entity_id: switch.office_desk
+          button_3_pressed:
           - service: light.turn_on
             data: {}
             target:
               entity_id: light.office_ceiling
-          button_2_pressed:
+          button_4_pressed:
           - service: light.turn_off
             data: {}
             target:

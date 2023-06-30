@@ -27,18 +27,88 @@ living_room_lights_package:
             data: {}
             target:
               entity_id: light.living_room_ceiling
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.living_room_ceiling
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_3_pressed:
           - service: light.turn_on
             data: {}
             target:
               entity_id: light.living_room_corner
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Corner/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Corner/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_4_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.living_room_corner
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Corner/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Living Room Corner/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.living_room_ceiling
+                - light.living_room_corner
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.living_room_ceiling
+                - light.living_room_corner
