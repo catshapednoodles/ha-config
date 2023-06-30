@@ -1,0 +1,24 @@
+living_room_media_players_package:
+  media_player:
+    - platform: yamaha
+      host: !secret yamaha_receiver_host
+      source_names:
+        HDMI1: NVIDIA Shield TV
+        HDMI2: Nintendo Switch
+        AUDIO1: TV
+      source_ignore:
+        - "AUDIO2"
+        - "AUDIO3"
+        - "AUX"
+        - "AV1"
+        - "AV2"
+        - "AV3"
+        - "Alexa"
+        - "Amazon Music"
+        - "Deezer"
+        - "MusicCast Link"
+        - "NET RADIO"
+        - "Napster"
+        - "Qobuz"
+        - "TIDAL"
+        - "TUNER"
