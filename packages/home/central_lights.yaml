@@ -7,3 +7,18 @@ central_lights_package:
             {% set cutoff = 6 if states('weather.combined_daily') in ['cloudy', 'fog', 'hail', 'lightning', 'lightning-rainy', 'pouring', 'rainy', 'snowy', 'snowy-rainy'] else 4 %}
             {{ state_attr('sun.sun', 'elevation') < cutoff }}
           icon: "mdi:weather-sunset"
+
+  automation:
+    - alias: "Light: Turn off all lights when we leave the house"
+      trigger:
+      - platform: state
+        entity_id: zone.home
+        to: "0"
+      condition:
+      - condition: state
+        entity_id: input_boolean.guest_mode
+        state: "off"
+      action:
+      - service: light.turn_off
+        data:
+          entity_id: light.inside_lights

@@ -27,3 +27,7 @@ energy_monitoring_package:
       create_group: All lights
       include:
         domain: light
+      entities:
+        - entity_id: switch.ellens_room_cotton_ball_string
+          power_sensor_id: sensor.ellens_room_cotton_ball_string_power
+          energy_sensor_id: sensor.ellens_room_cotton_ball_string_energy
