@@ -1,33 +1,65 @@
 energy_monitoring_package:
   powercalc:
     enable_autodiscovery: false
-
-  sensor:
-    - platform: powercalc
-      entity_id: sensor.dummy
-      name: Home Assistant NUC
-      fixed:
-        power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
-    - platform: powercalc
-      create_group: Network devices
-      entities:
-        - entity_id: device_tracker.dream_machine_special_edition  # UDM-SE
-          fixed:
-            power: "{{ states('sensor.dream_machine_special_edition_cpu_utilization') | float(0) * 0.06 + 39.5 }}"
-        - entity_id: device_tracker.usw_16_poe  # USW-16-PoE
-          fixed:
-            power: 9.6
-        - entity_id: device_tracker.u6_iw   # In-Wall Begane Grond
-          power_sensor_id: sensor.usw_16_poe_port_7_poe_power
-        - entity_id: device_tracker.u6iw    # In-Wall Eerste verdieping
-          power_sensor_id: sensor.usw_16_poe_port_6_poe_power
-        - entity_id: device_tracker.u6iw_2  # In-Wall Tweede verdieping
-          power_sensor_id: sensor.usw_16_poe_port_2_poe_power
-    - platform: powercalc
-      create_group: All lights
-      include:
-        domain: light
-      entities:
-        - entity_id: switch.ellens_room_cotton_ball_string
-          power_sensor_id: sensor.ellens_room_cotton_ball_string_power
-          energy_sensor_id: sensor.ellens_room_cotton_ball_string_energy
+    sensors:
+      - entity_id: sensor.dummy
+        name: Home Assistant NUC
+        fixed:
+          power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
+      - create_group: Network devices
+        entities:
+          - entity_id: device_tracker.dream_machine_special_edition  # UDM-SE
+            fixed:
+              power: "{{ states('sensor.dream_machine_special_edition_cpu_utilization') | float(0) * 0.06 + 39.5 }}"
+          - entity_id: device_tracker.usw_16_poe  # USW-16-PoE
+            fixed:
+              power: 9.6
+          - entity_id: device_tracker.usl8lp  # Switch Lite 8
+            fixed:
+              power: 4.4
+          - entity_id: device_tracker.u6_iw   # In-Wall Begane Grond
+            power_sensor_id: sensor.usw_16_poe_port_7_poe_power
+          - entity_id: device_tracker.u6iw    # In-Wall Eerste verdieping
+            power_sensor_id: sensor.usw_16_poe_port_6_poe_power
+          - entity_id: device_tracker.u6iw_2  # In-Wall Tweede verdieping
+            power_sensor_id: sensor.usw_16_poe_port_2_poe_power
+      - create_group: All lights
+        entities:
+          - entity_id: light.backyard_light
+          - entity_id: light.bathroom_ceiling_1
+          - entity_id: light.bathroom_ceiling_2
+          - entity_id: light.bathroom_ceiling_3
+          - entity_id: light.bathroom_mirror
+          - entity_id: light.bedroom_ceiling
+          - entity_id: light.bed_headboard
+          - entity_id: switch.ellens_room_cotton_ball_string
+            power_sensor_id: sensor.ellens_room_cotton_ball_string_power
+            energy_sensor_id: sensor.ellens_room_cotton_ball_string_energy
+          - entity_id: light.ellens_room_main_1
+          - entity_id: light.ellens_room_main_2
+          - entity_id: light.ellens_room_reading_lamp
+          - entity_id: light.ellens_room_shelf
+          - entity_id: light.entryway_ceiling
+          - entity_id: light.front_door_1
+          - entity_id: light.front_door_2
+          - entity_id: light.game_room_monitor
+          - entity_id: light.game_room_play_bar_2
+          - entity_id: light.game_room_ceiling_1
+          - entity_id: light.game_room_ceiling_2
+          - entity_id: light.game_room_ceiling_3
+          - entity_id: light.game_room_play_bar
+          - entity_id: light.hallway_ceiling
+          - entity_id: light.kitchen_ceiling_1
+          - entity_id: light.kitchen_ceiling_2
+          - entity_id: light.kitchen_ceiling_3
+          - entity_id: light.kitchen_ceiling_4
+          - entity_id: light.kitchen_dining_light
+          - entity_id: light.living_room_ceiling_1
+          - entity_id: light.living_room_ceiling_2
+          - entity_id: light.living_room_ceiling_3
+          - entity_id: light.living_room_corner_1
+          - entity_id: light.living_room_corner_2
+          - entity_id: light.office_ceiling_1
+          - entity_id: light.office_ceiling_2
+          - entity_id: light.office_ceiling_3
+          - entity_id: light.technical_room_light
