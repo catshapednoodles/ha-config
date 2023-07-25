@@ -1,0 +1,47 @@
+pikachu_containers_package:
+  group:
+    pikachu_containers:
+      name: Pikachu Containers
+      icon: mdi:server
+      entities:
+        - switch.pikachu_docker_actualserver
+        - switch.pikachu_docker_bazarr
+        - switch.pikachu_docker_bookstack
+        - switch.pikachu_docker_embyserver
+        - switch.pikachu_docker_gotenberg
+        - switch.pikachu_docker_mariadb_bookstack
+        - switch.pikachu_docker_ombi
+        - switch.pikachu_docker_paperless_ng
+        - switch.pikachu_docker_tika
+
+  automation:
+    - alias: "Pikachu: Turn off containers during the night"
+      id: e78ab591-2fdf-4333-b4a7-1cef9fddb3bb
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+          from: "off"
+          to: "on"
+          id: turn_off
+        - platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          from: "on"
+          to: "off"
+          id: turn_on
+        - platform: time
+          at: "10:00:00"
+          id: turn_on
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: turn_off
+              sequence:
+                - service: switch.turn_off
+                  entity_id: group.pikachu_containers
+            - conditions:
+                - condition: trigger
+                  id: turn_on
+              sequence:
+                - service: switch.turn_on
+                  entity_id: group.pikachu_containers

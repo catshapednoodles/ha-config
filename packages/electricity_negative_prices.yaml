@@ -1,4 +1,9 @@
 electricity_negative_price_package:
+  input_boolean:
+    office_desk_turned_on_by_negative_hour:
+      name: Office desk turned on by negative hour
+      icon: mdi:lightning-bolt-circle
+
   template:
     - binary_sensor:
         - name: "Negative electricity price this hour"
@@ -63,3 +68,35 @@ electricity_negative_price_package:
               channel: "Energy"
               importance: high
               notification_icon: "mdi:home-lightning-bolt"
+
+    - alias: "Energy: Use office desk during hours with negative electricity prices"
+      id: 918fc7fa-7d52-46c0-be05-c405d7511952
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
+                - condition: state
+                  entity_id: switch.office_desk
+                  state: "off"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.office_desk
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.office_desk_turned_on_by_negative_hour
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "off"
+                - condition: state
+                  entity_id: input_boolean.office_desk_turned_on_by_negative_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_off
+                  entity_id: switch.office_desk
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.office_desk_turned_on_by_negative_hour

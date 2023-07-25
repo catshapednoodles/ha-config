@@ -7,6 +7,12 @@ inverter_package:
             {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.04 }}
           availability: >
             {{ states('sensor.current_price_for_electricity_return') | is_number }}
+        - name: "Electricity market price low"
+          unique_id: electricity_market_price_low
+          state: >
+            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.015 }}
+          availability: >
+            {{ states('sensor.current_price_for_electricity_return') | is_number }}
         - name: "Electricity market price below zero"
           unique_id: electricity_market_price_below_zero
           state: >
@@ -25,6 +31,9 @@ inverter_package:
           entity_id: binary_sensor.electricity_market_price_too_low
         - platform: state
           entity_id: binary_sensor.electricity_market_price_below_zero
+        - platform: state
+          entity_id: sensor.work_mode
+          to: "Normal"
       action:
         - choose:
             - conditions:
@@ -34,7 +43,7 @@ inverter_package:
               sequence:
                 - service: number.set_value
                   data:
-                    value: "1"
+                    value: "0"
                   target:
                     entity_id: number.grid_export_limit
             - conditions:
@@ -49,12 +58,22 @@ inverter_package:
                     entity_id: number.grid_export_limit
             - conditions:
                 - condition: state
+                  entity_id: binary_sensor.electricity_market_price_low
+                  state: "on"
+              sequence:
+                - service: number.set_value
+                  data:
+                    value: "40"
+                  target:
+                    entity_id: number.grid_export_limit
+            - conditions:
+                - condition: state
                   entity_id: binary_sensor.electricity_market_price_below_zero
                   state: "on"
               sequence:
                 - service: number.set_value
                   data:
-                    value: "50"
+                    value: "80"
                   target:
                     entity_id: number.grid_export_limit
           default:
