@@ -135,8 +135,9 @@ kitchen_lights_package:
                       - light.kitchen_lights
                 - service: input_boolean.turn_off
                   entity_id: input_boolean.kitchen_lights_turned_on_when_dark
+
     - alias: "Kitchen: Light switch"
-      id: 5398bc09-488c-473c-8607-ee421af56a23
+      id: 947a622d-6633-466c-9b7b-cb33be191089
       description: ''
       use_blueprint:
         path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
@@ -146,14 +147,81 @@ kitchen_lights_package:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.kitchen_ceiling
+              entity_id: light.kitchen_dining_light
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Dining Light/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Dining Light/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
+              entity_id: light.kitchen_dining_light
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Dining Light/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Dining Light/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
               entity_id: light.kitchen_ceiling
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.kitchen_ceiling
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+
     - alias: "Kitchen: Light switch 2"
-      id: 947a622d-6633-466c-9b7b-cb33be191089
+      id: 5398bc09-488c-473c-8607-ee421af56a23
       description: ''
       use_blueprint:
         path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
@@ -164,8 +232,36 @@ kitchen_lights_package:
             data: {}
             target:
               entity_id: light.kitchen_ceiling
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.kitchen_ceiling
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Kitchen Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false

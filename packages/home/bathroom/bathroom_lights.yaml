@@ -10,10 +10,20 @@ bathroom_lights_package:
     detect_non_ha_changes: true
     sunrise_time: "09:00:00"
 
+  binary_sensor:
+    - platform: threshold
+      name: Bathroom is dark
+      entity_id: sensor.bathroom_motion_sensor_illuminance_lux
+      lower: 45
+      hysteresis: 15
+
   input_boolean:
     automatic_bathroom_lights:
       name: Automatic bathroom lights
       icon: mdi:lightbulb-auto
+    bathroom_lights_manually_switched_on:
+      name: Bathroom lights manually switched on
+      icon: mdi:light-switch
 
   input_number:
     bathroom_lights_time_on:
@@ -38,29 +48,38 @@ bathroom_lights_package:
       trigger:
         - platform: state
           entity_id: binary_sensor.activity_in_bathroom
-          from: "off"
-          to: "on"
-          id: activity
         - platform: state
           entity_id: binary_sensor.activity_in_bathroom
-          from: "on"
           to: "off"
           for:
-            minutes: "{{ states('input_number.bathroom_lights_time_on')|int(1) }}"
-          id: no_activity
+            minutes: >
+              {% set extra_time = 30 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
+              {{ states('input_number.bathroom_lights_time_on')|int(1) + extra_time }}
+        - platform: state
+          entity_id: binary_sensor.bathroom_is_dark
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+        - platform: state
+          entity_id: input_boolean.automatic_bathroom_lights
+          to: "on"
       condition:
         - condition: state
           entity_id: input_boolean.automatic_bathroom_lights
           state: "on"
       action:
         - choose:
-            # Turn on light if there's activity and sun is low
+            # Turn on light if there's activity and sun is low or it is dark
             - conditions:
-                - condition: trigger
-                  id: activity
                 - condition: state
-                  entity_id: binary_sensor.sun_low_elevation
+                  entity_id: binary_sensor.activity_in_bathroom
                   state: "on"
+                - or:
+                  - condition: state
+                    entity_id: binary_sensor.sun_low_elevation
+                    state: "on"
+                  - condition: state
+                    entity_id: binary_sensor.bathroom_is_dark
+                    state: "on"
               sequence:
                 - service: light.turn_on
                   data:
@@ -69,8 +88,26 @@ bathroom_lights_package:
                       - light.bathroom_mirror
             # Turn off lights when there's no activity
             - conditions:
-                - condition: trigger
-                  id: no_activity
+                - condition: state
+                  entity_id: binary_sensor.activity_in_bathroom
+                  state: "off"
+                  for:
+                    minutes: >
+                      {% set extra_time = 30 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
+                      {{ states('input_number.bathroom_lights_time_on')|int(1) + extra_time }}
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.bathroom_ceiling
+                      - light.bathroom_mirror
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.bathroom_is_dark
+                  state: "off"
               sequence:
                 - service: light.turn_off
                   data:
@@ -86,10 +123,12 @@ bathroom_lights_package:
         input:
           controller: Bathroom Switch
           button_1_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.bathroom_mirror
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.bathroom_mirror
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_1_held:
             - service: mqtt.publish
               data:
@@ -97,6 +136,8 @@ bathroom_lights_package:
                 payload: "{\"brightness_move_onoff\": 51}"
                 qos: 0
                 retain: false
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_1_released:
             - service: mqtt.publish
               data:
@@ -105,10 +146,12 @@ bathroom_lights_package:
                 qos: 0
                 retain: false
           button_2_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.bathroom_mirror
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.bathroom_mirror
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_2_held:
             - service: mqtt.publish
               data:
@@ -124,10 +167,12 @@ bathroom_lights_package:
                 qos: 0
                 retain: false
           button_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.bathroom_ceiling
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.bathroom_ceiling
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_3_held:
             - service: mqtt.publish
               data:
@@ -135,6 +180,8 @@ bathroom_lights_package:
                 payload: "{\"brightness_move_onoff\": 51}"
                 qos: 0
                 retain: false
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_3_released:
             - service: mqtt.publish
               data:
@@ -143,10 +190,12 @@ bathroom_lights_package:
                 qos: 0
                 retain: false
           button_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.bathroom_ceiling
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.bathroom_ceiling
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_4_held:
             - service: mqtt.publish
               data:
@@ -162,16 +211,20 @@ bathroom_lights_package:
                 qos: 0
                 retain: false
           button_1_and_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id:
-                - light.bathroom_mirror
-                - light.bathroom_ceiling
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id:
+                  - light.bathroom_mirror
+                  - light.bathroom_ceiling
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.bathroom_lights_manually_switched_on
           button_2_and_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id:
-                - light.bathroom_mirror
-                - light.bathroom_ceiling
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id:
+                  - light.bathroom_mirror
+                  - light.bathroom_ceiling
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.bathroom_lights_manually_switched_on

@@ -9,10 +9,44 @@ living_room_lights_package:
     autoreset_control_seconds: 10800
     detect_non_ha_changes: true
 
+  binary_sensor:
+    - platform: threshold
+      name: Living Room is dark
+      entity_id: sensor.living_room_motion_sensor_illuminance_lux
+      lower: 40
+      hysteresis: 10
+
   input_boolean:
     automatic_living_room_lights:
       name: Automatic living room lights
       icon: mdi:lightbulb-auto
+    living_room_lights_manually_switched_on:
+      name: Living room lights manually switched on
+      icon: mdi:light-switch
+
+  input_number:
+    living_room_lights_time_on:
+      name: Living room lights time on
+      icon: mdi:clock-start
+      min: 1
+      max: 30
+      mode: box
+
+  light:
+    - platform: group
+      unique_id: 1c9797f1-17e2-4bab-96e9-8c92e2b5a903
+      name: "Living Room Ceiling"
+      entities:
+        - light.living_room_ceiling_1
+        - light.living_room_ceiling_2
+        - light.living_room_ceiling_3
+
+  template:
+    - binary_sensor:
+        - name: "Activity in living room"
+          unique_id: activity_in_living_room
+          state: >
+            {{ is_state("binary_sensor.living_room_motion_sensor_occupancy", "on") }}
 
   automation:
     - alias: "Living Room: Light switch"

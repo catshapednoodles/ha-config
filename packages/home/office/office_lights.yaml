@@ -8,12 +8,105 @@ office_lights_package:
     autoreset_control_seconds: 3600
     detect_non_ha_changes: true
 
+  binary_sensor:
+    - platform: threshold
+      name: Office is dark
+      entity_id: sensor.office_motion_sensor_illuminance_lux
+      lower: 40
+      hysteresis: 10
+
   input_boolean:
     automatic_office_lights:
       name: Automatic office lights
       icon: mdi:lightbulb-auto
+    office_lights_manually_switched_on:
+      name: Office lights manually switched on
+      icon: mdi:light-switch
+
+  input_number:
+    office_lights_time_on:
+      name: Office lights time on
+      icon: mdi:clock-start
+      min: 1
+      max: 30
+      mode: box
+
+  template:
+    - binary_sensor:
+        - name: "Activity in office"
+          unique_id: activity_in_office
+          state: >
+            {{ is_state("binary_sensor.office_motion_sensor_occupancy", "on") }}
 
   automation:
+    - alias: "Office: Toggle lights"
+      id: 760e133e-d0e3-48df-9433-ca3f9cc95671
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_office
+        - platform: state
+          entity_id: binary_sensor.activity_in_office
+          to: "off"
+          for:
+            minutes: >
+              {% set extra_time = 30 if is_state('input_boolean.office_lights_manually_switched_on', 'on') else 0 %}
+              {{ states('input_number.office_lights_time_on')|int(1) + extra_time }}
+        - platform: state
+          entity_id: binary_sensor.office_is_dark
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+        - platform: state
+          entity_id: input_boolean.automatic_office_lights
+          to: "on"
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_office_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low or it is dark
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_office
+                  state: "on"
+                - or:
+                  - condition: state
+                    entity_id: binary_sensor.sun_low_elevation
+                    state: "on"
+                  - condition: state
+                    entity_id: binary_sensor.office_is_dark
+                    state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: light.office_ceiling
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_office
+                  state: "off"
+                  for:
+                    minutes: >
+                      {% set extra_time = 30 if is_state('input_boolean.office_lights_manually_switched_on', 'on') else 0 %}
+                      {{ states('input_number.office_lights_time_on')|int(1) + extra_time }}
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: light.office_ceiling
+            # Turn off lights when it's not dark anymore
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.office_is_dark
+                  state: "off"
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: light.office_ceiling
+
     - alias: "Office: Light switch"
       id: 0ea0ffc2-ef68-4440-a796-6f30617688d0
       description: ''
@@ -22,22 +115,56 @@ office_lights_package:
         input:
           controller: Office Switch
           button_1_pressed:
-          - service: switch.turn_on
-            data: {}
-            target:
-              entity_id: switch.office_desk
+            - service: switch.turn_on
+              data: {}
+              target:
+                entity_id: switch.office_desk
           button_2_pressed:
-          - service: switch.turn_off
-            data: {}
-            target:
-              entity_id: switch.office_desk
+            - service: switch.turn_off
+              data: {}
+              target:
+                entity_id: switch.office_desk
           button_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.office_ceiling
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.office_ceiling
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.office_lights_manually_switched_on
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Office Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.office_lights_manually_switched_on
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Office Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
           button_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.office_ceiling
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.office_ceiling
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.office_lights_manually_switched_on
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Office Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Office Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
