@@ -20,9 +20,11 @@ logbook:
   exclude:
     domains:
       - input_boolean
+      - input_text
       - media_player
     entity_globs:
       - '*sensor.grocy*'
+      - automation.*_status_monitor*
       - binary_sensor.pixel_6a*
       - sensor.pixel_6a*
       - sensor.*_switch*_action
@@ -50,7 +52,6 @@ recorder:
     entities:
       - sensor.date_time
       - sensor.time
-      
 
 #################################################################
 ## Includes and other platforms
@@ -71,3 +72,7 @@ sensor:
 
 tts:
   - platform: google_translate
+
+custom_templates:
+  preload_translations:
+    - en
