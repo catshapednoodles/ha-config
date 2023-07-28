@@ -1,0 +1,33 @@
+sicco_toothbrush_package:
+  counter:
+    sicco_brushed_teeth_today:
+      name: Times Sicco brushed teeth today
+      icon: mdi:toothbrush-electric
+
+  automation:
+    - alias: "Sicco: Brushed teeth today"
+      id: f4ad449d-3163-44cf-814c-d36534bfe34b
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: sensor.smart_series_6000_9426_toothbrush_state
+          to: "running"
+          for: "00:00:10"
+          id: counter_increase
+        - platform: time
+          at: "04:00:00"
+          id: counter_reset
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: counter_increase
+              sequence:
+                - service: counter.increment
+                  entity_id: counter.sicco_brushed_teeth_today
+            - conditions:
+                - condition: trigger
+                  id: counter_reset
+              sequence:
+                - service: counter.reset
+                  entity_id: counter.sicco_brushed_teeth_today
