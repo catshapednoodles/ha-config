@@ -1,0 +1,162 @@
+central_ventilation_package:
+  input_number:
+    bathroom_humidity_threshold:
+      name: "Bathroom humidity threshold"
+      icon: "mdi:water-percent"
+      min: 60
+      max: 90
+      mode: slider
+      step: 1
+    co2_threshold:
+      name: "CO2 threshold"
+      icon: "mdi:molecule-co2"
+      min: 800
+      max: 1500
+      mode: slider
+      step: 100
+    tvoc_threshold:
+      name: "TVOC threshold"
+      icon: "mdi:molecule"
+      min: 300
+      max: 1500
+      mode: slider
+      step: 100
+    pm2_5_threshold:
+      name: "PM2.5 threshold"
+      icon: "mdi:molecule"
+      min: 15
+      max: 55
+      mode: slider
+      step: 5
+
+  template:
+    - binary_sensor:
+        - name: "CO2 above threshold"
+          unique_id: "co2_above_threshold"
+          state: "{{ states('sensor.awair_element_carbon_dioxide') | float(0) >= states('input_number.co2_threshold') | float(1) }}"
+          delay_off: "00:15:00"
+          device_class: gas
+        - name: "TVOC above threshold"
+          unique_id: "tvoc_above_threshold"
+          state: "{{ states('sensor.awair_element_volatile_organic_compounds') | float(0) >= states('input_number.tvoc_threshold') | float(1) }}"
+          delay_off: "00:15:00"
+          device_class: gas
+        - name: "PM2.5 above threshold"
+          unique_id: "pm2_5_above_threshold"
+          state: "{{ states('sensor.awair_element_pm2_5') | float(0) >= states('input_number.pm2_5_threshold') | float(1) }}"
+          delay_off: "00:15:00"
+          device_class: gas
+        - name: "Bathroom humidity above threshold"
+          unique_id: "bathroom_humidity_above_threshold"
+          state: "{{ states('sensor.bathroom_humidity') | float(0) >= states('input_number.bathroom_humidity_threshold') | float(1) }}"
+          device_class: moisture
+        - name: "High humidity at home"
+          unique_id: "high_humidity_at_home"
+          state: >
+            {{
+              states.sensor
+                | select('search', '_humidity')
+                | reject('search', 'bathroom')
+                | selectattr('state', '>', '67')
+                | list
+                | count > 0
+            }}
+          device_class: moisture
+        - name: "Medium high humidity at home"
+          unique_id: "medium_high_humidity_at_home"
+          state: >
+            {{
+              states.sensor
+                | select('search', '_humidity')
+                | reject('search', 'bathroom')
+                | selectattr('state', '>', '55')
+                | list
+                | count > 0
+            }}
+          device_class: moisture
+        - name: "CO2 above 600"
+          unique_id: "co2_above_600"
+          state: "{{ states('sensor.awair_element_carbon_dioxide') | float(0) >= 600 }}"
+          delay_off: "00:15:00"
+          device_class: gas
+  
+  automation:
+    - alias: "Fan: Control Central Ventilation"
+      id: 1c6823df-301e-47da-b8f1-6334d8f67a80
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+        - platform: state
+          entity_id: input_boolean.someone_is_sleeping
+        - platform: state
+          entity_id: binary_sensor.co2_above_threshold
+        - platform: state
+          entity_id: binary_sensor.tvoc_above_threshold
+        - platform: state
+          entity_id: binary_sensor.pm2_5_above_threshold
+        - platform: state
+          entity_id: binary_sensor.bathroom_humidity_above_threshold
+        - platform: state
+          entity_id: binary_sensor.medium_high_humidity_at_home
+        - platform: state
+          entity_id: binary_sensor.high_humidity_at_home
+      action:
+        - choose:
+            - conditions:
+                or:
+                  - condition: state
+                    entity_id: input_boolean.someone_is_sleeping
+                    state: "on"
+                  - condition: state
+                    entity_id: input_boolean.sleep_mode
+                    state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 33
+                  target:
+                    entity_id: fan.esp_wtw_ventilation
+            - conditions:
+                or:
+                - condition: state
+                  entity_id: binary_sensor.co2_above_threshold
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.tvoc_above_threshold
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.pm2_5_above_threshold
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.bathroom_humidity_above_threshold
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.high_humidity_at_home
+                  state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 100
+                  target:
+                    entity_id: fan.esp_wtw_ventilation
+            - conditions:
+                or:
+                - condition: state
+                  entity_id: binary_sensor.medium_high_humidity_at_home
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.co2_above_600
+                  state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 66
+                  target:
+                    entity_id: fan.esp_wtw_ventilation
+          default:
+            - service: fan.set_percentage
+              data:
+                percentage: 33
+              target:
+                entity_id: fan.esp_wtw_ventilation
