@@ -80,6 +80,7 @@ sleep_package:
             entity_id:
               - light.inside_lights
               - light.game_room
+              - light.living_room
               - light.ellens_room_cotton_ball_string
         - service: input_boolean.turn_on
           entity_id: input_boolean.someone_is_sleeping
@@ -165,7 +166,7 @@ sleep_package:
         platform: state
         entity_id: binary_sensor.ellen_is_sleeping
         to: "on"
-        for: "01:00:00"
+        for: "00:30:00"
       action:
         - service: input_boolean.turn_on
           entity_id: input_boolean.someone_is_sleeping

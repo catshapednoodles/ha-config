@@ -4,7 +4,7 @@ office_desk_package:
         - name: "Work laptop at desk and active"
           unique_id: work_laptop_at_desk_and_active
           state: >
-            {{ is_state('device_tracker.macbook_air', 'home')
+            {{ is_state('device_tracker.iphone', 'home')
               and is_state_attr('binary_sensor.macbook_air_active', 'Screen Off', false)
               and not(is_state('sensor.macbook_air_displays', '1')) }}
           icon: >

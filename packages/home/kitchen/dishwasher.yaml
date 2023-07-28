@@ -46,22 +46,25 @@ dishwasher_package:
             {% set programs = {
               'Dishcare.Dishwasher.Program.Eco50': 'eco',
               'Dishcare.Dishwasher.Program.Auto2': 'auto',
+              'Dishcare.Dishwasher.Program.Intensive70': 'intensive',
             } %}
             {% if states('sensor.403010387033006572_selected_program') in programs %}
               {% set program = programs[states('sensor.403010387033006572_selected_program')] %}
               {% set half_load = '_half' if is_state('binary_sensor.403010387033006572_dishcare_dishwasher_option_halfload', 'on') else '' %}
               {% set intensiv = '_intensiv' if is_state('binary_sensor.403010387033006572_dishcare_dishwasher_option_intensivzone', 'on') else '' %}
               {% set state = program + half_load + intensiv %}
-              {{ state if state_attr('sensor.dryer_energy_usage_pattern', state) != None else 'default' }}
+              {{ state if state_attr('sensor.dishwasher_energy_usage_pattern', state) != None else 'default' }}
             {% else %}
               default
             {% endif %}
           attributes:
-            default: "{{ this.attributes.eco }}"
+            default: "{{ this.attributes.auto }}"
             auto: >
-              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0,] }}
+              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0] }}
             eco: >
               {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+            intensive_intensiv: >
+              {{ [0.08,0.03,0.17,0.04,0.01,0.0,0.11,0.18,0.02,0.04,0.0,0.0,0.01,0.0,0.01,0.0,0.0,0.01,0.07,0.18,0.12,0.0,0.0,0.0,0.0] }}
 
     - trigger:
         - platform: state
@@ -149,21 +152,16 @@ dishwasher_package:
             entity_id: switch.403010387033006572_bsh_common_setting_powerstate
         - wait_template: "{{ is_state('sensor.403010387033006572_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Ready') }}"
           timeout: "00:01:00"
+        - service: button.press
+          target:
+            entity_id: button.403010387033006572_start_pause
         - if:
-            - '{{ wait.completed }}'
+            - '{{ not wait.completed }}'
           then:
-            - service: button.press
-              target:
-                entity_id: button.403010387033006572_start_pause
             - service: notify.telegram_sicco
               data:
                 title: Dishwasher
-                message: "Best starting time for dishwasher is now, it should start"
-          else:
-            - service: notify.telegram_sicco
-              data:
-                title: Dishwasher
-                message: "Dishwasher did not turn on. Check if there are any problems"
+                message: "Dishwasher might not have turned on. Check if there are any problems"
         - service: input_boolean.turn_off
           entity_id: input_boolean.dishwasher_ready_to_start
 
@@ -209,16 +207,21 @@ dishwasher_package:
                   entity_id: input_number.dishwasher_kwh_counter
                 data:
                   value: "{{ states('sensor.dishwasher_current_consumption')}}"
-        - service: notify.sicco_phone
-          data:
-            title: Consumption recorded
-            message: >
-              Dishwasher: {{ states('input_text.dishwasher') }}
-            data:
-              channel: "Utility recorder"
-              actions:
-                - action: "COPY_DISHWASHER_VALUES"
-                  title: "Copy values"
+        - if:
+            - condition: state
+              entity_id: sensor.dishwasher_energy_usage_pattern
+              state: "default"
+          then:
+            - service: notify.sicco_phone
+              data:
+                title: New consumption pattern recorded
+                message: >
+                  Dishwasher program {{ states('sensor.403010387033006572_selected_program') }}: {{ states('input_text.dishwasher') }}
+                data:
+                  channel: "Utility recorder"
+                  actions:
+                    - action: "COPY_DISHWASHER_VALUES"
+                      title: "Copy values"
 
   automation:
     - alias: "Dishwasher: Start at best time"

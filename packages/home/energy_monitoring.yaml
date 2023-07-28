@@ -42,12 +42,11 @@ energy_monitoring_package:
           - entity_id: light.entryway_ceiling
           - entity_id: light.front_door_1
           - entity_id: light.front_door_2
-          - entity_id: light.game_room_monitor
-          - entity_id: light.game_room_play_bar_2
           - entity_id: light.game_room_ceiling_1
           - entity_id: light.game_room_ceiling_2
           - entity_id: light.game_room_ceiling_3
           - entity_id: light.game_room_play_bar
+          - entity_id: light.game_room_play_bar_2
           - entity_id: light.hallway_ceiling
           - entity_id: light.kitchen_ceiling_1
           - entity_id: light.kitchen_ceiling_2

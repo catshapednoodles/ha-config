@@ -167,10 +167,6 @@ washing_machine_package:
       mode: single
       icon: mdi:washing-machine
       sequence:
-        - service: input_datetime.set_datetime
-          entity_id: input_datetime.washing_machine_done
-          data_template:
-            datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
         - if:
           - condition: state
             entity_id: person.sicco
