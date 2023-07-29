@@ -1,0 +1,91 @@
+cupboard_lights_package:
+  adaptive_lighting:
+  - name: "Cupboard"
+    lights:
+      - light.cupboard_light
+    min_brightness: 60
+    max_brightness: 100
+    autoreset_control_seconds: 1800
+    detect_non_ha_changes: true
+
+  automation:
+    - alias: "Cupboard: Toggle lights"
+      id: b16e1e5c-ec55-45fe-971d-0d6a9af59d76
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.cupboard_motion_sensor_occupancy
+          from: "off"
+          to: "on"
+          id: activity
+        - platform: state
+          entity_id: binary_sensor.cupboard_motion_sensor_occupancy
+          from: "on"
+          to: "off"
+          id: no_activity
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low
+            - conditions:
+                - condition: trigger
+                  id: activity
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id:
+                      - light.cupboard_light
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: trigger
+                  id: no_activity
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.cupboard_light
+
+    - alias: "Cupboard: Light switch"
+      id: 659927e8-1b3d-4b2c-b42f-d41057f4895b
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Cupboard Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.cupboard_light
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Cupboard Light/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Cupboard Light/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.cupboard_light
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Cupboard Light/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Cupboard Light/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
