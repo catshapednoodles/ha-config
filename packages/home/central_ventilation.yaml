@@ -53,11 +53,14 @@ central_ventilation_package:
         - name: "High humidity at home"
           unique_id: "high_humidity_at_home"
           state: >
+            {% set cutoff = 67 %}
+            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
-                | selectattr('state', '>', '67')
+                | selectattr('state', '>', cutoff|string)
+                | selectattr('state', '>', outside_humidity|string)
                 | list
                 | count > 0
             }}
@@ -65,11 +68,14 @@ central_ventilation_package:
         - name: "Medium high humidity at home"
           unique_id: "medium_high_humidity_at_home"
           state: >
+            {% set cutoff = 55 %}
+            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
-                | selectattr('state', '>', '55')
+                | selectattr('state', '>', cutoff|string)
+                | selectattr('state', '>', outside_humidity|string)
                 | list
                 | count > 0
             }}
