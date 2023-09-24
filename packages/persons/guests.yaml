@@ -10,7 +10,7 @@ guests_package:
           state: !secret guest_wifi_template
 
   automation:
-    - alias: "Guest mode: Toggle boolean"
+    - alias: "Guest mode: Toggle boolean based on wifi"
       id: 7402f9af-3c7b-40cc-a1cc-2d1afdafa214
       trigger:
         - platform: state
@@ -36,9 +36,32 @@ guests_package:
                   data:
                     channel: "Guests"
                     importance: high
+                    tag: wifi_guest
           - conditions:
               - condition: trigger
                 id: turn_off
             sequence:
               - service: input_boolean.turn_off
                 entity_id: input_boolean.guest_mode
+
+    - alias: "Guest mode: Toggle boolean based on motion during vacation"
+      id: f0c57e7a-b8e6-411a-a5c8-523367911242
+      mode: restart
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.entryway_motion_sensor_occupancy
+          to: "on"
+      condition:
+        or:
+          - condition: state
+            entity_id: input_boolean.vacation_mode
+            state: "on"
+          - condition: state
+            entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+            state: "on"
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.guest_mode
+        - delay: "01:00:00"
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.guest_mode
