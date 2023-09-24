@@ -207,6 +207,7 @@ sleep_package:
         entity_id: input_boolean.sleep_mode
 
     - alias: "Sleep: Toggle from Sleep As Android webhook"
+      id: 1e74eb19-51e5-4c4d-82cc-8fa47aac1278
       trigger:
         - platform: webhook
           webhook_id: !secret sleep_as_android_webhook
@@ -266,3 +267,12 @@ sleep_package:
               # - service: script.turn_on
               #   entity_id: script.good_morning
       mode: restart
+
+    - alias: "Sleep: Turn off Sicco is sleeping"
+      id: f41cf779-94e2-4fd8-bca4-316152c76a95
+      trigger:
+      - platform: time
+        at: "11:00:00"
+      action:
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.sicco_is_sleeping
