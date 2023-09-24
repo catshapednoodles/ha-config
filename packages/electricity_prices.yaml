@@ -69,7 +69,12 @@ electricity_prices_package:
           device_class: monetary
           state: >
             {% set opslag = 0.02178 %} {# Tibber, incl. BTW #}
-            {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (0.12599 * 1.21 + opslag) ) | round(3) }}
+            {% set energy_tax_included_in_price = is_state('binary_sensor.energy_tax_included_this_year', 'on') %}
+            {% if energy_tax_included_in_price %}
+              {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - opslag) | round(3) }}
+            {% else %}
+              {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (opslag + 0.12599 * 1.21) ) | round(3) }}
+            {% endif %}
         - name: "Current price for electricity usage"     # Incl. BTW
           unique_id: current_price_for_electricity_usage
           unit_of_measurement: €/kWh
