@@ -33,17 +33,17 @@ central_ventilation_package:
     - binary_sensor:
         - name: "CO2 above threshold"
           unique_id: "co2_above_threshold"
-          state: "{{ states('sensor.awair_element_carbon_dioxide') | float(0) >= states('input_number.co2_threshold') | float(1) }}"
+          state: "{{ states('sensor.kitchen_carbon_dioxide') | float(0) >= states('input_number.co2_threshold') | float(1) }}"
           delay_off: "00:15:00"
           device_class: gas
         - name: "TVOC above threshold"
           unique_id: "tvoc_above_threshold"
-          state: "{{ states('sensor.awair_element_volatile_organic_compounds') | float(0) >= states('input_number.tvoc_threshold') | float(1) }}"
+          state: "{{ states('sensor.sensor.kitchen_vocs') | float(0) >= states('input_number.tvoc_threshold') | float(1) }}"
           delay_off: "00:15:00"
           device_class: gas
         - name: "PM2.5 above threshold"
           unique_id: "pm2_5_above_threshold"
-          state: "{{ states('sensor.awair_element_pm2_5') | float(0) >= states('input_number.pm2_5_threshold') | float(1) }}"
+          state: "{{ states('sensor.kitchen_pm2_5') | float(0) >= states('input_number.pm2_5_threshold') | float(1) }}"
           delay_off: "00:15:00"
           device_class: gas
         - name: "Bathroom humidity above threshold"
@@ -54,11 +54,12 @@ central_ventilation_package:
           unique_id: "high_humidity_at_home"
           state: >
             {% set cutoff = 67 %}
-            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') %}
+            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') - 4 %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
+                | rejectattr('state', 'eq', 'unavailable')
                 | selectattr('state', '>', cutoff|string)
                 | selectattr('state', '>', outside_humidity|string)
                 | list
@@ -69,23 +70,39 @@ central_ventilation_package:
           unique_id: "medium_high_humidity_at_home"
           state: >
             {% set cutoff = 55 %}
-            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') %}
+            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') - 2 %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
+                | rejectattr('state', 'eq', 'unavailable')
                 | selectattr('state', '>', cutoff|string)
                 | selectattr('state', '>', outside_humidity|string)
                 | list
                 | count > 0
             }}
           device_class: moisture
-        - name: "CO2 above 600"
-          unique_id: "co2_above_600"
-          state: "{{ states('sensor.awair_element_carbon_dioxide') | float(0) >= 600 }}"
+        - name: "CO2 high in kitchen"
+          unique_id: "co2_high_in_kitchen"
+          state: "{{ states('sensor.kitchen_carbon_dioxide') | float(0) >= 600 }}"
           delay_off: "00:15:00"
           device_class: gas
-  
+        - name: "CO2 high in bedroom"
+          unique_id: "co2_high_in_bedroom"
+          state: "{{ states('sensor.bedroom_carbon_dioxide') | float(0) >= 700 }}"
+          delay_off: "00:15:00"
+          device_class: gas
+        - name: "CO2 very high in bedroom"
+          unique_id: "co2_very_high_in_bedroom"
+          state: "{{ states('sensor.bedroom_carbon_dioxide') | float(0) >= 1000 }}"
+          delay_off: "00:15:00"
+          device_class: gas
+    - sensor:
+        - name: "ESP-WTW Ventilation Percentage"
+          unique_id: esp_wtw_ventilation_percentage
+          unit_of_measurement: "%"
+          state: "{{ state_attr('fan.esp_wtw_ventilation', 'percentage') }}"
+
   automation:
     - alias: "Fan: Control Central Ventilation"
       id: 1c6823df-301e-47da-b8f1-6334d8f67a80
@@ -95,6 +112,10 @@ central_ventilation_package:
           entity_id: input_boolean.sleep_mode
         - platform: state
           entity_id: input_boolean.someone_is_sleeping
+        - platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          to: "on"
+          for: "00:30:00"
         - platform: state
           entity_id: binary_sensor.co2_above_threshold
         - platform: state
@@ -107,12 +128,50 @@ central_ventilation_package:
           entity_id: binary_sensor.medium_high_humidity_at_home
         - platform: state
           entity_id: binary_sensor.high_humidity_at_home
+        - platform: state
+          entity_id: binary_sensor.co2_high_in_kitchen
+        - platform: state
+          entity_id: binary_sensor.co2_high_in_bedroom
+        - platform: state
+          entity_id: binary_sensor.co2_very_high_in_bedroom
+        - platform: time
+          at: "06:30:00"
       action:
         - choose:
             - conditions:
+                - condition: state
+                  entity_id: input_boolean.sicco_is_sleeping
+                  state: "on"
+                  for: "01:30:00"
+                - condition: state
+                  entity_id: binary_sensor.co2_very_high_in_bedroom
+                  state: "on"
+                - condition: time
+                  before: "06:30:00"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 100
+                  target:
+                    entity_id: fan.esp_wtw_ventilation
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.sicco_is_sleeping
+                  state: "on"
+                  for: "00:30:00"
+                - condition: state
+                  entity_id: binary_sensor.co2_high_in_bedroom
+                  state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 66
+                  target:
+                    entity_id: fan.esp_wtw_ventilation
+            - conditions:
                 or:
                   - condition: state
-                    entity_id: input_boolean.someone_is_sleeping
+                    entity_id: input_boolean.sicco_is_sleeping
                     state: "on"
                   - condition: state
                     entity_id: input_boolean.sleep_mode
@@ -152,7 +211,7 @@ central_ventilation_package:
                   entity_id: binary_sensor.medium_high_humidity_at_home
                   state: "on"
                 - condition: state
-                  entity_id: binary_sensor.co2_above_600
+                  entity_id: binary_sensor.co2_high_in_kitchen
                   state: "on"
               sequence:
                 - service: fan.set_percentage
