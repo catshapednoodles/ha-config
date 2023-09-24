@@ -21,6 +21,19 @@ telegram_bot_package:
             message: "pong"
             disable_notification: true
 
+    - alias: "Telegram: Bot that replies ip address"
+      id: 221e2137-3db9-4707-9521-29a99b7e59c4
+      trigger:
+        platform: event
+        event_type: telegram_command
+        event_data:
+          command: "/ip"
+      action:
+        - service: telegram_bot.send_message
+          data:
+            target: "{{ trigger.event.data.chat_id }}"
+            message: "{{ states('sensor.myip') }}"
+
     - alias: "Telegram: Cats meow"
       id: 00276ebd-a162-454c-aa05-d727cdb26e42
       trigger:
