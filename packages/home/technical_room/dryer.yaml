@@ -82,54 +82,6 @@ dryer_package:
                 {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
               {% endfor %}
               {{ ns.costs | round(5)}}
-            # second_lowest_costs: >
-            #   {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
-            #   {% set start_time = list[0].start | as_datetime - timedelta(minutes=59) %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list if item.start | as_datetime < start_time %}
-            #   {% set ns.list = ns.list + [item] %}
-            #   {% endfor %}
-            #   {% if ns.list == [] %}
-            #   {{ list[0].costs }}
-            #   {% else %}
-            #   {{ ns.list[0].costs }}
-            #   {% endif %}
-            # second_lowest_time: >
-            #   {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
-            #   {% set start_time = list[0].start | as_datetime - timedelta(minutes=59) %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list if item.start | as_datetime < start_time %}
-            #   {% set ns.list = ns.list + [item] %}
-            #   {% endfor %}
-            #   {% if ns.list == [] %}
-            #   {{ now() + timedelta(seconds=5) }}
-            #   {% else %}
-            #   {{ ns.list[0].start }}
-            #   {% endif %}
-            # third_lowest_costs: >
-            #   {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
-            #   {% set start_time = this.attributes.second_lowest_time | as_datetime - timedelta(minutes=59) %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list if item.start | as_datetime < start_time %}
-            #   {% set ns.list = ns.list + [item] %}
-            #   {% endfor %}
-            #   {% if ns.list == [] %}
-            #   {{ this.attributes.second_lowest_costs }}
-            #   {% else %}
-            #   {{ ns.list[0].costs }}
-            #   {% endif %}
-            # third_lowest_time: >
-            #   {% set list = state_attr('sensor.dryer_best_starting_time_list', 'list') %}
-            #   {% set start_time = this.attributes.second_lowest_time | as_datetime - timedelta(minutes=59) %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list if item.start | as_datetime < start_time %}
-            #   {% set ns.list = ns.list + [item] %}
-            #   {% endfor %}
-            #   {% if ns.list == [] %}
-            #   {{ now() + timedelta(seconds=5) }}
-            #   {% else %}
-            #   {{ ns.list[0].start }}
-            #   {% endif %}
         - name: "Dryer energy usage pattern"
           icon: mdi:tumble-dryer
           state: >-
@@ -163,7 +115,8 @@ dryer_package:
               default
             {% endif %}
           attributes:
-            default: "{{ this.attributes.cotton_cupboard_dry_off }}"
+            default: >
+              {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
             cotton_cupboard_dry_off: >
               {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
             cotton_cupboard_dry_2: >
@@ -313,10 +266,10 @@ dryer_package:
         - service: button.press
           target:
             entity_id: button.siemens_wt8hxm75nl_68a40e926546_start_pause
-        - service: notify.telegram_sicco
-          data:
-            title: Dryer
-            message: "Best starting time for dryer is now, dryer should start"
+        # - service: notify.telegram_sicco
+        #   data:
+        #     title: Dryer
+        #     message: "Best starting time for dryer is now, dryer should start"
         - delay: "00:01:00"
         - service: input_select.select_option
           data:

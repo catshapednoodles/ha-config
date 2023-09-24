@@ -47,6 +47,7 @@ dishwasher_package:
               'Dishcare.Dishwasher.Program.Eco50': 'eco',
               'Dishcare.Dishwasher.Program.Auto2': 'auto',
               'Dishcare.Dishwasher.Program.Intensive70': 'intensive',
+              'Dishcare.Dishwasher.Program.MachineCare': 'machine_care',
             } %}
             {% if states('sensor.403010387033006572_selected_program') in programs %}
               {% set program = programs[states('sensor.403010387033006572_selected_program')] %}
@@ -58,13 +59,16 @@ dishwasher_package:
               default
             {% endif %}
           attributes:
-            default: "{{ this.attributes.auto }}"
+            default: >
+              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0] }}
             auto: >
               {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0] }}
             eco: >
               {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
             intensive_intensiv: >
               {{ [0.08,0.03,0.17,0.04,0.01,0.0,0.11,0.18,0.02,0.04,0.0,0.0,0.01,0.0,0.01,0.0,0.0,0.01,0.07,0.18,0.12,0.0,0.0,0.0,0.0] }}
+            machine_care: >
+              {{ [0.05,0.19,0.17,0.05,0.01,0.0,0.01,0.0,0.0,0.01,0.13,0.0,0.01,0.0,0.02,0.17,0.01,0.0,0.01,0.0,0.07,0.17,0.03,0.0,0.0,0.0,] }}
 
     - trigger:
         - platform: state

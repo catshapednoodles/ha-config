@@ -60,3 +60,4 @@ garbage_package:
               channel: "Garbage"
               importance: high
               notification_icon: "mdi:trash-can"
+              timeout: 14400

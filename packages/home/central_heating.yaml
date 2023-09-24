@@ -30,4 +30,5 @@ central_heating_package:
               tag: climate_dew_point
               channel: "Climate"
               importance: max
+              timeout: 1800
               notification_icon: "mdi:waves-arrow-up"
