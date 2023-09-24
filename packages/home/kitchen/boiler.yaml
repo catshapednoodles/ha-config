@@ -5,12 +5,12 @@ boiler_package:
       mode: queued
       trigger:
         - platform: state
-          entity_id: binary_sensor.electricity_most_expensive_2_hours
+          entity_id: binary_sensor.electricity_most_expensive_3_hours
       action:
         - choose:
             - conditions:
                 - condition: state
-                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  entity_id: binary_sensor.electricity_most_expensive_3_hours
                   state: "on"
               sequence:
                 - service: switch.turn_off
