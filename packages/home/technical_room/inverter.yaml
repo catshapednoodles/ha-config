@@ -4,13 +4,13 @@ inverter_package:
         - name: "Electricity market price too low"
           unique_id: electricity_market_price_too_low
           state: >
-            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.04 }}
+            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.05 }}
           availability: >
             {{ states('sensor.current_price_for_electricity_return') | is_number }}
         - name: "Electricity market price low"
           unique_id: electricity_market_price_low
           state: >
-            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.015 }}
+            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.02 }}
           availability: >
             {{ states('sensor.current_price_for_electricity_return') | is_number }}
         - name: "Electricity market price below zero"
