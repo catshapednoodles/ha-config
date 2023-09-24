@@ -49,6 +49,8 @@ recorder:
       - sensor.afvalinfo_*
       - sensor.power_highest_peak_time_*
       - sensor.*_poe_power
+      - sensor.replay*
+      - sensor.192_168_*
     entities:
       - sensor.date_time
       - sensor.time

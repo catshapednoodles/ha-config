@@ -4,7 +4,7 @@ bathroom_lights_package:
     lights:
       - light.bathroom_ceiling
       - light.bathroom_mirror
-    min_brightness: 68
+    min_brightness: 65
     max_brightness: 90
     autoreset_control_seconds: 3600
     detect_non_ha_changes: true
@@ -14,8 +14,8 @@ bathroom_lights_package:
     - platform: threshold
       name: Bathroom is dark
       entity_id: sensor.bathroom_motion_sensor_illuminance_lux
-      lower: 45
-      hysteresis: 15
+      lower: 80
+      hysteresis: 40
 
   input_boolean:
     automatic_bathroom_lights:
@@ -29,7 +29,6 @@ bathroom_lights_package:
     bathroom_lights_time_on:
       name: Bathroom lights time on
       icon: mdi:clock-start
-      initial: 10
       min: 1
       max: 30
       mode: box
@@ -53,7 +52,7 @@ bathroom_lights_package:
           to: "off"
           for:
             minutes: >
-              {% set extra_time = 30 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
+              {% set extra_time = 45 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
               {{ states('input_number.bathroom_lights_time_on')|int(1) + extra_time }}
         - platform: state
           entity_id: binary_sensor.bathroom_is_dark
@@ -93,7 +92,7 @@ bathroom_lights_package:
                   state: "off"
                   for:
                     minutes: >
-                      {% set extra_time = 30 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
+                      {% set extra_time = 45 if is_state('input_boolean.bathroom_lights_manually_switched_on', 'on') else 0 %}
                       {{ states('input_number.bathroom_lights_time_on')|int(1) + extra_time }}
               sequence:
                 - service: light.turn_off
@@ -108,12 +107,26 @@ bathroom_lights_package:
                 - condition: state
                   entity_id: binary_sensor.bathroom_is_dark
                   state: "off"
+                - condition: state
+                  entity_id: input_boolean.bathroom_lights_manually_switched_on
+                  state: "off"
               sequence:
                 - service: light.turn_off
                   data:
                     entity_id:
                       - light.bathroom_ceiling
                       - light.bathroom_mirror
+
+    - alias: "Bathroom: Turn off switch helper"
+      id: 4e6db72b-a84c-4908-bb67-495aa32e33d6
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: light.bathroom_ceiling
+          to: "off"
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.bathroom_lights_manually_switched_on
 
     - alias: "Bathroom: Light switch"
       id: 84fe8d75-a5b8-4749-be2a-7ea653a20ae7

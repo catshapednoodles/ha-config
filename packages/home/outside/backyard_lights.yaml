@@ -1,0 +1,19 @@
+backyard_lights_package:
+  automation:
+    - alias: "Backyard: Light switch"
+      id: 9243c8c0-4fa8-44d4-8c33-83a7cb9dd5b9
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Backyard Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.backyard_light
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.backyard_light

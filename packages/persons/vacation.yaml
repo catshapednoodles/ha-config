@@ -1,0 +1,106 @@
+vacation_package:
+  input_boolean:
+    vacation_mode_short_trip:
+      name: On Vacation (Short trip)
+      icon: mdi:airplane
+    vacation_mode:
+      name: On Vacation
+      icon: mdi:airplane
+    vacation_mode_turned_off_because_of_guest:
+      name: Vacation mode turned off because of guest
+      icon: mdi:airplane-remove
+
+  automation:
+    - alias: "Vacation mode: Turn on"
+      id: b5e88ec3-2e14-43a8-966f-787f983c1fa4
+      trigger:
+        - platform: state
+          entity_id: zone.home
+          to: '0'
+          for:
+            hours: 12
+        - platform: numeric_state
+          entity_id: proximity.home
+          above: 200
+      action:
+        - if:
+            - condition: state
+              entity_id: input_boolean.guest_mode
+              state: "on"
+          then:
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+          else:
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.vacation_mode
+            - service: script.turn_on
+              target:
+                entity_id: script.restore_vacation_lights_after_guest_leaves
+
+    - alias: "Vacation mode: Turn on (short trip)"
+      id: 8c095ba6-4e82-4d92-bb18-20ec3daf3559
+      trigger:
+        - platform: numeric_state
+          entity_id: proximity.home
+          above: 6
+      condition:
+        - condition: state
+          entity_id: input_boolean.guest_mode
+          state: "off"
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.vacation_mode_short_trip
+
+    - alias: "Vacation mode: Turn off"
+      id: a465d395-bc9d-4dc1-8d29-c47a2abf8b44
+      trigger:
+        - platform: numeric_state
+          entity_id: zone.home
+          above: 0
+      action:
+        - service: input_boolean.turn_off
+          entity_id: 
+            - input_boolean.vacation_mode
+            - input_boolean.vacation_mode_turned_off_because_of_guest
+            - input_boolean.vacation_mode_short_trip
+
+    - alias: "Vacation mode: Handle guest visits"
+      id: 0cf4bf0b-23d1-486d-b2d3-7ce0a12a3160
+      trigger:
+        - platform: state
+          entity_id: input_boolean.guest_mode
+          from: 'off'
+          to: 'on'
+          id: guest_enters
+        - platform: state
+          entity_id: input_boolean.guest_mode
+          from: 'on'
+          to: 'off'
+          id: guest_leaves
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: guest_enters
+                - condition: state
+                  entity_id: input_boolean.vacation_mode
+                  state: "on"
+              sequence:
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.vacation_mode
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+            - conditions:
+                - condition: trigger
+                  id: guest_leaves
+                - condition: state
+                  entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+                  state: "on"
+              sequence:
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.vacation_mode
+                - service: script.turn_on
+                  target:
+                    entity_id: script.restore_vacation_lights_after_guest_leaves

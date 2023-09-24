@@ -3,7 +3,7 @@ game_room_lights_package:
     - name: "Game Room"
       lights:
         - light.game_room_ceiling
-      min_brightness: 70
+      min_brightness: 50
       max_brightness: 100
       autoreset_control_seconds: 3600
       detect_non_ha_changes: true
@@ -21,6 +21,14 @@ game_room_lights_package:
         - light.game_room_ceiling_2
         - light.game_room_ceiling_3
 
+  template:
+    - binary_sensor:
+        - name: "Activity in Game Room"
+          unique_id: activity_in_game_room
+          state: >
+            {{ is_state("binary_sensor.game_room_motion_sensor_occupancy", "on") 
+              or is_state('device_tracker.sicco_pc', 'home') }}
+
   automation:
     - alias: "Game Room: Light switch"
       id: b3d5c352-b6cb-45a2-aafc-ca0d4c3bd5bd
@@ -34,60 +42,32 @@ game_room_lights_package:
             data: {}
             target:
               entity_id: light.game_room_ceiling
-          button_1_held:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Game Room Ceiling/set
-                payload: "{\"brightness_move_onoff\": 51}"
-                qos: 0
-                retain: false
-          button_1_released:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Game Room Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
-                qos: 0
-                retain: false
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id: light.game_room_ceiling
-          button_2_held:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Game Room Ceiling/set
-                payload: "{\"brightness_move_onoff\": -51}"
-                qos: 0
-                retain: false
-          button_2_released:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Game Room Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
-                qos: 0
-                retain: false
           button_3_pressed:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.game_room
+              entity_id: light.game_wall
           button_4_pressed:
           - service: light.turn_off
             data: {}
             target:
-              entity_id: light.game_room
+              entity_id: light.game_wall
           button_1_and_3_pressed:
           - service: light.turn_on
             data: {}
             target:
               entity_id:
                 - light.game_room_ceiling
-                - light.game_room
+                - light.game_wall
           button_2_and_4_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id:
                 - light.game_room_ceiling
-                - light.game_room
+                - light.game_wall

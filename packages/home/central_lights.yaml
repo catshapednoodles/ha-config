@@ -10,6 +10,7 @@ central_lights_package:
 
   automation:
     - alias: "Light: Turn off all lights when we leave the house"
+      id: 26fbaa60-5a47-49e3-aab1-2fbd655513de
       trigger:
       - platform: state
         entity_id: zone.home

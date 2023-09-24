@@ -8,12 +8,106 @@ ellens_room_lights_package:
       autoreset_control_seconds: 10800
       detect_non_ha_changes: true
 
+  binary_sensor:
+    - platform: threshold
+      name: Ellen's Room is dark
+      entity_id: sensor.ellens_room_motion_sensor_illuminance_lux
+      lower: 80
+      hysteresis: 40
+
   input_boolean:
     automatic_ellens_room_lights:
       name: Automatic Ellen's Room lights
       icon: mdi:lightbulb-auto
+    ellens_room_lights_manually_switched_on:
+      name: Ellen's Room lights manually switched on
+      icon: mdi:light-switch
+
+  input_number:
+    ellens_room_lights_time_on:
+      name: Ellen's Room lights time on
+      icon: mdi:clock-start
+      min: 1
+      max: 30
+      mode: box
+
+  template:
+    - binary_sensor:
+        - name: "Activity in Ellen's Room"
+          unique_id: activity_in_ellens_room
+          state: >
+            {{ is_state("binary_sensor.ellens_room_motion_sensor_occupancy", "on") 
+              or is_state('device_tracker.ellen_pc', 'home') }}
 
   automation:
+    - alias: "Ellen's Room: Toggle lights"
+      id: f5ddfc91-7ac2-48ac-adcc-539c82d8033a
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_ellens_room
+        - platform: state
+          entity_id: binary_sensor.activity_in_ellens_room
+          to: "off"
+          for:
+            minutes: >
+              {% set extra_time = 60 if is_state('input_boolean.ellens_room_lights_manually_switched_on', 'on') else 0 %}
+              {{ states('input_number.ellens_room_lights_time_on')|int(1) + extra_time }}
+        - platform: state
+          entity_id: binary_sensor.ellen_s_room_is_dark
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+        - platform: state
+          entity_id: input_boolean.automatic_ellens_room_lights
+          to: "on"
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_ellens_room_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low or it is dark
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_ellens_room
+                  state: "on"
+                - or:
+                  - condition: state
+                    entity_id: binary_sensor.sun_low_elevation
+                    state: "on"
+                  - condition: state
+                    entity_id: binary_sensor.ellen_s_room_is_dark
+                    state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: light.ellens_room_main
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_ellens_room
+                  state: "off"
+                  for:
+                    minutes: >
+                      {% set extra_time = 60 if is_state('input_boolean.ellens_room_lights_manually_switched_on', 'on') else 0 %}
+                      {{ states('input_number.ellens_room_lights_time_on')|int(1) + extra_time }}
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: light.ellens_room_main
+            # Turn off lights when it's not dark anymore
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.ellen_s_room_is_dark
+                  state: "off"
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: light.ellens_room_main
+
     - alias: "Ellen's Room: Light switch"
       id: 04b4e660-aaad-47ea-8b7e-21cb4de3df4b
       description: ''

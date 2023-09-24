@@ -3,7 +3,7 @@ cupboard_lights_package:
   - name: "Cupboard"
     lights:
       - light.cupboard_light
-    min_brightness: 60
+    min_brightness: 50
     max_brightness: 100
     autoreset_control_seconds: 1800
     detect_non_ha_changes: true

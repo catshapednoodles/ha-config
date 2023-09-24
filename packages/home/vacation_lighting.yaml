@@ -1,0 +1,247 @@
+vacation_lighting_package:
+  sensor:
+    - platform: history_stats
+      name: "replay_bathroom_ceiling"
+      entity_id: light.bathroom_ceiling
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_ellens_room_main"
+      entity_id: light.ellens_room_main
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_entryway_ceiling"
+      entity_id: light.entryway_ceiling
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_game_room"
+      entity_id: light.game_room
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_kitchen_ceiling"
+      entity_id: light.kitchen_ceiling
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_kitchen_dining_light"
+      entity_id: light.kitchen_dining_light
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_living_room_ceiling"
+      entity_id: light.living_room_ceiling
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_living_room_corner"
+      entity_id: light.living_room_corner
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_office_ceiling"
+      entity_id: light.office_ceiling
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+
+  automation:
+    # - alias: "Vacation: Simulate lights"
+    #   id: d37ec936-ef92-47f7-8dd0-b80010cdca3e
+    #   mode: queued
+    #   trigger:
+    #     - platform: state
+    #       entity_id: input_boolean.vacation_mode_short_trip
+    #     - platform: state
+    #       entity_id: input_boolean.vacation_mode
+    #     - platform: state
+    #       entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+    #   action:
+    #     - choose:
+    #         - conditions:
+    #             or:
+    #               - condition: state
+    #                 entity_id: input_boolean.vacation_mode_short_trip
+    #                 state: "on"
+    #               - condition: state
+    #                 entity_id: input_boolean.vacation_mode
+    #                 state: "on"
+    #               - condition: state
+    #                 entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
+    #                 state: "off"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.presence_simulation
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.presence_simulation
+
+    - alias: 'Vacation: Replay lighting from 7 days ago'
+      id: 3da83415-9e36-402d-bf97-28947375910c
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id:
+            - sensor.replay_bathroom_ceiling
+            - sensor.replay_ellens_room_main
+            - sensor.replay_entryway_ceiling
+            - sensor.replay_game_room
+            - sensor.replay_kitchen_ceiling
+            - sensor.replay_kitchen_dining_light
+            - sensor.replay_living_room_ceiling
+            - sensor.replay_living_room_corner
+            - sensor.replay_office_ceiling
+      condition:
+        or:
+          - condition: state
+            entity_id: input_boolean.vacation_mode
+            state: 'on'
+          - condition: state
+            entity_id: input_boolean.vacation_mode_short_trip
+            state: 'on'
+      action:
+        - variables:
+            corresponding_light: >
+              {% set lights = {
+                'sensor.replay_bathroom_ceiling': 'light.bathroom_ceiling',
+                'sensor.replay_ellens_room_main': 'light.ellens_room_main',
+                'sensor.replay_entryway_ceiling': 'light.entryway_ceiling',
+                'sensor.replay_game_room': 'light.game_room',
+                'sensor.replay_kitchen_ceiling': 'light.kitchen_ceiling',
+                'sensor.replay_kitchen_dining_light': 'light.kitchen_dining_light',
+                'sensor.replay_living_room_ceiling': 'light.living_room_ceiling',
+                'sensor.replay_living_room_corner': 'light.living_room_corner',
+                'sensor.replay_office_ceiling': 'light.office_ceiling',
+              } %}
+              {{ lights[trigger.entity_id] }}
+        - choose:
+            # Replay turned on
+            - conditions:
+                - condition: template
+                  value_template: '{{ trigger.to_state.state == "1" }}'
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: '{{ corresponding_light }}'
+                - service: system_log.write
+                  data:
+                    message: 'Replay Lighting: {{trigger.to_state.entity_id}}: turning on: {{ corresponding_light }}'
+                    level: info
+            # Replay turned off
+            - conditions:
+                - condition: template
+                  value_template: '{{ trigger.to_state.state == "0" }}'
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: '{{ corresponding_light }}'
+                - service: system_log.write
+                  data:
+                    message: 'Replay Lighting: {{trigger.to_state.entity_id}}: turning off:{{ corresponding_light }}'
+                    level: info
+
+  script:
+    restore_vacation_lights_after_guest_leaves:
+      alias: Restore vacation lights after guest leaves
+      sequence:
+        - if:
+            - condition: state
+              entity_id: sensor.replay_bathroom_ceiling
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.bathroom_ceiling
+        - if:
+            - condition: state
+              entity_id: sensor.replay_ellens_room_main
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.ellens_room_main
+        - if:
+            - condition: state
+              entity_id: sensor.replay_entryway_ceiling
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.entryway_ceiling
+        - if:
+            - condition: state
+              entity_id: sensor.replay_game_room
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.game_room
+        - if:
+            - condition: state
+              entity_id: sensor.replay_kitchen_ceiling
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.kitchen_ceiling
+        - if:
+            - condition: state
+              entity_id: sensor.replay_kitchen_dining_light
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.kitchen_dining_light
+        - if:
+            - condition: state
+              entity_id: sensor.replay_living_room_ceiling
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.living_room_ceiling
+        - if:
+            - condition: state
+              entity_id: sensor.replay_living_room_corner
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.living_room_corner
+        - if:
+            - condition: state
+              entity_id: sensor.replay_office_ceiling
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.office_ceiling
+      mode: restart
