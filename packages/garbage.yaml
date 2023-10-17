@@ -3,6 +3,9 @@ garbage_package:
     waste_reminder:
       name: Waste reminder
       icon: mdi:delete-alert
+    garbage_already_outside:
+      name: Garbage already outside
+      icon: mdi:delete-clock-outline
 
   sensor:
     - platform: afvalinfo
@@ -42,9 +45,10 @@ garbage_package:
 
   automation:
     - alias: "Notification: Garbage day tomorrow"
+      id: 548f73d2-09c1-45f6-b21f-50dea5852900
       trigger:
         - platform: time
-          at: "18:30:00"
+          at: "19:00:00"
       condition:
         - condition: state
           entity_id: input_boolean.waste_reminder
@@ -54,10 +58,99 @@ garbage_package:
       action:
         - service: notify.all_phones
           data:
-            title: Garbage
+            title: Garbage day tomorrow
             message: "It's garbage day tomorrow for: {{ states('sensor.afvalinfo_afval_morgen') }}"
             data:
               channel: "Garbage"
+              tag: garbage_day
               importance: high
               notification_icon: "mdi:trash-can"
-              timeout: 14400
+              timeout: 7200
+              actions:
+                - action: "GARBAGE_PUT_OUTSIDE_FOR_TOMORROW"
+                  title: "Mark as done"
+
+    - alias: "Notification: Garbage day today"
+      id: 3a9b2ade-6ed4-4821-8726-b6c5e4a60455
+      trigger:
+        - platform: time
+          at: "07:00:00"
+      condition:
+        - condition: state
+          entity_id: input_boolean.waste_reminder
+          state: "on"
+        - condition: template
+          value_template: "{{ not is_state('sensor.afvalinfo_afval_vandaag', 'none') }}"
+      action:
+        - if:
+            - condition: state
+              entity_id: input_boolean.garbage_already_outside
+              state: "off"
+          then:
+            - service: notify.all_phones
+              data:
+                title: Garbage day
+                message: "It's garbage day for: {{ states('sensor.afvalinfo_afval_vandaag') }}"
+                data:
+                  channel: "Garbage"
+                  tag: garbage_day
+                  importance: high
+                  notification_icon: "mdi:trash-can"
+                  timeout: 14400
+                  actions:
+                    - action: "GARBAGE_PUT_OUTSIDE"
+                      title: "Mark as done"
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.garbage_already_outside
+
+
+    - alias: "Notification: Get the containers"
+      id: 380dd02c-8f1d-464a-824a-63394e03974c
+      trigger:
+        - platform: time
+          at: "17:00:00"
+      condition:
+        - condition: state
+          entity_id: sensor.afvalinfo_afval_vandaag
+          state: "Plastic Blik en Drankpakken, Papier, Textiel"
+      action:
+        - service: notify.all_phones
+          data:
+            title: "Collect containers"
+            message: "Get the containers from the street"
+            data:
+              channel: "Garbage"
+              tag: garbage_day
+              importance: high
+              notification_icon: mdi:recycle
+              timeout: 10800
+              actions:
+                - action: "CONTAINERS_COLLECTED"
+                  title: "Mark as done"
+
+    - alias: "Notification: Clear garbage notifications on all phones"
+      id: 030bc9ba-19e5-4b8a-9fe6-06f85743c798
+      trigger:
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "GARBAGE_PUT_OUTSIDE_FOR_TOMORROW"
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "GARBAGE_PUT_OUTSIDE"
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "CONTAINERS_COLLECTED"
+      action:
+        - service: notify.all_phones
+          data:
+            message: clear_notification
+            data:
+              tag: garbage_day
+        - if:
+            - "{{ trigger.event.data.action == 'GARBAGE_PUT_OUTSIDE_FOR_TOMORROW'}}"
+          then:
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.garbage_already_outside
