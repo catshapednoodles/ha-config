@@ -1,0 +1,128 @@
+emhass_package:
+  shell_command:
+    trigger_nordpool_forecast: "curl -i -H \"Content-Type: application/json\" -X POST -d '{\"load_cost_forecast\":{{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours_emhass_1h') }},\"prod_price_forecast\":{{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours_emhass_1h') }}}' http://localhost:5000/action/dayahead-optim"
+    trigger_nordpool_forecast_manual: "curl -i -H \"Content-Type: application/json\" -X POST -d '{\"load_cost_forecast\":{{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours') }},\"prod_price_forecast\":{{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours') }}}' http://localhost:5000/action/dayahead-optim"
+    publish_data: "curl -i -H \"Content-Type:application/json\" -X POST -d '{}' http://localhost:5000/action/publish-data"
+
+  template:
+    - sensor:
+        - name: "Power load no var loads"
+          icon: mdi:home-lightning-bolt
+          unique_id: 8be92181-2fe3-4291-874e-b6cd8c22cd30
+          state: >
+            {% set net_power = states('sensor.net_power') | float(0) %}
+            {% set pv_power = states('sensor.pv_power') | float(0) %}
+            {% set deferrable_load0 = states('sensor.boiler_power') | float(0) if states('sensor.boiler_power') | float(0) > 5 else 0 %}
+            {{ (net_power + pv_power - deferrable_load0) | round(0) }}
+          unit_of_measurement: W
+          state_class: measurement
+          device_class: power
+    - trigger:
+        - platform: state
+          entity_id: sensor.soc_batt_forecast
+      sensor:
+        - name: "emhass_soc_batt_forecast"
+          icon: mdi:home-battery
+          unique_id: emhass_soc_batt_forecast
+          state: >
+            {{ states('sensor.soc_batt_forecast') }}
+          unit_of_measurement: "%"
+        - name: "emhass_p_batt_forecast"
+          icon: mdi:home-battery
+          unique_id: emhass_p_batt_forecast
+          state: >
+            {{ states('sensor.p_batt_forecast') }}
+          unit_of_measurement: W
+          device_class: power
+
+
+  automation:
+    - alias: "EMHASS: day-ahead optimization"
+      trigger:
+        - platform: time
+          at: '16:55:00'
+      action:
+        - service: shell_command.trigger_nordpool_forecast
+
+    - alias: "EMHASS: publish data"
+      trigger:
+        - minutes: 0
+          platform: time_pattern
+      action:
+        - service: shell_command.publish_data
+
+    - alias: "Battery: Control 14 kWh Victron"
+      id: 5f2ba0d3-ac08-4e56-8e6c-ccabe9f27a70
+      mode: queued
+      trigger:
+        # - platform: state
+        #   entity_id: sensor.p_batt_forecast
+        - platform: state
+          entity_id: sensor.emhass_p_batt_forecast
+        # - platform: state
+        #   entity_id: sensor.soc_batt_forecast
+        - platform: state
+          entity_id: sensor.battery_sim_victron_14_kwh
+          attribute: percentage
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.emhass_p_batt_forecast
+                  above: -1
+                  below: 1
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.emhass_p_batt_forecast
+                  above: 100
+                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+            - conditions:
+                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(90) }}"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.emhass_p_batt_forecast
+                  above: 2000
+                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(0) }}"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_14_kwh_force_discharge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_14_kwh_force_discharge
+
+        - choose:
+            - conditions:
+                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') < states('sensor.emhass_soc_batt_forecast') | float(10) }}"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_14_kwh_force_charge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_14_kwh_force_charge
+
+        - if:
+            - condition: numeric_state
+              entity_id: sensor.emhass_p_batt_forecast
+              below: 1
+          then:
+            - service: switch.turn_on
+              entity_id: switch.battery_sim_victron_14_kwh_charge_only
+          else:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_14_kwh_charge_only

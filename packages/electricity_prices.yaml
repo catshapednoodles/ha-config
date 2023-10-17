@@ -75,6 +75,34 @@ electricity_prices_package:
             {% else %}
               {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (opslag + 0.12599 * 1.21) ) | round(3) }}
             {% endif %}
+          attributes:
+            upcoming_24_hours: >
+              {% set value_to_substract = float((0.12599+0.018)*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
+            upcoming_24_hours_emhass_1h: >
+              {% set value_to_substract = float((0.12599+0.018)*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
+            upcoming_24_hours_emhass_30m: >
+              {% set value_to_substract = float((0.12599+0.018)*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
         - name: "Current price for electricity usage"     # Incl. BTW
           unique_id: current_price_for_electricity_usage
           unit_of_measurement: €/kWh
@@ -86,6 +114,34 @@ electricity_prices_package:
             {% else %}
               {{ (states("sensor.nordpool_kwh_nl_eur_3_09_0") | float(0) - (0.12599 * 1.21)) | round(3) }}
             {% endif %}
+          attributes:
+            upcoming_24_hours: >
+              {% set value_to_substract = float(0.12599*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
+            upcoming_24_hours_emhass_1h: >
+              {% set value_to_substract = float(0.12599*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
+            upcoming_24_hours_emhass_30m: >
+              {% set value_to_substract = float(0.12599*1.21) %}
+              {% set list = ((state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
+              {% set ns = namespace(list=[]) %}
+              {% for item in list %}
+                {% set value = item | float(0) - value_to_substract %}
+                {% set ns.list = ns.list + [value | round(3)] + [value | round(3)] %}
+              {% endfor %}
+              {{ ns.list }}
         - name: "Average electricity price today"
           unique_id: average_electricity_price_today
           unit_of_measurement: €/kWh
@@ -102,6 +158,19 @@ electricity_prices_package:
             hour: >
               {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_today") | sort(attribute="value") %}
               {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
+        - name: "Most expensive electricity price today"
+          unique_id: most_expensive_electricity_price_today
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | max }}
+          attributes:
+            hour: >
+              {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_today") | sort(attribute="value", reverse=true) %}
+              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
+            second_most_expensive: >
+              {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_today") | sort(attribute="value", reverse=true) %}
+              {{ sorted_list[1].value }}
 
     - trigger:
       # Update when data for tomorrow becomes available
@@ -126,6 +195,16 @@ electricity_prices_package:
             hour: >
               {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_tomorrow") | sort(attribute="value") %}
               {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00 
+        - name: "Most expensive electricity price tomorrow"
+          unique_id: most_expensive_electricity_price_tomorrow
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state: >
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | max }}
+          attributes:
+            hour: >
+              {% set sorted_list = state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "raw_tomorrow") | sort(attribute="value", reverse=true) %}
+              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
 
     ## Binary sensors for cheapest and most expensive hours
     - binary_sensor:
@@ -136,6 +215,19 @@ electricity_prices_package:
             {{ (now() >= l[0].start and now() <= l[0].end) }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+        - name: "Electricity cheapest 2 hours"
+          unique_id: electricity_cheapest_2_hours
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value') %}
+            {{ (now() >= l[0].start and now() <= l[0].end)
+              or (now() >= l[1].start and now() <= l[1].end) }}
+        - name: "Electricity cheapest 3 hours"
+          unique_id: electricity_cheapest_3_hours
+          state: >
+            {% set l=state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')|sort(attribute='value') %}
+            {{ (now() >= l[0].start and now() <= l[0].end)
+              or (now() >= l[1].start and now() <= l[1].end)
+              or (now() >= l[2].start and now() <= l[2].end) }}
         - name: "Electricity cheapest 4 hours"
           unique_id: electricity_cheapest_4_hours
           state: >
