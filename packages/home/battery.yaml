@@ -1,0 +1,1113 @@
+battery_package:
+  automation:
+    - alias: "Battery: Control 5 kWh Sessy"
+      id: 19046288-7b5c-4daf-9437-18711d6496fb
+      mode: queued
+      trigger:
+        - platform: homeassistant
+          event: start
+        - platform: state
+          entity_id: sensor.nordpool_kwh_nl_eur_3_09_0
+          for: "00:00:01"
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          below: 0
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          above: 0
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 3
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 3.5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 4
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 6
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 7
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          below: 7.2
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_5_kwh
+          above: 7.2
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_return
+                  below: 0.10
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_charge_only
+            - conditions:
+                - condition: time
+                  before: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_charge_only
+            - conditions:
+                - condition: time
+                  after: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_tomorrow') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_charge_only
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_5_kwh_charge_only
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff > 0.12 and states('sensor.current_price_for_electricity_return') | float(0) > 0.12 }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.most_expensive_electricity_price_tomorrow') | float(1) }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 7.2
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 7
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+12] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 6
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+10] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+6] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 4
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 3.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+4] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_5_kwh
+                  above: 3
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_3_hours
+                  state: "on"
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_usage
+                  below: 0
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_hour
+                  state: "on"
+                - or:
+                  - condition: template
+                    value_template: >
+                      {% set diff = state_attr('sensor.most_expensive_electricity_price_today', 'second_most_expensive') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                      {{ diff > (0.12) }}
+                  - and:
+                    - condition: template
+                      value_template: >
+                        {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                        {{ diff > (0.12) }}
+                    - condition: numeric_state
+                      entity_id: sensor.battery_sim_victron_14_kwh
+                      below: 7.2
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                      {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices | max - next_hour_prices[0] > 0.15 and next_hour_prices[0] == next_hour_prices | min }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+
+        - if:
+            - condition: state
+              entity_id: switch.battery_sim_sessy_5_kwh_force_discharge
+              state: "off"
+            - condition: state
+              entity_id: switch.battery_sim_sessy_5_kwh_force_charge
+              state: "off"
+            - condition: numeric_state
+              entity_id: sensor.net_power
+              below: 0
+            - or:
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                    {{ diff < (0.12) }}
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.average_electricity_price_today') | float(1) }}
+          then:
+            - service: switch.turn_on
+              entity_id: switch.battery_sim_sessy_5_kwh_pause_battery
+          else:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_5_kwh_pause_battery
+
+    - alias: "Battery: Control 10 kWh Sessy"
+      id: 2a5c2a95-0414-4ec1-b015-4de0a4e1c1a8
+      mode: queued
+      trigger:
+        - platform: homeassistant
+          event: start
+        - platform: state
+          entity_id: sensor.nordpool_kwh_nl_eur_3_09_0
+          for: "00:00:01"
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          below: 0
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          above: 0
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 3
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 3.5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 4
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 6
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 7
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          below: 8.9
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_10_kwh
+          above: 8.9
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_return
+                  below: 0.10
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_charge_only
+            - conditions:
+                - condition: time
+                  before: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_charge_only
+            - conditions:
+                - condition: time
+                  after: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_tomorrow') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_charge_only
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_10_kwh_charge_only
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff > 0.12 and states('sensor.current_price_for_electricity_return') | float(0) > 0.12 }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.most_expensive_electricity_price_tomorrow') | float(1) }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 8.9
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.most_expensive_electricity_price_tomorrow') | float(1) }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 8.9
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+12] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 7
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+10] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 6
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+6] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 4
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 3.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+4] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_10_kwh
+                  above: 3
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_3_hours
+                  state: "on"
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_usage
+                  below: 0
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_hour
+                  state: "on"
+                - or:
+                  - condition: template
+                    value_template: >
+                      {% set diff = state_attr('sensor.most_expensive_electricity_price_today', 'second_most_expensive') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                      {{ diff > (0.12) }}
+                  - and:
+                    - condition: template
+                      value_template: >
+                        {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                        {{ diff > (0.12) }}
+                    - condition: numeric_state
+                      entity_id: sensor.battery_sim_victron_14_kwh
+                      below: 8.9
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                      {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices | max - next_hour_prices[0] > 0.15 and next_hour_prices[0] == next_hour_prices | min }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+
+        - if:
+            - condition: state
+              entity_id: switch.battery_sim_sessy_10_kwh_force_discharge
+              state: "off"
+            - condition: state
+              entity_id: switch.battery_sim_sessy_10_kwh_force_charge
+              state: "off"
+            - condition: numeric_state
+              entity_id: sensor.net_power
+              below: 0
+            - or:
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                    {{ diff < (0.12) }}
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.average_electricity_price_today') | float(1) }}
+          then:
+            - service: switch.turn_on
+              entity_id: switch.battery_sim_sessy_10_kwh_pause_battery
+          else:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_10_kwh_pause_battery
+
+    - alias: "Battery: Control 15 kWh Sessy"
+      id: 51db4fb4-f80f-41b2-b44c-d6a8293b0a7c
+      mode: queued
+      trigger:
+        - platform: homeassistant
+          event: start
+        - platform: state
+          entity_id: sensor.nordpool_kwh_nl_eur_3_09_0
+          for: "00:00:01"
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          below: 0
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          above: 0
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 3
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 3.5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 4
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 6
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 7
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          below: 10.6
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_sessy_15_kwh
+          above: 10.6
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_return
+                  below: 0.10
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_charge_only
+            - conditions:
+                - condition: time
+                  before: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_charge_only
+            - conditions:
+                - condition: time
+                  after: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.12 }}
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_tomorrow') | float(0) %}
+                    {{ diff < 0.12 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_charge_only
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_15_kwh_charge_only
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff > 0.12 and states('sensor.current_price_for_electricity_return') | float(0) > 0.12 }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.most_expensive_electricity_price_tomorrow') | float(1) }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 10.6
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+12] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 7
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+10] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 6
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+6] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 4
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 3.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+4] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_sessy_15_kwh
+                  above: 3
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_3_hours
+                  state: "on"
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_usage
+                  below: 0
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_hour
+                  state: "on"
+                - or:
+                  - condition: template
+                    value_template: >
+                      {% set diff = state_attr('sensor.most_expensive_electricity_price_today', 'second_most_expensive') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                      {{ diff > (0.12) }}
+                  - and:
+                    - condition: template
+                      value_template: >
+                        {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                        {{ diff > (0.12) }}
+                    - condition: numeric_state
+                      entity_id: sensor.battery_sim_victron_14_kwh
+                      below: 10.6
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                      {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices | max - next_hour_prices[0] > 0.15 and next_hour_prices[0] == next_hour_prices | min }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+
+        - if:
+            - condition: state
+              entity_id: switch.battery_sim_sessy_15_kwh_force_discharge
+              state: "off"
+            - condition: state
+              entity_id: switch.battery_sim_sessy_15_kwh_force_charge
+              state: "off"
+            - condition: numeric_state
+              entity_id: sensor.net_power
+              below: 0
+            - or:
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                    {{ diff < (0.12) }}
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.average_electricity_price_today') | float(1) }}
+          then:
+            - service: switch.turn_on
+              entity_id: switch.battery_sim_sessy_15_kwh_pause_battery
+          else:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_sessy_15_kwh_pause_battery
+
+    - alias: "Battery: Control 12 kWh Victron"
+      id: 6226fb5f-a16c-46df-bb47-e9c05b891ae6
+      mode: queued
+      trigger:
+        - platform: homeassistant
+          event: start
+        - platform: state
+          entity_id: sensor.nordpool_kwh_nl_eur_3_09_0
+          for: "00:00:01"
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          below: 0
+        - platform: numeric_state
+          entity_id: sensor.net_power
+          above: 0
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 3
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 3.5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 4
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 6
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 7
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          below: 9.5
+        - platform: numeric_state
+          entity_id: sensor.battery_sim_victron_12_kwh
+          above: 9.5
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_return
+                  below: 0.10
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_charge_only
+            - conditions:
+                - condition: time
+                  before: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.11 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_charge_only
+            - conditions:
+                - condition: time
+                  after: "18:00:00"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff < 0.11 }}
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_tomorrow') | float(0) %}
+                    {{ diff < 0.11 }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_charge_only
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_12_kwh_charge_only
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_hour
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) - states('sensor.cheapest_electricity_price_today') | float(0) %}
+                    {{ diff > 0.12 and states('sensor.current_price_for_electricity_return') | float(0) > 0.12 }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_most_expensive_2_hours
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.most_expensive_electricity_price_tomorrow') | float(1) }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 9.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+                  state: "on"
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+12] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 7
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+10] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 6
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+6] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 4
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 3.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                    {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+4] %}
+                    {{ next_hour_prices[0] - next_hour_prices | min > 0.12 and next_hour_prices[0] == next_hour_prices | max }}
+                - condition: numeric_state
+                  entity_id: sensor.battery_sim_victron_12_kwh
+                  above: 3
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_3_hours
+                  state: "on"
+                - condition: numeric_state
+                  entity_id: sensor.current_price_for_electricity_usage
+                  below: 0
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_charge
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.electricity_cheapest_hour
+                  state: "on"
+                - or:
+                  - condition: template
+                    value_template: >
+                      {% set diff = state_attr('sensor.most_expensive_electricity_price_today', 'second_most_expensive') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                      {{ diff > (0.11) }}
+                  - and:
+                    - condition: template
+                      value_template: >
+                        {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                        {{ diff > (0.11) }}
+                    - condition: numeric_state
+                      entity_id: sensor.battery_sim_victron_14_kwh
+                      below: 9.5
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_charge
+            - conditions:
+                - condition: template
+                  value_template: >
+                    {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+                    {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                      {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+                    {% endif %}
+                    {% set hour = now().hour %}
+                    {% set next_hour_prices = list[hour:hour+5] %}
+                    {{ next_hour_prices | max - next_hour_prices[0] > 0.15 and next_hour_prices[0] == next_hour_prices | min }}
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.battery_sim_victron_12_kwh_force_charge
+          default:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_12_kwh_force_charge
+
+        - if:
+            - condition: state
+              entity_id: switch.battery_sim_victron_12_kwh_force_discharge
+              state: "off"
+            - condition: state
+              entity_id: switch.battery_sim_victron_12_kwh_force_charge
+              state: "off"
+            - condition: numeric_state
+              entity_id: sensor.net_power
+              below: 0
+            - or:
+                - condition: template
+                  value_template: >
+                    {% set diff = states('sensor.most_expensive_electricity_price_today') | float(0) - states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) %}
+                    {{ diff < (0.11) }}
+                - condition: template
+                  value_template: >
+                    {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(0) > states('sensor.average_electricity_price_today') | float(1) }}
+          then:
+            - service: switch.turn_on
+              entity_id: switch.battery_sim_victron_12_kwh_pause_battery
+          else:
+            - service: switch.turn_off
+              entity_id: switch.battery_sim_victron_12_kwh_pause_battery
