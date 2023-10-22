@@ -1,0 +1,60 @@
+bedroom_heating_blanket_package:
+  input_boolean:
+    automatic_heating_blanket:
+      name: Auto heating blanket
+      icon: mdi:radiator
+
+  input_number:
+    warmtedeken_time_on:
+      name: Warmtedeken time on
+      icon: mdi:clock-start
+      step: 5
+      min: 5
+      max: 120
+      mode: box
+
+  automation:
+    - alias: "Heating blanket: Turn on and off"
+      id: 0a997e26-db39-49d7-8947-20e380ad8cf1
+      trigger:
+        - id: "turn_on"
+          platform: state
+          entity_id: binary_sensor.ellen_is_sleeping
+          to: "on"
+        - id: "turn_off"
+          platform: state
+          entity_id: switch.warmtedeken
+          to: "on"
+          for:
+            minutes: >
+              {{ states('input_number.warmtedeken_time_on')|int(15) }}
+        - id: "turn_off"
+          platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          to: "on"
+          for: "00:15:00"
+        - id: "turn_off"
+          platform: state
+          entity_id: binary_sensor.ellen_is_sleeping
+          from: "on"
+          to: "off"
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: "turn_off"
+              sequence:
+                - service: switch.turn_off
+                  entity_id: switch.warmtedeken
+            - conditions:
+                - condition: trigger
+                  id: "turn_on"
+                - condition: state
+                  entity_id: input_boolean.automatic_heating_blanket
+                  state: "on"
+                - condition: time
+                  after: "21:00:00"
+                  before: "05:00:00"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: switch.warmtedeken
