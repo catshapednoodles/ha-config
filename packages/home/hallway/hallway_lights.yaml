@@ -1,0 +1,14 @@
+hallway_lights_package:
+  adaptive_lighting:
+  - name: "Hallway"
+    lights:
+      - light.hallway_ceiling
+    min_brightness: 40
+    max_brightness: 100
+    autoreset_control_seconds: 3600
+    detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_hallway_lights:
+      name: Automatic hallway lights
+      icon: mdi:lightbulb-auto

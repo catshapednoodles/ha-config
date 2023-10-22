@@ -3,14 +3,15 @@ front_door_lights_package:
   - name: "Front door"
     lights:
       - light.front_door
+      - light.backyard_light
     min_brightness: 40
     max_brightness: 100
     autoreset_control_seconds: 1800
     detect_non_ha_changes: true
 
   input_boolean:
-    automatic_front_door_lights:
-      name: Automatic front door lights
+    automatic_outside_lights:
+      name: Automatic outside lights
       icon: mdi:lightbulb-auto
 
   template:
@@ -28,6 +29,10 @@ front_door_lights_package:
       trigger:
         - platform: state
           entity_id: binary_sensor.sun_low_elevation_outside
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_outside_lights
+          state: "on"
       action:
         - choose:
           - conditions:
@@ -38,7 +43,9 @@ front_door_lights_package:
               - service: light.turn_on
                 data: {}
                 target:
-                  entity_id: light.front_door
+                  entity_id: 
+                    - light.front_door
+                    - light.backyard_light
           - conditions:
               - condition: state
                 entity_id: binary_sensor.sun_low_elevation_outside
@@ -47,4 +54,6 @@ front_door_lights_package:
               - service: light.turn_off
                 data: {}
                 target:
-                  entity_id: light.front_door
+                  entity_id: 
+                    - light.front_door
+                    - light.backyard_light

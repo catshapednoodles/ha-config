@@ -1,0 +1,197 @@
+stairs_switches_package:
+  automation:
+    - alias: "Stairs: Lower stairs lower switch"
+      id: 9aaf9c89-5002-4f7f-8ddc-c220efcdc9b2
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Lower Stairs Lower Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.hallway_ceiling
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.hallway_ceiling
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.ground_floor_lights
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.ground_floor_lights
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.hallway_ceiling
+                - light.ground_floor_lights
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.hallway_ceiling
+                - light.ground_floor_lights
+
+    - alias: "Stairs: Lower stairs upper switch"
+      id: 16fa7abc-22fd-4d7e-b706-d9810181d0bd
+      description: ''
+      use_blueprint:
+        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        input:
+          controller: Lower Stairs Upper Switch
+          button_1_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.hallway_ceiling
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_2_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.hallway_ceiling
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Hallway Ceiling/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id: light.ground_floor_lights
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move_onoff\": 51}"
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id: light.ground_floor_lights
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move_onoff\": -51}"
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Ground Floor lights/set
+                payload: "{\"brightness_move\": \"stop\"}"
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.hallway_ceiling
+                - light.ground_floor_lights
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.hallway_ceiling
+                - light.ground_floor_lights

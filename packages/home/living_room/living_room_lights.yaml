@@ -29,17 +29,8 @@ living_room_lights_package:
       name: Living room lights time on
       icon: mdi:clock-start
       min: 1
-      max: 30
+      max: 60
       mode: box
-
-  light:
-    - platform: group
-      unique_id: 1c9797f1-17e2-4bab-96e9-8c92e2b5a903
-      name: "Living Room Ceiling"
-      entities:
-        - light.living_room_ceiling_1
-        - light.living_room_ceiling_2
-        - light.living_room_ceiling_3
 
   template:
     - binary_sensor:
