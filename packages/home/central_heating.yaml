@@ -1,4 +1,9 @@
 central_heating_package:
+  input_boolean:
+    floor_cooling_active:
+      name: Floor cooling active
+      icon: mdi:waves-arrow-up
+
   sensor:
     - platform: nordpool_diff
       nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
@@ -21,6 +26,10 @@ central_heating_package:
           above: 16
           for:
             minutes: 10
+      condition:
+        - condition: state
+          entity_id: input_boolean.floor_cooling_active
+          state: "on"
       action:
         - service: notify.sicco_phone
           data:
