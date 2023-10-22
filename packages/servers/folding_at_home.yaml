@@ -1,12 +1,4 @@
 folding_at_home_package:
-  binary_sensor:
-    - platform: nordpool_planner
-      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
-      entity_id: start_folding_at_home
-      duration: 5
-      moving:
-        search_length: 24
-
   automation:
     - alias: "Energy: F@H on a day with low average prices"
       id: 93cefca2-67d5-4574-8f1d-6c8ebfda75b2
@@ -21,6 +13,15 @@ folding_at_home_package:
         - condition: time
           before: "06:00:00"
       action:
+        - if:
+            - condition: state
+              entity_id: binary_sensor.folding_home_running
+              state: "off"
+          then:
+            - service: hassio.addon_start
+              data:
+                addon: foldingathome
+            - delay: "00:01:00"
         - service: foldingathomecontrol.unpause
           data:
             address: 192.168.1.2
@@ -34,13 +35,21 @@ folding_at_home_package:
       id: a91af16b-4931-41dd-8dca-69026a0aadc8
       mode: single
       trigger:
-        - platform: state
-          entity_id: binary_sensor.nordpool_planner_start_folding_at_home
-          to: "on"
+        - platform: time_pattern
+          minutes: 0
       condition:
-        - condition: numeric_state
-          entity_id: sensor.nordpool_kwh_nl_eur_3_09_0
-          below: 0.18
+        - condition: template
+          value_template: >
+            {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'today')[0:24] %}
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[0:24] %}
+            {% endif %}
+            {% set hour = now().hour %}
+            {% set next_hour_prices = list[hour:hour+5] %}
+            {{ next_hour_prices | average < 0.20 }}
+        - condition: state
+          entity_id: binary_sensor.work_laptop_at_desk_and_active
+          state: "off"
       action:
         - service: foldingathomecontrol.unpause
           data:
