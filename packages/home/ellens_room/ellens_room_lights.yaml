@@ -34,7 +34,7 @@ ellens_room_lights_package:
   template:
     - binary_sensor:
         - name: "Activity in Ellen's Room"
-          unique_id: activity_in_ellens_room
+          unique_id: activity_in_ellen_s_room
           state: >
             {{ is_state("binary_sensor.ellens_room_motion_sensor_occupancy", "on") 
               or is_state('device_tracker.ellen_pc', 'home') }}
@@ -45,9 +45,9 @@ ellens_room_lights_package:
       mode: queued
       trigger:
         - platform: state
-          entity_id: binary_sensor.activity_in_ellens_room
+          entity_id: binary_sensor.activity_in_ellen_s_room
         - platform: state
-          entity_id: binary_sensor.activity_in_ellens_room
+          entity_id: binary_sensor.activity_in_ellen_s_room
           to: "off"
           for:
             minutes: >
@@ -69,7 +69,7 @@ ellens_room_lights_package:
             # Turn on light if there's activity and sun is low or it is dark
             - conditions:
                 - condition: state
-                  entity_id: binary_sensor.activity_in_ellens_room
+                  entity_id: binary_sensor.activity_in_ellen_s_room
                   state: "on"
                 - or:
                   - condition: state
@@ -85,7 +85,7 @@ ellens_room_lights_package:
             # Turn off lights when there's no activity
             - conditions:
                 - condition: state
-                  entity_id: binary_sensor.activity_in_ellens_room
+                  entity_id: binary_sensor.activity_in_ellen_s_room
                   state: "off"
                   for:
                     minutes: >
