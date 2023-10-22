@@ -125,8 +125,18 @@ bedroom_lights_package:
       trigger:
         - platform: state
           entity_id: input_boolean.someone_is_sleeping
+        - platform: state
+          entity_id: zone.home
       action:
         - choose:
+            - conditions:
+                - condition: state
+                  entity_id: zone.home
+                  state: "0"
+              sequence:
+                - service: light.turn_off
+                  target:
+                    entity_id: light.closet_lights
             - conditions:
                 - condition: state
                   entity_id: input_boolean.someone_is_sleeping
