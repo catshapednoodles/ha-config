@@ -1,4 +1,9 @@
 central_ventilation_package:
+  input_boolean:
+    ventilation_on_full_during_sleep:
+      name: Ventilation on full during sleep
+      icon: mdi:fan-chevron-up
+
   input_number:
     bathroom_humidity_threshold:
       name: "Bathroom humidity threshold"
@@ -139,6 +144,9 @@ central_ventilation_package:
       action:
         - choose:
             - conditions:
+                - condition: state
+                  entity_id: input_boolean.ventilation_on_full_during_sleep
+                  state: "on"
                 - condition: state
                   entity_id: input_boolean.sicco_is_sleeping
                   state: "on"
