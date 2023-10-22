@@ -4,6 +4,11 @@ sicco_toothbrush_package:
       name: Times Sicco brushed teeth today
       icon: mdi:toothbrush-electric
 
+  input_boolean:
+    sicco_toothbrush_reminder:
+      name: Sicco toothbrush reminder
+      icon: mdi:toothbrush-electric
+
   automation:
     - alias: "Sicco: Brushed teeth today"
       id: f4ad449d-3163-44cf-814c-d36534bfe34b
@@ -31,3 +36,26 @@ sicco_toothbrush_package:
               sequence:
                 - service: counter.reset
                   entity_id: counter.sicco_brushed_teeth_today
+
+    - alias: "Notification: Sicco toothbrush reminder"
+      id: 791eb2a6-21ec-4b22-8343-727812f2e4ea
+      trigger:
+        - platform: time
+          at: "12:00:00"
+      condition:
+        - condition: state
+          entity_id: counter.sicco_brushed_teeth_today
+          state: "0"
+        - condition: state
+          entity_id: input_boolean.sicco_toothbrush_reminder
+          state: "on"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Brush your teeth"
+            message: "You haven't brushed your teeth today"
+            data:
+              channel: "Health"
+              importance: high
+              notification_icon: "mdi:toothbrush-electric"
+              timeout: 7200
