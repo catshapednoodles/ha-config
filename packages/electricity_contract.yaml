@@ -1,0 +1,74 @@
+electricity_contract_package:
+  sensor:
+    - platform: statistics
+      name: "Difference between usage and return over last 7 days - Change per second"
+      unique_id: 41d73dae-9b6b-4401-b50b-df426e7bdafa
+      entity_id: sensor.difference_between_usage_and_return_since_start_contract
+      state_characteristic: change_second
+      precision: 5
+      max_age:
+        days: 7
+    - platform: statistics
+      name: "Difference between usage and return over last day - Change per second"
+      unique_id: ba28a4b2-be8a-434e-bb68-20a50fd66939
+      entity_id: sensor.difference_between_usage_and_return_since_start_contract
+      state_characteristic: change_second
+      precision: 5
+      max_age:
+        hours: 24
+
+  template:
+    - binary_sensor:
+      - name: "Difference between usage and return below 0 in 30 days (7 day prediction)"
+        unique_id: 77afe31d-5c79-4a93-899d-391c04eb6e60
+        state: >
+          {% set change_per_day = states('sensor.difference_between_usage_and_return_over_last_7_days_change_per_second') | float(0) * 86400 %}
+          {% set difference = states('sensor.difference_between_usage_and_return_since_start_contract') | float(0) %}
+          {% if change_per_day < 0 %}
+            {{ difference / (change_per_day * -1) < 30 }}
+          {% else %}
+            False
+          {% endif %}
+      - name: "Difference between usage and return below 0 in 30 days (24 hour prediction)"
+        unique_id: 39f44937-8d76-4b86-8012-bb6e077b5b01
+        state: >
+          {% set change_per_day = states('sensor.difference_between_usage_and_return_over_last_day_change_per_second') | float(0) * 86400 %}
+          {% set difference = states('sensor.difference_between_usage_and_return_since_start_contract') | float(0) %}
+          {% if change_per_day < 0 %}
+            {{ difference / (change_per_day * -1) < 30 }}
+          {% else %}
+            False
+          {% endif %}
+    - sensor:
+        - name: "Difference between usage and return since start contract"
+          unique_id: difference_usage_return_since_start_contract
+          unit_of_measurement: kWh
+          state: >
+            {{ states('sensor.yearly_electricity_usage') | float(0) - states('sensor.yearly_electricity_return') | float(0) }}
+
+  automation:
+    - alias: "Energy contract: Switch contracts?"
+      id: 88d23a95-b254-469f-9a65-c8c6499c4272
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.energy_tax_included_this_year
+          from: "on"
+          to: "off"
+        - platform: numeric_state
+          entity_id: sensor.difference_between_usage_and_return_since_start_contract
+          below: 500
+        - platform: state
+          entity_id: binary_sensor.difference_between_usage_and_return_below_0_in_30_days_7_day_prediction
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.difference_between_usage_and_return_below_0_in_30_days_24_hour_prediction
+          to: "on"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: Energy contract - Salderingsruimte gone soon
+            message: >
+              Now might be a good time to consider switching contracts!
+              Based on: {{ trigger.to_state.name }}
+            data:
+              notification_icon: "mdi:file-document-edit"
