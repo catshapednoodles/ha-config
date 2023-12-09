@@ -7,39 +7,16 @@ garbage_package:
       name: Garbage already outside
       icon: mdi:delete-clock-outline
 
-  sensor:
-    - platform: afvalinfo
-      resources:
-        - type: gft
-          friendly_name: GFT
-        - type: kerstboom
-          friendly_name: Kerstboom
-        - type: pbd
-          friendly_name: Plastic Blik en Drankpakken
-        - type: papier
-          friendly_name: Papier
-        - type: restafval
-          friendly_name: Restafval
-        - type: textiel
-          friendly_name: Textiel
-        - type: trash_type_today
-          friendly_name: Afval vandaag
-        - type: trash_type_tomorrow
-          friendly_name: Afval morgen
-      location: !secret home_gemeente
-      postcode: !secret home_postcode
-      streetnumber: !secret home_streetnumber
-
   template:
     - binary_sensor:
         - name: "Show garbage information for today"
           state: >
-            {{ not(is_state('sensor.afvalinfo_afval_vandaag', 'none')) and now().hour < 12 }}
+            {{ not(is_state('sensor.afvalinfo_home_trash_type_today', 'none')) and now().hour < 12 }}
           icon: >
             {{ 'mdi:delete-clock' if this.state == 'on' else 'mdi:delete-off' }}
         - name: "Show garbage information for tomorrow"
           state: >
-            {{ not(is_state('sensor.afvalinfo_afval_morgen', 'none')) and now().hour > 15 }}
+            {{ not(is_state('sensor.afvalinfo_home_trash_type_tomorrow', 'none')) and now().hour > 15 }}
           icon: >
             {{ 'mdi:delete-clock' if this.state == 'on' else 'mdi:delete-off' }}
 
@@ -54,12 +31,12 @@ garbage_package:
           entity_id: input_boolean.waste_reminder
           state: "on"
         - condition: template
-          value_template: "{{ not is_state('sensor.afvalinfo_afval_morgen', 'none') }}"
+          value_template: "{{ not is_state('sensor.afvalinfo_home_trash_type_tomorrow', 'none') }}"
       action:
         - service: notify.all_phones
           data:
             title: Garbage day tomorrow
-            message: "It's garbage day tomorrow for: {{ states('sensor.afvalinfo_afval_morgen') }}"
+            message: "It's garbage day tomorrow for: {{ states('sensor.afvalinfo_home_trash_type_tomorrow') }}"
             data:
               channel: "Garbage"
               tag: garbage_day
@@ -80,7 +57,7 @@ garbage_package:
           entity_id: input_boolean.waste_reminder
           state: "on"
         - condition: template
-          value_template: "{{ not is_state('sensor.afvalinfo_afval_vandaag', 'none') }}"
+          value_template: "{{ not is_state('sensor.afvalinfo_home_trash_type_today', 'none') }}"
       action:
         - if:
             - condition: state
@@ -90,7 +67,7 @@ garbage_package:
             - service: notify.all_phones
               data:
                 title: Garbage day
-                message: "It's garbage day for: {{ states('sensor.afvalinfo_afval_vandaag') }}"
+                message: "It's garbage day for: {{ states('sensor.afvalinfo_home_trash_type_today') }}"
                 data:
                   channel: "Garbage"
                   tag: garbage_day
@@ -103,7 +80,6 @@ garbage_package:
         - service: input_boolean.turn_off
           entity_id: input_boolean.garbage_already_outside
 
-
     - alias: "Notification: Get the containers"
       id: 380dd02c-8f1d-464a-824a-63394e03974c
       trigger:
@@ -112,7 +88,7 @@ garbage_package:
       condition:
         - condition: state
           entity_id: sensor.afvalinfo_afval_vandaag
-          state: "Plastic Blik en Drankpakken, Papier, Textiel"
+          state: "PBD, Papier, Textiel"
       action:
         - service: notify.all_phones
           data:
