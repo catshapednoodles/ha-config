@@ -1,0 +1,239 @@
+heat_pump_dhw_package:
+  input_boolean:
+    legionella_run_active:
+      name: Legionella run active
+      icon: mdi:bacteria-outline
+
+  input_datetime:
+    heat_pump_next_dhw_run_delayed:
+      name: Heat pump next DHW run (delayed)
+      icon: mdi:water-boiler
+      has_date: true
+      has_time: true
+
+  input_number:
+    dhw_temperature_setpoint:
+      name: "DHW temperature setpoint"
+      icon: mdi:thermometer-water
+      min: 40
+      max: 60
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+    dhw_temperature_current_setpoint:
+      name: "DHW temperature current setpoint"
+      icon: mdi:thermometer-water
+      min: 40
+      max: 60
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+    dhw_temperature_variance:
+      name: "DHW temperature variance"
+      icon: mdi:thermometer-water
+      min: 0
+      max: 10
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+
+  sensor:
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      filter_length: 12
+      filter_type: rectangle
+      normalize: max_min
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      filter_length: 12
+      filter_type: triangle
+      normalize: max_min
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      filter_length: 14
+      filter_type: triangle
+      normalize: max_min
+    - platform: nordpool_diff
+      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      filter_length: 12
+      filter_type: triangle
+      normalize: max
+
+  template:
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          to: "Legionella"
+        - platform: numeric_state
+          entity_id: number.mitsubishi_set_tank_water_temperature
+          above: 60.5
+          for: "00:10:00"
+      sensor:
+        - name: "Mitsubishi Last Legionella Run"
+          icon: mdi:clock-in
+          device_class: timestamp
+          state: >
+            {{ now() }}
+    - trigger:
+        - platform: state
+          entity_id: switch.mitsubishi_set_force_dhw
+          from: "off"
+          to: "on"
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          to: "Hot Water"
+      sensor:
+        - name: "Mitsubishi Last DHW Run"
+          icon: mdi:clock-in
+          device_class: timestamp
+          state: >
+            {{ now() }}
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_last_dhw_run
+        - platform: state
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+      sensor:
+        - name: "Mitsubishi Next DHW Run"
+          icon: mdi:clock-in
+          device_class: timestamp
+          state: >
+            {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')[0:24] %}
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow')[0:24] %}
+            {% endif %}
+            {% set time = as_datetime(states('sensor.mitsubishi_last_dhw_run')) %}
+            {% set next_hour_prices = list | selectattr('start', '>', time + timedelta(hours=4)) | selectattr('start', '<', time + timedelta(hours=24)) | list %}
+            {% set lowest_price = next_hour_prices | map(attribute='value') | min %}
+            {{ (next_hour_prices | selectattr('value', 'eq', lowest_price) | map(attribute='start') | list)[0] }}
+
+  script:
+    mitsubishi_soft_force_dhw:
+      alias: "Mitsubishi: Soft Force DHW"
+      mode: single
+      icon: mdi:fire-alert
+      sequence:
+        - service: number.set_value
+          target:
+            entity_id: number.mitsubishi_set_tank_water_temperature
+          data:
+            value: 65
+
+  automation:
+    - alias: "Heat pump: Set tank water temperature"
+      id: ddf95afc-f291-42ca-a232-73111af1e699
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation_outside
+          from: "off"
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation_outside
+          from: "on"
+          to: "off"
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          to: "Hot Water"
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          from: "Hot Water"
+      action:
+        - service: input_number.set_value
+          target:
+            entity_id: input_number.dhw_temperature_current_setpoint
+          data:
+            value: >
+              {% set sun_offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+              {% set heat_drop_offset = 5 if is_state('sensor.mitsubishi_operating_mode', 'Hot Water')
+                and states('number.mitsubishi_set_tank_water_temperature') | float(48) < 60
+                and is_state('binary_sensor.electricity_cheapest_4_hours', 'off') else 0 %}
+              {{ states('input_number.dhw_temperature_setpoint') | float(48) - sun_offset - heat_drop_offset }}
+        - service: number.set_value
+          target:
+            entity_id: number.mitsubishi_set_tank_water_temperature
+          data:
+            value: >
+              {{ states('input_number.dhw_temperature_current_setpoint') | float(48) }}
+
+    - alias: "Heat pump: Handle domestic hot water"
+      id: 8e2e729f-6253-4b45-9b4e-781624511ede
+      mode: queued
+      trigger:
+        - platform: time
+          at: sensor.mitsubishi_next_dhw_run
+          id: turn_on
+        - platform: time
+          at: input_datetime.heat_pump_next_dhw_run_delayed
+          id: turn_on
+        - platform: numeric_state
+          entity_id: number.mitsubishi_set_tank_water_temperature
+          above: 63
+          for: "00:10:00"
+          id: turn_off
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: turn_on
+              sequence:
+                - if:
+                    - "{{ states('input_number.dhw_temperature_setpoint') | float(0) - states('sensor.mitsubishi_tank_water_temperature') | float(0) >= 5 }}"
+                  then:
+                    - service: script.turn_on
+                      entity_id: script.mitsubishi_soft_force_dhw
+                  else:
+                    - service: input_datetime.set_datetime
+                      target:
+                        entity_id: input_datetime.heat_pump_next_dhw_run_delayed
+                      data:
+                        datetime: >
+                          {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')[0:24] %}
+                          {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+                            {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow')[0:24] %}
+                          {% endif %}
+                          {% set time = trigger.now %}
+                          {% set next_hour_prices = list | selectattr('start', '>', time + timedelta(hours=1)) | selectattr('start', '<', time + timedelta(hours=12)) | list %}
+                          {% set lowest_price = next_hour_prices | map(attribute='value') | min %}
+                          {{ (next_hour_prices | selectattr('value', 'eq', lowest_price) | map(attribute='start') | list)[0] }}
+            - conditions:
+                - condition: trigger
+                  id: turn_off
+              sequence:
+                - service: number.set_value
+                  target:
+                    entity_id: number.mitsubishi_set_tank_water_temperature
+                  data:
+                    value: >
+                      {{ states('input_number.dhw_temperature_current_setpoint') | float(48) }}
+
+    - alias: "Heat pump: Toggle ECO mode DHW"
+      id: 6c31581a-4469-487d-a6f2-dbd2dfa3af2c
+      mode: queued
+      trigger:
+        - platform: numeric_state
+          entity_id: weather.combined_daily
+          attribute: temperature
+          above: 7
+          for: "00:10:00"
+        - platform: numeric_state
+          entity_id: weather.combined_daily
+          attribute: temperature
+          below: 7
+          for: "00:10:00"
+      action:
+        - choose:
+            - conditions:
+                - condition: numeric_state
+                  entity_id: weather.combined_daily
+                  attribute: temperature
+                  below: 7
+              sequence:
+                - service: switch.turn_off
+                  data:
+                    entity_id: switch.mitsubishi_dhw_eco_mode
+          default:
+            - service: switch.turn_on
+              data:
+                entity_id: switch.mitsubishi_dhw_eco_mode

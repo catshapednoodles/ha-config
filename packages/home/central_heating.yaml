@@ -1,10 +1,65 @@
 central_heating_package:
+  climate:
+    - platform: generic_thermostat
+      name: Master thermostat
+      heater: input_boolean.heating_active
+      target_sensor: sensor.master_temperature
+      min_temp: 15
+      max_temp: 25
+      cold_tolerance: 0.1
+      hot_tolerance: 0.2
+      min_cycle_duration:
+        hours: 1
+      precision: 0.1
+
   input_boolean:
-    floor_cooling_active:
-      name: Floor cooling active
-      icon: mdi:waves-arrow-up
+    heating_active:
+      name: Heating active
+      icon: mdi:heating-coil
+
+  input_number:
+    thermostat_temperature_setpoint:
+      name: "Thermostat temperature setpoint"
+      icon: mdi:thermometer-auto
+      min: 15
+      max: 25
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+    thermostat_temperature_variance:
+      name: "Thermostat temperature variance"
+      icon: mdi:thermometer-plus
+      min: 0
+      max: 2
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+    water_temperature_setpoint:
+      name: "Water temperature setpoint"
+      icon: mdi:thermometer-water
+      min: 20
+      max: 30
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
+    water_temperature_variance:
+      name: "Water temperature variance"
+      icon: mdi:thermometer-plus
+      min: 0
+      max: 10
+      mode: box
+      step: 0.5
+      unit_of_measurement: "°C"
 
   sensor:
+    - platform: min_max
+      unique_id: 35269488-5754-4fd2-aeeb-eabe7194964c
+      name: Master temperature
+      type: mean
+      round_digits: 1
+      entity_ids:
+        - sensor.kitchen_temperature
+        - sensor.living_room_temperature
     - platform: nordpool_diff
       nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
       filter_length: 10
@@ -12,7 +67,88 @@ central_heating_package:
       normalize: max_min
 # https://gathering.tweakers.net/forum/list_message/73381860#73381860
 
+  switch:
+    - platform: template
+      switches:
+        heat_pump_heating:
+          friendly_name: "Heat pump heating"
+          unique_id: 98e11bbe-a3da-4000-90eb-10c6a3951e74
+          value_template: "{{ is_state('switch.mitsubishi_system_on_off', 'on') and is_state('switch.mitsubishi_set_holiday_mode', 'off') and is_state('select.mitsubishi_hc_control_type', 'Heating') }}"
+          availability_template: "{{ True }}"
+          icon_template: "{{ 'mdi:heat-pump' if this.state == 'on' else 'mdi:heat-pump-outline' }}"
+          turn_on:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.mitsubishi_system_on_off
+            - service: select.select_option
+              target:
+                entity_id: select.mitsubishi_hc_control_type
+              data:
+                option: Heating
+            - service: switch.turn_off
+              target:
+                entity_id: switch.mitsubishi_set_holiday_mode
+          turn_off:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.mitsubishi_set_holiday_mode
+
   automation:
+    - alias: "Heat pump: Set thermostat temperature"
+      id: bb4f4038-0965-41c9-87c7-ca6e9f6f69c6
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: sensor.nordpool_diff_triangle_10_normalize_max_min
+      condition:
+        - condition: state
+          entity_id: select.mitsubishi_hc_control_type
+          state: "Heating"
+      action:
+        - service: climate.set_temperature
+          target:
+            entity_id: climate.master_thermostat
+          data:
+            temperature: >
+              {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
+              {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
+              {% set offset = 0.1 if (now() > today_at("23:00") or now() < today_at("03:00")) and is_state('input_boolean.heating_active', 'off') else 0 %}
+              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1) }}
+        - service: number.set_value
+          target:
+            entity_id: number.mitsubishi_h_c_thermostat_target_temperature
+          data:
+            value: >
+              {% set temp_setpoint = states('input_number.water_temperature_setpoint') | float(25) %}
+              {% set variance = states('input_number.water_temperature_variance') | float(3) %}
+              {% set offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1, 'half') }}
+
+    - alias: "Heat pump: Toggle heating"
+      id: 2d192b97-7726-4e2b-8e5c-e8463c7df4e1
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: input_boolean.heating_active
+      condition:
+        - condition: state
+          entity_id: select.mitsubishi_hc_control_type
+          state: "Heating"
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.heating_active
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  data:
+                    entity_id: switch.heat_pump_heating
+          default:
+            - service: switch.turn_off
+              data:
+                entity_id: switch.heat_pump_heating
+
     - alias: "Notification: High dew point detected"
       id: b7d58d60-1f96-4006-95b1-76309ef694d7
       trigger:
@@ -28,8 +164,8 @@ central_heating_package:
             minutes: 10
       condition:
         - condition: state
-          entity_id: input_boolean.floor_cooling_active
-          state: "on"
+          entity_id: select.mitsubishi_hc_control_type
+          state: "Cooling"
       action:
         - service: notify.sicco_phone
           data:

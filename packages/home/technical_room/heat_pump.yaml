@@ -1,0 +1,113 @@
+heat_pump_package:
+# Energy, power, and statistics
+  sensor:
+    - platform: average
+      name: average_daily_outdoor_temperature
+      start: '{{ now().replace(hour=0).replace(minute=0).replace(second=0) }}'
+      end: '{{ now() }}'
+      entities: weather.combined_daily
+
+  template:
+    - sensor:
+        - name: "Mitsubishi Delta T"
+          icon: mdi:delta
+          unit_of_measurement: "°C"
+          state: >
+            {{ (states('sensor.mitsubishi_flow_temperature') | float(0) - states('sensor.mitsubishi_return_temperature') | float(0)) | round(1) }}
+        - name: "Mitsubishi Current Output Power"
+          device_class: power
+          unit_of_measurement: "kW"
+          state: >
+            {% if states('sensor.mitsubishi_operating_mode') == 'Stop' %}
+              0
+            {% else %}
+              {{ ((states('sensor.mitsubishi_delta_t') | float(0)) * 4.186 * (states('sensor.mitsubishi_flow_rate') | float(0)) / 60) | round(1) }}
+            {% endif %}
+        - name: "Mitsubishi Total Energy"
+          device_class: energy
+          state_class: total_increasing
+          unit_of_measurement: kWh
+          state: >
+            {{ (
+                states('sensor.mitsubishi_energy_used_heating_total') | float(0)
+                + states('sensor.mitsubishi_energy_used_cooling_total') | float(0)
+                + states('sensor.mitsubishi_energy_used_dhw_total') | float(0)
+                ) | round(3) }}
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_energy_used_heating
+          for:
+            minutes: 1
+      sensor:
+        - name: Mitsubishi energy used heating total
+          unique_id: "3aa9cd41-b9c5-4785-853c-0239bd72a67c"
+          state: >
+            {% set new_state = states('sensor.mitsubishi_energy_used_heating') | float(0) if now() > today_at("23:50") else 0 %}
+            {{ (states('sensor.mitsubishi_energy_used_heating_total') | float(0) + new_state) | round(3) }}
+          unit_of_measurement: kWh
+          device_class: energy
+          state_class: total_increasing
+          icon: mdi:heat-wave
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_energy_used_cooling
+          for:
+            minutes: 1
+      sensor:
+        - name: Mitsubishi energy used cooling total
+          unique_id: "e770ab55-d0b5-4b9f-b9f2-52cac6217827"
+          state: >
+            {% set new_state = states('sensor.mitsubishi_energy_used_cooling') | float(0) if now() > today_at("23:50") else 0 %}
+            {{ (states('sensor.mitsubishi_energy_used_cooling_total') | float(0) + new_state) | round(3) }}
+          unit_of_measurement: kWh
+          device_class: energy
+          state_class: total_increasing
+          icon: mdi:snowflake
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_energy_used_dhw
+          for:
+            minutes: 1
+      sensor:
+        - name: Mitsubishi energy used DHW total
+          unique_id: "71fbcc16-e604-4589-a875-265df1f81fd1"
+          state: >
+            {% set new_state = states('sensor.mitsubishi_energy_used_dhw') | float(0) if now() > today_at("23:50") else 0 %}
+            {{ (states('sensor.mitsubishi_energy_used_dhw_total') | float(0) + new_state) | round(3) }}
+          unit_of_measurement: kWh
+          device_class: energy
+          state_class: total_increasing
+          icon: mdi:water
+
+    - trigger:
+        platform: time
+        at: "23:59:30"
+      sensor:
+      - name: Degree day daily
+        unique_id: "0eee981b-1cb7-4ba9-921d-43f38ea8afbe"
+        state: >
+          {% set regularized_temp = 18.0 %}
+          {% set average_outside_temp = states('sensor.average_daily_outdoor_temperature') | float(0) %}
+          {% set dd = regularized_temp - average_outside_temp %}
+          {{ dd | round(3) if dd > 0 else 0 }}
+        unit_of_measurement: 'DD'
+        state_class: measurement
+      - name: Energy produced per degree day
+        unique_id: ed1bc1f8-2692-462b-a7e8-69ddfff76d88
+        state: >
+          {% set energy_usage = states('sensor.mitsubishi_energy_produced_heating') | float(0) %}
+          {% set dd = states('sensor.degree_day_daily') | float %}
+          {{ (energy_usage / dd) | round(3) if dd > 0 else 0 }}
+        unit_of_measurement: 'kWh/DD'
+        state_class: measurement
+      - name: Energy used per degree day
+        unique_id: f2932a15-bf22-4d8a-a927-1387b6b9b90d
+        state: >
+          {% set energy_usage = states('sensor.mitsubishi_energy_used_heating') | float(0) %}
+          {% set dd = states('sensor.degree_day_daily') | float %}
+          {{ (energy_usage / dd) | round(3) if dd > 0 else 0 }}
+        unit_of_measurement: 'kWh/DD'
+        state_class: measurement
