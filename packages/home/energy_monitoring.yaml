@@ -1,11 +1,24 @@
 energy_monitoring_package:
+  template:
+    - binary_sensor:
+        - name: "Unifi Chime available"
+          unique_id: unifi_chime_available
+          state: >
+            {{ states('sensor.up_chime_last_ring') not in ['unavailable', 'unknown', 'none'] }}
+
   powercalc:
     enable_autodiscovery: false
     sensors:
-      - entity_id: sensor.dummy
-        name: Home Assistant NUC
-        fixed:
-          power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
+      - create_group: Servers
+        entities:
+        - entity_id: sensor.dummy
+          name: Home Assistant NUC
+          fixed:
+            power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
+        - entity_id: switch.server
+          name: Unraid Server
+          power_sensor_id: sensor.server_power
+          energy_sensor_id: sensor.server_energy
       - create_group: Network devices
         entities:
           - entity_id: device_tracker.dream_machine_special_edition  # UDM-SE
@@ -14,24 +27,46 @@ energy_monitoring_package:
           - entity_id: device_tracker.usw_16_poe  # USW-16-PoE
             fixed:
               power: 9.6
-          - entity_id: device_tracker.usl8lp  # Switch Lite 8
+          - entity_id: device_tracker.usl8lp      # Switch Lite 8
             fixed:
               power: 4.4
-          - entity_id: device_tracker.u6_iw   # In-Wall Begane Grond
+          - entity_id: device_tracker.u6_iw
+            name: In-Wall Ground Floor
             power_sensor_id: sensor.usw_16_poe_port_7_poe_power
-          - entity_id: device_tracker.u6iw    # In-Wall Eerste verdieping
+          - entity_id: device_tracker.u6iw
+            name: In-Wall First Floor
             power_sensor_id: sensor.usw_16_poe_port_6_poe_power
-          - entity_id: device_tracker.u6iw_2  # In-Wall Tweede verdieping
+          - entity_id: device_tracker.u6iw_2
+            name: In-Wall Second Floor
             power_sensor_id: sensor.usw_16_poe_port_2_poe_power
+          - entity_id: device_tracker.u6_mesh
+            name: U6 Mesh Garage
+            power_sensor_id: sensor.usw_16_poe_port_8_poe_power
+      - create_group: Camera devices
+        entities:
+          - entity_id: binary_sensor.unifi_chime_available
+            name: Unifi Chime
+            fixed:
+              power: 0.7
+          - entity_id: device_tracker.g5_bullet
+            power_sensor_id: sensor.usw_16_poe_port_2_poe_power
+          - entity_id: device_tracker.uvc_g4_doorbell
+            fixed:
+              power: 4.9
+          - entity_id: device_tracker.uvc_g3_instant
+            fixed:
+              power: 2.7
       - create_group: All lights
         entities:
-          - entity_id: light.backyard_light
+          - entity_id: light.attic_main_1
+          - entity_id: light.attic_main_2
           - entity_id: light.bathroom_ceiling_1
           - entity_id: light.bathroom_ceiling_2
           - entity_id: light.bathroom_ceiling_3
-          - entity_id: light.bathroom_mirror
           - entity_id: light.bedroom_ceiling
+          - entity_id: light.bedroom_closet_wall
           - entity_id: light.bed_headboard
+          - entity_id: light.cupboard_light
           - entity_id: switch.ellens_room_cotton_ball_string
             power_sensor_id: sensor.ellens_room_cotton_ball_string_power
             energy_sensor_id: sensor.ellens_room_cotton_ball_string_energy
@@ -47,12 +82,14 @@ energy_monitoring_package:
           - entity_id: light.game_room_ceiling_3
           - entity_id: light.game_room_play_bar
           - entity_id: light.game_room_play_bar_2
+          - entity_id: light.game_room_sofa
           - entity_id: light.hallway_ceiling
+            manufacturer: signify
+            model: LWO003
           - entity_id: light.kitchen_ceiling_1
           - entity_id: light.kitchen_ceiling_2
           - entity_id: light.kitchen_ceiling_3
           - entity_id: light.kitchen_ceiling_4
-          - entity_id: light.kitchen_dining_light
           - entity_id: light.living_room_ceiling_1
           - entity_id: light.living_room_ceiling_2
           - entity_id: light.living_room_ceiling_3
@@ -62,3 +99,7 @@ energy_monitoring_package:
           - entity_id: light.office_ceiling_2
           - entity_id: light.office_ceiling_3
           - entity_id: light.technical_room_light
+          ### Not supported for now
+          # - entity_id: light.backyard_light
+          # - entity_id: light.bathroom_mirror
+          # - entity_id: light.kitchen_dining_light
