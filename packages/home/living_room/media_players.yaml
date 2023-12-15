@@ -3,7 +3,7 @@ living_room_media_players_package:
     sensors:
     - create_group: Living room media devices
       entities:
-        - entity_id: media_player.shield_2
+        - entity_id: media_player.shield
           standby_power: 1.9
           fixed:
             states_power:
