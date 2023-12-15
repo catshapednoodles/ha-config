@@ -1,0 +1,14 @@
+attic_lights_package:
+  adaptive_lighting:
+  - name: "Attic"
+    lights:
+      - light.attic_main
+    min_brightness: 80
+    max_brightness: 100
+    autoreset_control_seconds: 3600
+    detect_non_ha_changes: true
+
+  input_boolean:
+    automatic_attic_lights:
+      name: Automatic attic lights
+      icon: mdi:lightbulb-auto

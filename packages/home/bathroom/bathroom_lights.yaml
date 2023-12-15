@@ -14,8 +14,8 @@ bathroom_lights_package:
     - platform: threshold
       name: Bathroom is dark
       entity_id: sensor.bathroom_motion_sensor_illuminance_lux
-      lower: 80
-      hysteresis: 40
+      lower: 90
+      hysteresis: 50
 
   input_boolean:
     automatic_bathroom_lights:

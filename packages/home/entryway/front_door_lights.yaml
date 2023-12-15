@@ -57,3 +57,28 @@ front_door_lights_package:
                   entity_id: 
                     - light.front_door
                     - light.backyard_light
+
+    - alias: "Front Door: More light when coming home"
+      id: a44169ff-33a0-495c-8280-e484118eadf1
+      trigger:
+        - platform: state
+          entity_id: device_tracker.iva_nce
+          to: "home"
+      condition:
+        - condition: state
+          entity_id: light.front_door
+          state: "on"
+      action:
+        - service: light.turn_on
+          data:
+            brightness_pct: 100
+            transition: 2
+          target:
+            entity_id: light.front_door
+        - delay: "00:05:00"
+        - service: adaptive_lighting.set_manual_control
+          data:
+            entity_id: switch.adaptive_lighting_front_door
+            lights:
+              - light.front_door
+            manual_control: false

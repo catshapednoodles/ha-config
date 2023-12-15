@@ -219,6 +219,20 @@ kitchen_lights_package:
                 payload: "{\"brightness_move\": \"stop\"}"
                 qos: 0
                 retain: false
+          button_1_and_3_pressed:
+          - service: light.turn_on
+            data: {}
+            target:
+              entity_id:
+                - light.kitchen_dining_light
+                - light.kitchen_ceiling
+          button_2_and_4_pressed:
+          - service: light.turn_off
+            data: {}
+            target:
+              entity_id:
+                - light.kitchen_dining_light
+                - light.kitchen_ceiling
 
     - alias: "Kitchen: Light switch 2"
       id: 5398bc09-488c-473c-8607-ee421af56a23

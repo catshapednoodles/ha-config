@@ -4,7 +4,7 @@ living_room_lights_package:
     lights:
       - light.living_room_ceiling
       - light.living_room_corner
-    min_brightness: 55
+    min_brightness: 60
     max_brightness: 100
     autoreset_control_seconds: 10800
     detect_non_ha_changes: true
@@ -67,18 +67,42 @@ living_room_lights_package:
           state: "on"
       action:
         - choose:
-            # Turn on light if there's activity and sun is low or it is dark
+            # Turn on light if there's activity and sun is low
             - conditions:
                 - condition: state
                   entity_id: binary_sensor.activity_in_living_room
                   state: "on"
-                - or:
-                  - condition: state
-                    entity_id: binary_sensor.sun_low_elevation
-                    state: "on"
-                  - condition: state
-                    entity_id: binary_sensor.living_room_is_dark
-                    state: "on"
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: 
+                      - light.living_room_ceiling
+                      - light.living_room_corner
+            # Turn on light if there's activity and it is dark
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_living_room
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.living_room_is_dark
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: light.living_room_ceiling
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.sleep_mode
+                  state: "off"
+                - condition: time
+                  after: "19:00:00"
+                  before: "01:00:00"
               sequence:
                 - service: light.turn_on
                   data:
@@ -95,7 +119,9 @@ living_room_lights_package:
               sequence:
                 - service: light.turn_off
                   data:
-                    entity_id: light.living_room_ceiling
+                    entity_id: 
+                      - light.living_room_ceiling
+                      - light.living_room_corner
             # Turn off lights when it's not dark anymore
             - conditions:
                 - condition: state
@@ -107,7 +133,9 @@ living_room_lights_package:
               sequence:
                 - service: light.turn_off
                   data:
-                    entity_id: light.living_room_ceiling
+                    entity_id: 
+                      - light.living_room_ceiling
+                      - light.living_room_corner
 
     - alias: "Living Room: Light switch"
       id: 431f7145-6b90-4343-a4e2-a07f105bfb46
@@ -206,90 +234,3 @@ living_room_lights_package:
               entity_id:
                 - light.living_room_ceiling
                 - light.living_room_corner
-
-    # ##### Vacation lighting
-    # - alias: 'Vacation: Replay lighting in living room from 7 days ago'
-    #   id: 3da83415-9e36-402d-bf97-28947375910c
-    #   mode: queued
-    #   trigger:
-    #     - platform: state
-    #       entity_id: sensor.replay_living_room_ceiling
-    #     - platform: state
-    #       entity_id: sensor.replay_living_room_stand
-    #     - platform: state
-    #       entity_id: sensor.replay_living_room_table
-    #     - platform: state
-    #       entity_id: sensor.replay_living_room_reading_lamp
-    #   condition:
-    #     - condition: or
-    #       conditions:
-    #       - condition: state
-    #         entity_id: input_boolean.vacation_mode
-    #         state: 'on'
-    #       - condition: state
-    #         entity_id: input_boolean.vacation_mode_short_trip
-    #         state: 'on'
-    #     - condition: state
-    #       entity_id: binary_sensor.motion_in_living_room
-    #       state: "off"
-    #   action:
-    #     - variables:
-    #         corresponding_light: >
-    #           {% if trigger.entity_id == 'sensor.replay_living_room_ceiling' %}
-    #             {{ 'light.living_room_ceiling' }}
-    #           {% elif trigger.entity_id == 'sensor.replay_living_room_stand' %}
-    #             {{ 'light.living_room_stand' }}
-    #           {% elif trigger.entity_id == 'sensor.replay_living_room_table' %}
-    #             {{ 'light.living_room_table' }}
-    #           {% elif trigger.entity_id == 'sensor.replay_living_room_reading_lamp' %}
-    #             {{ 'light.living_room_reading_lamp' }}
-    #           {% endif %}
-    #     - choose:
-    #         # Replay turned on && entity_id is "LIGHT"
-    #         - conditions:
-    #             condition: and
-    #             conditions: 
-    #               - condition: template
-    #                 value_template: '{{ trigger.to_state.state  == "1" }}'
-    #               - condition: template
-    #                 value_template: '{{ corresponding_light.split(".")[0] == "light" }}'
-    #           sequence:
-    #             - service: light.turn_on
-    #               data:
-    #                 entity_id: '{{ corresponding_light }}'
-    #             - service: system_log.write
-    #               data:
-    #                 message: 'Vacation - Replay Lighting (Living Room): {{trigger.to_state.entity_id}}: turning on: {{ corresponding_light }}'
-    #                 level: info
-
-    #         # Replay turned on && entity_id is "SWITCH"
-    #         - conditions:
-    #             condition: and
-    #             conditions: 
-    #               - condition: template
-    #                 value_template: '{{ trigger.to_state.state == "1" }}'
-    #               - condition: template
-    #                 value_template: '{{ corresponding_light.split(".")[0] == "switch" }}'
-    #           sequence:
-    #             - service: switch.turn_on
-    #               data:
-    #                 entity_id: '{{ corresponding_light }}'
-    #             - service: system_log.write
-    #               data:
-    #                 message: 'Vacation - Replay Lighting (Living Room): {{trigger.to_state.entity_id}}: turning on:{{ corresponding_light }}'
-    #                 level: info
-
-    #         # Replay turned off
-    #         - conditions:
-    #             condition: and
-    #             conditions: 
-    #               - condition: template
-    #                 value_template: '{{ trigger.to_state.state == "0" }}'
-    #           sequence:
-    #             - service: homeassistant.turn_off
-    #               data:
-    #                 entity_id: '{{ corresponding_light }}'
-    #             - service: system_log.write
-    #               data:
-    #                 message: 'Vacation - Replay Lighting (Living Room): {{trigger.to_state.entity_id}}: turning off:{{ corresponding_light }}'
-    #                 level: info

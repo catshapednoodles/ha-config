@@ -12,6 +12,24 @@ entryway_lights_package:
     automatic_entryway_lights:
       name: Automatic entryway lights
       icon: mdi:lightbulb-auto
+    entryway_lights_manually_switched_on:
+      name: Entryway lights manually switched on
+      icon: mdi:light-switch
+
+  input_number:
+    entryway_lights_time_on:
+      name: Entryway lights time on
+      icon: mdi:clock-start
+      min: 1
+      max: 30
+      mode: box
+
+  template:
+    - binary_sensor:
+        - name: "Activity in entryway"
+          unique_id: activity_in_entryway
+          state: >
+            {{ is_state("binary_sensor.entryway_motion_sensor_occupancy", "on") }}
 
   automation:
     - alias: "Entryway: Light switch"
@@ -22,41 +40,50 @@ entryway_lights_package:
         input:
           controller: Entryway Switch
           button_1_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.entryway_ceiling
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.entryway_ceiling
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.entryway_lights_manually_switched_on
           button_2_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.entryway_ceiling
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.entryway_ceiling
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.entryway_lights_manually_switched_on
           button_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.front_door
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.front_door
           button_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.front_door
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.front_door
           button_1_and_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: 
-                - light.entryway_ceiling
-                - light.front_door
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: 
+                  - light.entryway_ceiling
+                  - light.front_door
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.entryway_lights_manually_switched_on
           button_2_and_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: 
-                - light.entryway_ceiling
-                - light.front_door
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: 
+                  - light.entryway_ceiling
+                  - light.front_door
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.entryway_lights_manually_switched_on
 
     - alias: "Entryway: turn on lights when someone gets home"
+      id: c1f6f35a-f9c1-4755-94a1-249c226b7bbc
       trigger:
         - platform: state
           entity_id: person.sicco
@@ -76,3 +103,57 @@ entryway_lights_package:
         target:
           entity_id:
             - light.entryway_ceiling
+
+    - alias: "Entryway: Toggle lights"
+      id: da98729c-9c8e-4b48-a6fb-e8a6b5e18c02
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_entryway
+        - platform: state
+          entity_id: binary_sensor.activity_in_entryway
+          to: "off"
+          for:
+            minutes: >
+              {% set extra_time = 30 if is_state('input_boolean.entryway_lights_manually_switched_on', 'on') else 0 %}
+              {{ states('input_number.entryway_lights_time_on')|int(1) + extra_time }}
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+        - platform: state
+          entity_id: input_boolean.automatic_entryway_lights
+          to: "on"
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_entryway_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_entryway
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: 
+                      - light.entryway_ceiling
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_entryway
+                  state: "off"
+                  for:
+                    minutes: >
+                      {% set extra_time = 30 if is_state('input_boolean.entryway_lights_manually_switched_on', 'on') else 0 %}
+                      {{ states('input_number.entryway_lights_time_on')|int(1) + extra_time }}
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.entryway_ceiling
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.entryway_lights_manually_switched_on

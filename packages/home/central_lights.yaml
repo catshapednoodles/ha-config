@@ -45,10 +45,11 @@ central_lights_package:
           sequence:
             - service: light.turn_off
               data:
-                entity_id: light.ground_floor_lights
-            - service: light.turn_off
-              data:
-                entity_id: light.ellens_room_lights
+                entity_id: 
+                  - light.ground_floor_lights
+                  - light.second_floor_lights
+                  - light.entryway_ceiling
+                  - light.hallway_ceiling
         - conditions:
             - condition: state
               entity_id: person.sicco
@@ -59,4 +60,40 @@ central_lights_package:
           sequence:
             - service: light.turn_off
               data:
-                entity_id: light.ground_floor_lights
+                entity_id: 
+                  - light.ground_floor_lights
+                  - light.entryway_ceiling
+                  - light.hallway_ceiling
+
+    - alias: "Light: Turn off certain automatic lights when guests are home"
+      id: 7ce6f95a-291f-423a-a9e4-15af52f9a6a9
+      trigger:
+      - platform: state
+        entity_id: input_boolean.guest_mode
+      - platform: state
+        entity_id: input_boolean.guest_mode
+        to: "off"
+        for: "08:00:00"
+      action:
+      - choose:
+        - conditions:
+            - condition: state
+              entity_id: input_boolean.guest_mode
+              state: "on"
+          sequence:
+            - service: input_boolean.turn_off
+              data:
+                entity_id:
+                  - input_boolean.automatic_ellens_room_lights
+                  - input_boolean.automatic_game_room_lights
+        - conditions:
+            - condition: state
+              entity_id: input_boolean.guest_mode
+              state: "off"
+              for: "08:00:00"
+          sequence:
+            - service: input_boolean.turn_on
+              data:
+                entity_id:
+                  - input_boolean.automatic_ellens_room_lights
+                  - input_boolean.automatic_game_room_lights

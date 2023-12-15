@@ -116,10 +116,10 @@ ellens_room_lights_package:
         input:
           controller: Ellens Room Switch
           button_1_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.ellens_room_main
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.ellens_room_main
           button_1_held:
             - service: mqtt.publish
               data:
@@ -135,10 +135,10 @@ ellens_room_lights_package:
                 qos: 0
                 retain: false
           button_2_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.ellens_room_main
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.ellens_room_main
           button_2_held:
             - service: mqtt.publish
               data:
@@ -154,12 +154,12 @@ ellens_room_lights_package:
                 qos: 0
                 retain: false
           button_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: 
-                - light.ellens_room_shelf
-                - light.ellens_room_cotton_ball_string
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id:
+                  - light.ellens_room_shelf
+                  - light.ellens_room_cotton_ball_string
           button_3_held:
             - service: mqtt.publish
               data:
@@ -175,12 +175,12 @@ ellens_room_lights_package:
                 qos: 0
                 retain: false
           button_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: 
-                - light.ellens_room_shelf
-                - light.ellens_room_cotton_ball_string
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id:
+                  - light.ellens_room_shelf
+                  - light.ellens_room_cotton_ball_string
           button_4_held:
             - service: mqtt.publish
               data:
@@ -196,18 +196,16 @@ ellens_room_lights_package:
                 qos: 0
                 retain: false
           button_1_and_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id:
-                - light.ellens_room_main
-                - light.ellens_room_shelf
-                - light.ellens_room_cotton_ball_string
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id:
+                  - light.ellens_room_main
+                  - light.ellens_room_shelf
+                  - light.ellens_room_cotton_ball_string
           button_2_and_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id:
-                - light.ellens_room_main
-                - light.ellens_room_shelf
-                - light.ellens_room_cotton_ball_string
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id:
+                  - light.ellens_room_lights

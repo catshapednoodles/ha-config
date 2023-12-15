@@ -12,8 +12,8 @@ office_lights_package:
     - platform: threshold
       name: Office is dark
       entity_id: sensor.office_motion_sensor_illuminance_lux
-      lower: 40
-      hysteresis: 10
+      lower: 50
+      hysteresis: 20
 
   input_boolean:
     automatic_office_lights:
@@ -94,6 +94,8 @@ office_lights_package:
                 - service: light.turn_off
                   data:
                     entity_id: light.office_ceiling
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.office_lights_manually_switched_on
             # Turn off lights when it's not dark anymore
             - conditions:
                 - condition: state
@@ -106,6 +108,8 @@ office_lights_package:
                 - service: light.turn_off
                   data:
                     entity_id: light.office_ceiling
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.office_lights_manually_switched_on
 
     - alias: "Office: Light switch"
       id: 0ea0ffc2-ef68-4440-a796-6f30617688d0

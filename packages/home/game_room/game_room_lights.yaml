@@ -5,13 +5,31 @@ game_room_lights_package:
         - light.game_room_ceiling
       min_brightness: 50
       max_brightness: 100
-      autoreset_control_seconds: 3600
+      autoreset_control_seconds: 18000
       detect_non_ha_changes: true
+
+  binary_sensor:
+    - platform: threshold
+      name: Game Room is dark
+      entity_id: sensor.game_room_motion_sensor_illuminance_lux
+      lower: 100
+      hysteresis: 50
 
   input_boolean:
     automatic_game_room_lights:
       name: Automatic game room lights
       icon: mdi:lightbulb-auto
+    game_room_lights_manually_switched_on:
+      name: Game room lights manually switched on
+      icon: mdi:light-switch
+
+  input_number:
+    game_room_lights_time_on:
+      name: Game room lights time on
+      icon: mdi:clock-start
+      min: 1
+      max: 30
+      mode: box
 
   light:
     - platform: group
@@ -26,8 +44,13 @@ game_room_lights_package:
         - name: "Activity in Game Room"
           unique_id: activity_in_game_room
           state: >
-            {{ is_state("binary_sensor.game_room_motion_sensor_occupancy", "on") 
+            {{ is_state("binary_sensor.game_room_motion_sensor_occupancy", "on")
               or is_state('device_tracker.sicco_pc', 'home') }}
+        - name: "Game Room Game Mode"
+          unique_id: game_room_game_mode
+          state: >
+            {{ is_state('binary_sensor.game_room_tv_entertainment_configuration', 'on')
+              or is_state('binary_sensor.game_room_monitor_entertainment_configuration', 'on') }}
 
   automation:
     - alias: "Game Room: Light switch"
@@ -71,3 +94,113 @@ game_room_lights_package:
               entity_id:
                 - light.game_room_ceiling
                 - light.game_wall
+
+    - alias: "Game Room: Toggle game mode"
+      id: e83bab4f-e490-4835-b10d-d218f59f4b41
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.game_room_game_mode
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_game_room_lights
+          state: "on"
+        - condition: state
+          entity_id: light.game_room_ceiling
+          state: "on"
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.game_room_game_mode
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    brightness_pct: 20
+                    transition: 5
+                  target:
+                    entity_id: light.game_room_ceiling
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.game_room_game_mode
+                  state: "off"
+              sequence:
+                - service: adaptive_lighting.set_manual_control
+                  data:
+                    entity_id: switch.adaptive_lighting_game_room
+                    lights:
+                      - light.game_room_ceiling
+                    manual_control: false
+
+    - alias: "Game Room: Toggle lights"
+      id: 68d662bf-f208-412a-a2b4-8eebec0b0526
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.activity_in_game_room
+        - platform: state
+          entity_id: binary_sensor.activity_in_game_room
+          to: "off"
+          for:
+            minutes: >
+              {% set extra_time = 30 if is_state('input_boolean.game_room_lights_manually_switched_on', 'on') else 0 %}
+              {{ states('input_number.game_room_lights_time_on')|int(1) + extra_time }}
+        - platform: state
+          entity_id: binary_sensor.game_room_is_dark
+        - platform: state
+          entity_id: binary_sensor.sun_low_elevation
+        - platform: state
+          entity_id: input_boolean.automatic_game_room_lights
+          to: "on"
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_game_room_lights
+          state: "on"
+      action:
+        - choose:
+            # Turn on light if there's activity and sun is low
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_game_room
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.sun_low_elevation
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.sleep_mode
+                  state: "off"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id:
+                      - light.game_room
+            # Turn on light if there's activity and it is dark
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_game_room
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.game_room_is_dark
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.sleep_mode
+                  state: "off"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id: light.game_wall
+            # Turn off lights when there's no activity
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.activity_in_game_room
+                  state: "off"
+                  for:
+                    minutes: >
+                      {% set extra_time = 30 if is_state('input_boolean.game_room_lights_manually_switched_on', 'on') else 0 %}
+                      {{ states('input_number.game_room_lights_time_on')|int(1) + extra_time }}
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id: 
+                      - light.game_room
