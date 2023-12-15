@@ -75,41 +75,34 @@ dishwasher_package:
 
     - trigger:
         - platform: state
-          entity_id: sensor.dishwasher_best_starting_time_list
-      sensor:
-        - name: "Dishwasher best starting time"
-          icon: mdi:clock-start
-          device_class: timestamp
-          state: >
-              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
-              {% set time = sorted_list[0].start | as_datetime %}
-              {{ time if time > now() else now() + timedelta(seconds=5) }}
-          attributes:
-            lowest_costs: >
-              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
-              {{ sorted_list[0].costs }}
-
-    - trigger:
-        - platform: state
           # Trigger when remote start is activated
           entity_id: input_boolean.dishwasher_ready_to_start
           to: "on"
+      sensor:
+        - name: "Dishwasher ready to start activated"
+          icon: mdi:clock-in
+          device_class: timestamp
+          state: >
+            {{ now() }}
+
+    - trigger:
         - platform: state
-          # Trigger when input_number is changed
+          entity_id: sensor.dishwasher_ready_to_start_activated
+        - platform: state
           entity_id: input_number.dishwasher_max_waiting_hours
       sensor:
         - name: "Dishwasher best starting time list"
           icon: mdi:clock-start
           device_class: timestamp
           state: >
-            {{ now() }}
+            {{ as_datetime(states('sensor.dishwasher_ready_to_start_activated')).replace(second=0) }}
           attributes:
             list: >
               {% set kwh_pattern = state_attr('sensor.dishwasher_energy_usage_pattern', states('sensor.dishwasher_energy_usage_pattern'))%}
               {% set resolution_in_minutes = 5 %}
               {% set minutes = kwh_pattern | count * resolution_in_minutes %}
               {% set total_run_time = timedelta(minutes=minutes) %}
-              {% set start_time = now().replace(second=0) %}
+              {% set start_time = as_datetime(states('sensor.dishwasher_ready_to_start_activated')).replace(second=0) %}
               {# Calculate start time to nearest 'resolution' #}
               {% if start_time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
                 {% set start_time = start_time + timedelta(minutes=(resolution_in_minutes - start_time.minute%resolution_in_minutes)) %}
@@ -137,6 +130,22 @@ dishwasher_package:
               {% endfor %}
               {% set sorted_list = list.expected_costs | sort(attribute='costs') %}
               {{ sorted_list }}
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.dishwasher_best_starting_time_list
+      sensor:
+        - name: "Dishwasher best starting time"
+          icon: mdi:clock-start
+          device_class: timestamp
+          state: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {% set time = sorted_list[0].start | as_datetime %}
+              {{ time if time > now() else now() + timedelta(seconds=5) }}
+          attributes:
+            lowest_costs: >
+              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+              {{ sorted_list[0].costs }}
 
   script:
     start_dishwasher:

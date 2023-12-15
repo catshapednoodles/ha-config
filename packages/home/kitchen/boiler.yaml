@@ -17,3 +17,14 @@ boiler_package:
           else:
             - service: switch.turn_on
               entity_id: switch.boiler
+    - alias: "Boiler: Briefly turn on if boiler has been off too long"
+      id: 1e2cb1cb-6c85-46ae-bd31-2a3e052af63f
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: switch.boiler
+          to: "off"
+          for: "04:40:00"
+      action:
+        - service: switch.turn_on
+          entity_id: switch.boiler
