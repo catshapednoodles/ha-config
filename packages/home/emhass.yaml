@@ -80,7 +80,7 @@ emhass_package:
             - conditions:
                 - condition: numeric_state
                   entity_id: sensor.emhass_p_batt_forecast
-                  above: 100
+                  above: 1000
                 - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
               sequence:
                 - service: switch.turn_on
@@ -156,7 +156,7 @@ emhass_package:
             - conditions:
                 - condition: numeric_state
                   entity_id: sensor.emhass_p_batt_forecast
-                  above: 300
+                  above: 1000
                 - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
               sequence:
                 - service: switch.turn_on
