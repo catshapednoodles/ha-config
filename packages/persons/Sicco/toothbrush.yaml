@@ -30,6 +30,11 @@ sicco_toothbrush_package:
               sequence:
                 - service: counter.increment
                   entity_id: counter.sicco_brushed_teeth_today
+                - service: notify.sicco_phone
+                  data:
+                    message: clear_notification
+                    data:
+                      tag: toothbrush
             - conditions:
                 - condition: trigger
                   id: counter_reset
@@ -56,6 +61,7 @@ sicco_toothbrush_package:
             message: "You haven't brushed your teeth today"
             data:
               channel: "Health"
+              tag: toothbrush
               importance: high
               notification_icon: "mdi:toothbrush-electric"
               timeout: 7200
