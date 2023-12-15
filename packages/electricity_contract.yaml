@@ -49,6 +49,7 @@ electricity_contract_package:
   automation:
     - alias: "Energy contract: Switch contracts?"
       id: 88d23a95-b254-469f-9a65-c8c6499c4272
+      mode: single
       trigger:
         - platform: state
           entity_id: binary_sensor.energy_tax_included_this_year
@@ -57,6 +58,7 @@ electricity_contract_package:
         - platform: numeric_state
           entity_id: sensor.difference_between_usage_and_return_since_start_contract
           below: 500
+          for: "00:00:10"
         - platform: state
           entity_id: binary_sensor.difference_between_usage_and_return_below_0_in_30_days_7_day_prediction
           to: "on"
