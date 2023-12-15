@@ -1,20 +1,4 @@
 ip_address_package:
-  template:
-    - trigger:
-        - platform: state
-          entity_id: sensor.myip
-      binary_sensor:
-        - name: "Negative electricity price tomorrow"
-          unique_id: negative_electricity_price_tomorrow
-          state: >
-            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'off') %}
-            off
-            {% else %}
-            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min < 0 }}
-            {% endif %}
-          availability: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
-
   automation:
     - alias: "Telegram: Send new IP address"
       id: 423825ef-8ba6-499e-9b2c-0ce78abe14a3
