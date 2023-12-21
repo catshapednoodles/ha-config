@@ -18,6 +18,16 @@ sleep_package:
             {{ is_state("binary_sensor.pixel_6a_ellen_is_charging", "on")
               and is_state("person.ellen", "home")
               and (now().hour > 21 or now().hour < 7 ) }}
+        - name: "Someone is sleeping"
+          unique_id: someone_is_sleeping
+          state: >
+            {{ is_state("binary_sensor.ellen_is_sleeping", "on")
+              or is_state("input_boolean.sicco_is_sleeping", "on") }}
+        - name: "Everyone is sleeping"
+          unique_id: everyone_is_sleeping
+          state: >
+            {{ is_state("binary_sensor.ellen_is_sleeping", "on")
+              and is_state("input_boolean.sicco_is_sleeping", "on") }}
 
   script:
     handle_turn_off_someone_is_sleeping:
