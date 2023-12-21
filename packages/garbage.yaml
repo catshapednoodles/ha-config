@@ -86,9 +86,13 @@ garbage_package:
         - platform: time
           at: "17:00:00"
       condition:
-        - condition: state
-          entity_id: sensor.afvalinfo_afval_vandaag
-          state: "PBD, Papier, Textiel"
+        or:
+          - condition: state
+            entity_id: sensor.afvalinfo_home_trash_type_today
+            state: "PBD, Papier, Textiel"
+          - condition: state
+            entity_id: sensor.afvalinfo_home_trash_type_today
+            state: "Papier, PBD, Textiel"
       action:
         - service: notify.all_phones
           data:
