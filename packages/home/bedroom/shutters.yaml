@@ -1,0 +1,70 @@
+bedroom_shutters_package:
+  input_boolean:
+    automatic_bedroom_shutters:
+      name: Automatic bedroom shutters
+      icon: mdi:window-shutter-auto
+
+  automation:
+    - alias: "Bedroom: Set rolling shutters"
+      id: ed3b536d-d4e9-4b31-9017-d825f0ca9061
+      mode: restart
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.someone_is_sleeping
+          from: "on"
+          to: "off"
+          id: open_shutters
+        - platform: time
+          at: "11:00:00"
+          id: open_shutters
+        - platform: state
+          entity_id: binary_sensor.someone_is_sleeping
+          from: "off"
+          to: "on"
+          id: close_shutters
+        - platform: state
+          entity_id: binary_sensor.civil_twilight
+          from: "off"
+          to: "on"
+          id: automatically_close_shutters
+      condition:
+        - condition: state
+          entity_id: input_boolean.automatic_bedroom_shutters
+          state: "on"
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: open_shutters
+                - condition: time
+                  after: "06:00:00"
+                  before: "15:00:00"
+                - condition: state
+                  entity_id: binary_sensor.someone_is_sleeping
+                  state: "off"
+              sequence:
+                - delay: "00:45:00"
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.bedroom_roller_shutter_left_low_speed
+            - conditions:
+                - condition: trigger
+                  id: close_shutters
+                - or:
+                  - condition: time
+                    after: "21:00:00"
+                  - condition: time
+                    before: "03:00:00"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.bedroom_roller_shutter_left_low_speed
+            - conditions:
+                - condition: trigger
+                  id: automatically_close_shutters
+                - condition: time
+                  after: "17:00:00"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.bedroom_roller_shutter_left
