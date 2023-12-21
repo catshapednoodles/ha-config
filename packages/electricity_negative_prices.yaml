@@ -9,13 +9,13 @@ electricity_negative_price_package:
         - name: "Negative electricity price this hour"
           unique_id: negative_electricity_price_this_hour
           state: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) < 0 }}
+            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) <= 0 }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
         - name: "Negative electricity price today"
           unique_id: negative_electricity_price_today
           state: >
-            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min < 0 }}
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min <= 0 }}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
     - trigger:
@@ -28,7 +28,7 @@ electricity_negative_price_package:
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'off') %}
             off
             {% else %}
-            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min < 0 }}
+            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min <= 0 }}
             {% endif %}
           availability: >
             {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
