@@ -24,6 +24,7 @@ logbook:
       - input_boolean
       - media_player
     entity_globs:
+      - '*.battery_sim_*'
       - '*sensor.grocy*'
       - automation.*_status_monitor*
       - binary_sensor.pixel_6a*
@@ -47,8 +48,11 @@ recorder:
       - sun
       - time
       - update
+      - weather
     entity_globs:
+      - '*sensor.iphone_*'
       - binary_sensor.show_garbage_information*
+      - binary_sensor.grocy_*
       - binary_sensor.*_interactive
       - input_number.*_kwh_counter
       - input_number.*_threshold
@@ -63,14 +67,17 @@ recorder:
       - sensor.*_last_removed_notification
       - sensor.*_last_seen
       - sensor.*_linkquality
-      - sensor.*_uptime
+      - sensor.*_poe_power
+      - sensor.*_uptime*
       - sensor.afvalinfo_*
       - sensor.power_highest_peak_time_*
-      - sensor.*_poe_power
+      - sensor.smart_series_6000_9426_*
       - sensor.replay*
       - sensor.192_168_*
+      - switch.battery_sim_*
     entities:
       - sensor.date_time
+      - sensor.season
       - sensor.time
 
 #################################################################
