@@ -112,8 +112,7 @@ central_heating_package:
             temperature: >
               {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
               {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
-              {% set offset = 0.1 if (now() > today_at("23:00") or now() < today_at("03:00")) and is_state('input_boolean.heating_active', 'off') else 0 %}
-              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1) }}
+              {{ (temp_setpoint + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
         - service: number.set_value
           target:
             entity_id: number.mitsubishi_h_c_thermostat_target_temperature
@@ -122,7 +121,7 @@ central_heating_package:
               {% set temp_setpoint = states('input_number.water_temperature_setpoint') | float(25) %}
               {% set variance = states('input_number.water_temperature_variance') | float(3) %}
               {% set offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
-              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1, 'half') }}
+              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1, 'half') if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 28 }}
 
     - alias: "Heat pump: Toggle heating"
       id: 2d192b97-7726-4e2b-8e5c-e8463c7df4e1

@@ -12,11 +12,14 @@ heat_pump_package:
         - name: "Mitsubishi Delta T"
           icon: mdi:delta
           unit_of_measurement: "°C"
+          device_class: temperature
+          state_class: measurement
           state: >
             {{ (states('sensor.mitsubishi_flow_temperature') | float(0) - states('sensor.mitsubishi_return_temperature') | float(0)) | round(1) }}
         - name: "Mitsubishi Current Output Power"
           device_class: power
           unit_of_measurement: "kW"
+          state_class: measurement
           state: >
             {% if states('sensor.mitsubishi_operating_mode') == 'Stop' %}
               0
