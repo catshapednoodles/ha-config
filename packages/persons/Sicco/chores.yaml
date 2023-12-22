@@ -1,0 +1,27 @@
+sicco_chores_package:
+  automation:
+    - alias: "Notification: Scoop litter box"
+      id: 7892789b-8d5f-4478-b175-0cf1c822a955
+      trigger:
+        - platform: time
+          at: "23:00:00"
+      condition:
+        - condition: time
+          weekday:
+            - mon
+            - wed
+            - fri
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: Scoop litter box
+            message: "It's your turn to scoop the litter box(es)"
+            data:
+              channel: "Chores"
+              tag: litter_box
+              importance: high
+              notification_icon: "mdi:cat"
+              timeout: 7200
+              actions:
+                - action: "LITTER_BOX_SCOOPED"
+                  title: "Mark as done"
