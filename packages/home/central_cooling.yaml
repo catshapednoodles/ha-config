@@ -1,0 +1,20 @@
+central_cooling_package:
+  script:
+    save_my_position:
+      alias: "Save Somfy My Position for screens and shutters"
+      icon: "mdi:content-save-cog"
+      description: "Save the Somfy My Position for rolling screens and rolling shutters"
+      fields:
+        somfy_entity:
+          name: Rolling screen or shutter
+          selector:
+            entity:
+              filter:
+                domain: cover
+      mode: parallel
+      sequence:
+        - service: number.set_value
+          target:
+            entity_id: number.{{ somfy_entity | regex_replace('cover.') }}_my_position
+          data:
+            value: "{{ state_attr(somfy_entity, 'current_position') }}"

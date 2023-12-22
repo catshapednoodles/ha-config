@@ -1,0 +1,57 @@
+kitchen_curtains_package:
+  cover:
+    - platform: template
+      covers:
+        kitchen_curtains:
+          friendly_name: "Kitchen Curtains"
+          optimistic: true
+          device_class: curtain
+          open_cover:
+            - service: cover.close_cover
+              target:
+                entity_id: cover.kitchen_curtains_tahoma
+          close_cover:
+            - service: cover.open_cover
+              target:
+                entity_id: cover.kitchen_curtains_tahoma
+          stop_cover:
+            - service: cover.stop_cover
+              target:
+                entity_id: cover.kitchen_curtains_tahoma
+
+  automation:
+    - alias: "Kitchen: Set curtains"
+      id: 297852ec-0993-4dfc-81ea-14525ad65c20
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.everyone_is_sleeping
+          from: "on"
+          to: "off"
+          id: open_curtains
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+          from: "off"
+          to: "on"
+          id: close_curtains
+        - platform: time
+          at: "10:59:00"
+          id: open_curtains
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: open_curtains
+                - condition: time
+                  after: "06:00:00"
+                  before: "11:00:00"
+              sequence:
+                - service: button.press
+                  entity_id: button.kitchen_curtains_tahoma_my_position
+            - conditions:
+                - condition: trigger
+                  id: close_curtains
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.kitchen_curtains_tahoma
