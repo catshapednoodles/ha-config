@@ -29,6 +29,7 @@ dryer_package:
     - binary_sensor:
         - name: "Dryer ready to start"
           icon: mdi:tumble-dryer
+          device_class: running
           delay_on: "00:00:03"
           state: >
             {{ is_state('binary_sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_remotecontrolactive', 'on')
@@ -36,6 +37,7 @@ dryer_package:
               and is_state('sensor.siemens_wt8hxm75nl_68a40e926546_bsh_common_status_operationstate', 'BSH.Common.EnumType.OperationState.Ready')}}
         - name: "Dryer on but not ready to start"
           icon: mdi:tumble-dryer
+          device_class: problem
           delay_on: "00:00:03"
           state: >
             {{( 
@@ -152,14 +154,14 @@ dryer_package:
           icon: mdi:clock-start
           device_class: timestamp
           state: >
-            {{ as_datetime(states('sensor.dryer_ready_to_start_activated')).replace(second=0) }}
+            {{ as_datetime(states('sensor.dryer_ready_to_start_activated') | as_timestamp | timestamp_local).replace(second=0) }}
           attributes:
             list: >
               {% set kwh_pattern = state_attr('sensor.dryer_energy_usage_pattern', states('sensor.dryer_energy_usage_pattern'))%}
               {% set resolution_in_minutes = 5 %}
               {% set minutes = kwh_pattern | count * resolution_in_minutes %}
               {% set total_run_time = timedelta(minutes=minutes) %}
-              {% set start_time = as_datetime(states('sensor.dryer_ready_to_start_activated')).replace(second=0) %}
+              {% set start_time = as_datetime(states('sensor.dryer_ready_to_start_activated') | as_timestamp | timestamp_local).replace(second=0) %}
               {# Calculate start time to nearest 'resolution' #}
               {% if start_time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
                 {% set start_time = start_time + timedelta(minutes=(resolution_in_minutes - start_time.minute%resolution_in_minutes)) %}

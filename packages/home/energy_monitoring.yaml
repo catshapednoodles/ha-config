@@ -3,6 +3,7 @@ energy_monitoring_package:
     - binary_sensor:
         - name: "Unifi Chime available"
           unique_id: unifi_chime_available
+          device_class: connectivity
           state: >
             {{ states('sensor.up_chime_last_ring') not in ['unavailable', 'unknown', 'none'] }}
 
@@ -30,13 +31,13 @@ energy_monitoring_package:
           - entity_id: device_tracker.usl8lp      # Switch Lite 8
             fixed:
               power: 4.4
-          - entity_id: device_tracker.u6_iw
+          - entity_id: device_tracker.u6_iw_ground_floor
             name: In-Wall Ground Floor
             power_sensor_id: sensor.usw_16_poe_port_7_poe_power
-          - entity_id: device_tracker.u6iw
+          - entity_id: device_tracker.u6_iw_first_floor
             name: In-Wall First Floor
             power_sensor_id: sensor.usw_16_poe_port_6_poe_power
-          - entity_id: device_tracker.u6iw_2
+          - entity_id: device_tracker.u6_iw_second_floor
             name: In-Wall Second Floor
             power_sensor_id: sensor.usw_16_poe_port_2_poe_power
           - entity_id: device_tracker.u6_mesh

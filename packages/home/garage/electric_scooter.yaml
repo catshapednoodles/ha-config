@@ -22,6 +22,7 @@ electric_scooter_package:
       - name: "E-Scooter charger power"
         state_topic: "shellyplusplugs-b0b21c18db24/status/switch:0"
         unit_of_measurement: "W"
+        device_class: power
         value_template: "{{ value_json.apower | round(1) }}"
         # availability:
         #   - topic: "shellyplusplugs-b0b21c18db24/online"
@@ -30,6 +31,7 @@ electric_scooter_package:
       - name: "E-Scooter charger voltage"
         state_topic: "shellyplusplugs-b0b21c18db24/status/switch:0"
         unit_of_measurement: "V"
+        device_class: voltage
         value_template: "{{ value_json.voltage | round(1) }}"
         # availability:
         #   - topic: "shellyplusplugs-b0b21c18db24/online"
@@ -38,6 +40,7 @@ electric_scooter_package:
       - name: "E-Scooter charger current"
         state_topic: "shellyplusplugs-b0b21c18db24/status/switch:0"
         unit_of_measurement: "A"
+        device_class: current
         value_template: "{{ value_json.current | round(1) }}"
         # availability:
         #   - topic: "shellyplusplugs-b0b21c18db24/online"
