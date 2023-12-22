@@ -1,0 +1,48 @@
+kitchen_camera_package:
+  automation:
+    - alias: "Camera: Toggle motion detection on kitchen camera"
+      id: 3333d9d6-4a23-4c47-846b-6e68963041b3
+      trigger:
+        - platform: state
+          entity_id: input_boolean.sleep_mode
+        - platform: state
+          entity_id: zone.home
+          to: "0"
+        - platform: state
+          entity_id: zone.home
+          from: "0"
+        - platform: state
+          entity_id: input_boolean.guest_mode
+        - platform: time
+          at: "01:00:00"
+        - platform: time
+          at: "06:00:00"
+        # - platform: state
+        #   entity_id: binary_sensor.g3_instant_is_dark
+      action:
+        - choose:
+          - conditions:
+              - or:
+                - condition: state
+                  entity_id: input_boolean.sleep_mode
+                  state: "on"
+                - condition: state
+                  entity_id: zone.home
+                  state: "0"
+              - or:
+                - alias: "Don't turn on when guests are staying over"
+                  condition: state
+                  entity_id: input_boolean.guest_mode
+                  state: "off"
+                - alias: "Turn on anyway between these times"
+                  condition: time
+                  after: "01:00:00"
+                  before: "06:00:00"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.ground_floor_camera_detections_motion
+          default:
+            - service: switch.turn_off
+              target:
+                entity_id: switch.ground_floor_camera_detections_motion
