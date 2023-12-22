@@ -16,6 +16,7 @@ technical_room_lights_package:
     - binary_sensor:
         - name: "Activity in Technical Room"
           unique_id: activity_in_technical_room
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.technical_room_motion_sensor_occupancy", "on") }}
 

@@ -36,6 +36,7 @@ living_room_lights_package:
     - binary_sensor:
         - name: "Activity in living room"
           unique_id: activity_in_living_room
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.living_room_motion_sensor_occupancy", "on") 
               or is_state('media_player.65oled807_12_2', 'on') }}

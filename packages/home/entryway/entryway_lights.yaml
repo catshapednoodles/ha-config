@@ -28,6 +28,7 @@ entryway_lights_package:
     - binary_sensor:
         - name: "Activity in entryway"
           unique_id: activity_in_entryway
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.entryway_motion_sensor_occupancy", "on") }}
 

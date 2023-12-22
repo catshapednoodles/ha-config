@@ -29,6 +29,7 @@ kitchen_lights_package:
     - binary_sensor:
         - name: "Activity in kitchen"
           unique_id: activity_in_kitchen
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.kitchen_motion_sensor_occupancy", "on") }}
           delay_off: "00:01:00"

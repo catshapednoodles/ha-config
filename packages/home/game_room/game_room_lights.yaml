@@ -43,9 +43,11 @@ game_room_lights_package:
     - binary_sensor:
         - name: "Activity in Game Room"
           unique_id: activity_in_game_room
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.game_room_motion_sensor_occupancy", "on")
-              or is_state('device_tracker.sicco_pc', 'home') }}
+              or is_state('device_tracker.sicco_pc', 'home')
+              or not is_state('sensor.sicco_pc_satellite_loggeduser', 'unavailable') }}
         - name: "Game Room Game Mode"
           unique_id: game_room_game_mode
           state: >

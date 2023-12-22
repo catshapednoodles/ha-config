@@ -35,6 +35,7 @@ ellens_room_lights_package:
     - binary_sensor:
         - name: "Activity in Ellen's Room"
           unique_id: activity_in_ellen_s_room
+          device_class: occupancy
           state: >
             {{ is_state("binary_sensor.ellens_room_motion_sensor_occupancy", "on") 
               or is_state('device_tracker.ellen_pc', 'home') }}
