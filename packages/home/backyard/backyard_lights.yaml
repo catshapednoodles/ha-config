@@ -4,8 +4,9 @@ backyard_lights_package:
       id: 9243c8c0-4fa8-44d4-8c33-83a7cb9dd5b9
       description: ''
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Backyard Switch
           button_1_pressed:
           - service: light.turn_on
@@ -16,7 +17,7 @@ backyard_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Backyard Light/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: "{\"brightness_move_onoff\": 85}"
                 qos: 0
                 retain: false
           button_1_released:
@@ -35,7 +36,7 @@ backyard_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Backyard Light/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: "{\"brightness_move_onoff\": -85}"
                 qos: 0
                 retain: false
           button_2_released:

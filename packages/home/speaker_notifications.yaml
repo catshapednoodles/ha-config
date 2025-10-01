@@ -1,0 +1,64 @@
+speaker_notifications_package:
+  script:
+    speaker_tts_announce:
+      alias: Announce something on smart speakers with TTS
+      mode: single
+      icon: mdi:bullhorn-variant-outline
+      fields:
+        entities:
+          name: Entities
+          required: true
+          selector:
+            entity:
+              multiple: true
+              filter:
+                domain: media_player
+        text:
+          name: Text
+          required: true
+          selector:
+            text: null
+        language:
+          name: Language
+          required: true
+          default: en
+          selector:
+            text: null
+        volume:
+          name: Volume
+          required: true
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 100
+        cache:
+          name: Cache
+          default: true
+          selector:
+            boolean: null
+      sequence:
+        - target:
+            entity_id: "{{ entities }}"
+          data:
+            media_content_id: >-
+              media-source://tts/google_translate?message="{{ text }}"&language={{
+              language }}&cache={{ cache }}
+            media_content_type: music
+            announce: true
+            extra:
+              volume: "{{ volume }}"
+          alias: TTS
+          enabled: true
+          action: media_player.play_media
+
+# This is how to use this script
+# data:
+#   language: en
+#   volume: 40
+#   cache: true
+#   entities:
+#     - media_player.bathroom
+#     - media_player.living_room
+#   text: Ding dong, there is someone at the door.
+# action: script.announce

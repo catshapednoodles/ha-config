@@ -1,12 +1,13 @@
 backups_package:
   automation:
     - alias: Restore Samba Backup sensor on startup
+      id: 453a54f4-4d73-4006-a562-e69c3dbfdcbd
       trigger:
-      - event: start
-        platform: homeassistant
+        - event: start
+          platform: homeassistant
       action:
-      - service: hassio.addon_stdin
-        data:
-          addon: 15d21743_samba_backup
-          input: restore-sensor
+        - service: hassio.addon_stdin
+          data:
+            addon: 15d21743_samba_backup
+            input: restore-sensor
       mode: single

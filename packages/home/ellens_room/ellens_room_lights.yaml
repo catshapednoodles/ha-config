@@ -2,18 +2,19 @@ ellens_room_lights_package:
   adaptive_lighting:
     - name: "Ellen's Room"
       lights:
-        - light.ellens_room_main
+        - light.ellens_room_ceiling
       min_brightness: 70
       max_brightness: 100
       autoreset_control_seconds: 10800
       detect_non_ha_changes: true
+      skip_redundant_commands: true
 
   binary_sensor:
     - platform: threshold
       name: Ellen's Room is dark
-      entity_id: sensor.ellens_room_motion_sensor_illuminance_lux
-      lower: 80
-      hysteresis: 40
+      entity_id: sensor.office_motion_sensor_illuminance
+      lower: 50
+      hysteresis: 80
 
   input_boolean:
     automatic_ellens_room_lights:
@@ -73,16 +74,21 @@ ellens_room_lights_package:
                   entity_id: binary_sensor.activity_in_ellen_s_room
                   state: "on"
                 - or:
-                  - condition: state
-                    entity_id: binary_sensor.sun_low_elevation
-                    state: "on"
-                  - condition: state
-                    entity_id: binary_sensor.ellen_s_room_is_dark
-                    state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.sun_low_elevation
+                      state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.ellen_s_room_is_dark
+                      state: "on"
+                    - condition: state
+                      entity_id: input_boolean.ellens_room_lights_manually_switched_on
+                      state: "on"
               sequence:
                 - service: light.turn_on
                   data:
-                    entity_id: light.ellens_room_main
+                    entity_id:
+                      - light.ellens_room_ceiling
+                      - light.ellens_room_cabinet
             # Turn off lights when there's no activity
             - conditions:
                 - condition: state
@@ -95,7 +101,11 @@ ellens_room_lights_package:
               sequence:
                 - service: light.turn_off
                   data:
-                    entity_id: light.ellens_room_main
+                    entity_id:
+                      - light.ellens_room_ceiling
+                      - light.ellens_room_cabinet
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.ellens_room_lights_manually_switched_on
             # Turn off lights when it's not dark anymore
             - conditions:
                 - condition: state
@@ -107,51 +117,64 @@ ellens_room_lights_package:
               sequence:
                 - service: light.turn_off
                   data:
-                    entity_id: light.ellens_room_main
+                    entity_id:
+                      - light.ellens_room_ceiling
+                      - light.ellens_room_cabinet
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.ellens_room_lights_manually_switched_on
 
     - alias: "Ellen's Room: Light switch"
       id: 04b4e660-aaad-47ea-8b7e-21cb4de3df4b
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Ellens Room Switch
           button_1_pressed:
             - service: light.turn_on
               data: {}
               target:
-                entity_id: light.ellens_room_main
+                entity_id: light.ellens_room_ceiling
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
           button_1_held:
             - service: mqtt.publish
               data:
-                topic: zigbee2mqtt/Ellens Room Main/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                topic: zigbee2mqtt/Ellens Room Ceiling/set
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
           button_1_released:
             - service: mqtt.publish
               data:
-                topic: zigbee2mqtt/Ellens Room Main/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                topic: zigbee2mqtt/Ellens Room Ceiling/set
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_2_pressed:
             - service: light.turn_off
               data: {}
               target:
-                entity_id: light.ellens_room_main
+                entity_id: light.ellens_room_ceiling
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
           button_2_held:
             - service: mqtt.publish
               data:
-                topic: zigbee2mqtt/Ellens Room Main/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                topic: zigbee2mqtt/Ellens Room Ceiling/set
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
           button_2_released:
             - service: mqtt.publish
               data:
-                topic: zigbee2mqtt/Ellens Room Main/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                topic: zigbee2mqtt/Ellens Room Ceiling/set
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_3_pressed:
@@ -159,54 +182,77 @@ ellens_room_lights_package:
               data: {}
               target:
                 entity_id:
-                  - light.ellens_room_shelf
-                  - light.ellens_room_cotton_ball_string
-          button_3_held:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Ellens Room Shelf/set
-                payload: "{\"brightness_move_onoff\": 51}"
-                qos: 0
-                retain: false
-          button_3_released:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Ellens Room Shelf/set
-                payload: "{\"brightness_move\": \"stop\"}"
-                qos: 0
-                retain: false
+                  - light.ellens_room_cabinet
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
+          # button_3_held:
+          #   - service: mqtt.publish
+          #     data:
+          #       topic: zigbee2mqtt/Ellens Room Shelf/set
+          #       payload: "{\"brightness_move_onoff\": 85}"
+          #       qos: 0
+          #       retain: false
+          # button_3_released:
+          #   - service: mqtt.publish
+          #     data:
+          #       topic: zigbee2mqtt/Ellens Room Shelf/set
+          #       payload: "{\"brightness_move\": \"stop\"}"
+          #       qos: 0
+          #       retain: false
           button_4_pressed:
             - service: light.turn_off
               data: {}
               target:
                 entity_id:
-                  - light.ellens_room_shelf
-                  - light.ellens_room_cotton_ball_string
-          button_4_held:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Ellens Room Shelf/set
-                payload: "{\"brightness_move_onoff\": -51}"
-                qos: 0
-                retain: false
-          button_4_released:
-            - service: mqtt.publish
-              data:
-                topic: zigbee2mqtt/Ellens Room Shelf/set
-                payload: "{\"brightness_move\": \"stop\"}"
-                qos: 0
-                retain: false
+                  - light.ellens_room_cabinet
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
+          # button_4_held:
+          #   - service: mqtt.publish
+          #     data:
+          #       topic: zigbee2mqtt/Ellens Room Shelf/set
+          #       payload: "{\"brightness_move_onoff\": -85}"
+          #       qos: 0
+          #       retain: false
+          # button_4_released:
+          #   - service: mqtt.publish
+          #     data:
+          #       topic: zigbee2mqtt/Ellens Room Shelf/set
+          #       payload: "{\"brightness_move\": \"stop\"}"
+          #       qos: 0
+          #       retain: false
           button_1_and_3_pressed:
             - service: light.turn_on
               data: {}
               target:
                 entity_id:
-                  - light.ellens_room_main
-                  - light.ellens_room_shelf
-                  - light.ellens_room_cotton_ball_string
+                  - light.ellens_room_ceiling
+                  - light.ellens_room_cabinet
+            - service: input_boolean.turn_on
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
           button_2_and_4_pressed:
             - service: light.turn_off
               data: {}
               target:
                 entity_id:
                   - light.ellens_room_lights
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.ellens_room_lights_manually_switched_on
+
+    - alias: "Ellen's Room: Toggle automatic lights"
+      mode: single
+      trigger:
+        - platform: state
+          entity_id:
+            - light.ellens_room_ceiling
+            - light.ellens_room_reading_lamp
+            - light.ellens_room_lights
+            - light.ellens_room_cabinet
+      condition:
+        - condition: template
+          value_template: >
+            {{ trigger.to_state.context.user_id != None
+              and not trigger.to_state.context.parent_id }}
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.automatic_ellens_room_lights

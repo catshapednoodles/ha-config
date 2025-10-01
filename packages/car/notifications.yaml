@@ -1,0 +1,62 @@
+car_notifications_package:
+  template:
+    - binary_sensor:
+      - name: "Sicco's phone connected to ID.3"
+        unique_id: 3168c352-fa3b-42ee-aa2c-201acc64fe59
+        state: >
+          {{ is_state('binary_sensor.sm_s931b_android_auto', 'on') and is_state('sensor.sm_s931b_car_name', 'VW3106') }}
+        device_class: connectivity
+      - name: "Ellen's phone connected to ID.3"
+        unique_id: 12e214e7-71c4-447c-9f65-d3eb894ddd75
+        state: >
+          {{ is_state('binary_sensor.pixel_6a_ellen_android_auto', 'on') and is_state('sensor.pixel_6a_ellen_car_name', 'VW3106') }}
+        device_class: connectivity
+
+  automation:
+  - alias: "EV: Send notification when coming home and charging is needed"
+    id: 9c7de0c1-66e0-4cd2-a2a0-57264bb0eef5
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.g4_doorbell_vehicle_detected
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.id_3_charging_needed
+        state: "on"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.pixel_6a_sicco_android_auto
+                state: "on"
+              - condition: numeric_state
+                entity_id: sensor.home_sicco_distance
+                below: 2000
+            sequence:
+              - action: notify.sicco_phone
+                data:
+                  title: "Charging needed"
+                  message: "Please plug in the charging cable"
+                  data:
+                    car_ui: true
+                    notification_icon: "mdi:car"
+                    channel: "Android Auto"
+                    importance: high
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.pixel_6a_ellen_android_auto
+                state: "on"
+              - condition: numeric_state
+                entity_id: sensor.home_ellen_distance
+                below: 2000
+            sequence:
+              - action: notify.ellen_phone
+                data:
+                  title: "Charging needed"
+                  message: "Please plug in the charging cable"
+                  data:
+                    car_ui: true
+                    notification_icon: "mdi:car"
+                    channel: "Android Auto"
+                    importance: high
+

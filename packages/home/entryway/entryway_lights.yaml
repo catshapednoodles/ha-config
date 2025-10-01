@@ -7,6 +7,7 @@ entryway_lights_package:
     max_brightness: 100
     autoreset_control_seconds: 3600
     detect_non_ha_changes: true
+    skip_redundant_commands: true
 
   input_boolean:
     automatic_entryway_lights:
@@ -37,8 +38,9 @@ entryway_lights_package:
       id: f40f57a8-7dda-4240-a6a9-cf1fe27c6fd7
       description: ''
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Entryway Switch
           button_1_pressed:
             - service: light.turn_on

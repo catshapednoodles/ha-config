@@ -1,0 +1,23 @@
+new_year_package:
+  automation:
+    - alias: New Year automations
+      id: d45a6320-3c1b-446d-a832-054a379f26d1
+      trigger:
+        - platform: time
+          at: "23:59:50"
+      condition:
+        - condition: template
+          value_template: "{{ now().day == 31 and now().month == 12 }}"
+      action:
+        - delay: "00:00:10"
+        - service: text.set_value
+          target:
+            entity_id:
+              - text.g4_doorbell_doorbell
+          data:
+            value: Happy New Year!
+        - service: script.turn_on
+          entity_id: script.new_year_2
+        - delay: "00:00:05"
+        - service: script.turn_on
+          entity_id: script.new_year

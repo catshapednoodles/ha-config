@@ -15,49 +15,19 @@ heat_pump_dhw_package:
     dhw_temperature_setpoint:
       name: "DHW temperature setpoint"
       icon: mdi:thermometer-water
-      min: 40
-      max: 60
+      min: 20
+      max: 65
       mode: box
       step: 0.5
       unit_of_measurement: "°C"
     dhw_temperature_current_setpoint:
       name: "DHW temperature current setpoint"
       icon: mdi:thermometer-water
-      min: 40
-      max: 60
+      min: 20
+      max: 65
       mode: box
       step: 0.5
       unit_of_measurement: "°C"
-    dhw_temperature_variance:
-      name: "DHW temperature variance"
-      icon: mdi:thermometer-water
-      min: 0
-      max: 10
-      mode: box
-      step: 0.5
-      unit_of_measurement: "°C"
-
-  # sensor:
-  #   - platform: nordpool_diff
-  #     nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
-  #     filter_length: 12
-  #     filter_type: rectangle
-  #     normalize: max_min
-  #   - platform: nordpool_diff
-  #     nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
-  #     filter_length: 12
-  #     filter_type: triangle
-  #     normalize: max_min
-  #   - platform: nordpool_diff
-  #     nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
-  #     filter_length: 14
-  #     filter_type: triangle
-  #     normalize: max_min
-  #   - platform: nordpool_diff
-  #     nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
-  #     filter_length: 12
-  #     filter_type: triangle
-  #     normalize: max
 
   template:
     - trigger:
@@ -66,10 +36,11 @@ heat_pump_dhw_package:
           to: "Legionella"
         - platform: numeric_state
           entity_id: sensor.mitsubishi_tank_water_temperature
-          above: 60.5
-          for: "00:10:00"
+          above: 59.9
+          for: "00:05:00"
       sensor:
         - name: "Mitsubishi Last Legionella Run"
+          unique_id: 46177434-3113-4d53-96eb-3996b23b3230
           icon: mdi:clock-in
           device_class: timestamp
           state: >
@@ -82,9 +53,10 @@ heat_pump_dhw_package:
           to: "on"
         - platform: state
           entity_id: sensor.mitsubishi_operating_mode
-          to: "Hot Water"
+          from: "Hot Water"
       sensor:
         - name: "Mitsubishi Last DHW Run"
+          unique_id: bebce468-8625-41d1-a643-7b37cdd0be22
           icon: mdi:clock-in
           device_class: timestamp
           state: >
@@ -94,22 +66,70 @@ heat_pump_dhw_package:
         - platform: state
           entity_id: sensor.mitsubishi_last_dhw_run
         - platform: state
+          entity_id: sensor.mitsubishi_next_dhw_run
+          to: "unknown"
+          for:
+            minutes: 1
+        - platform: state
+          entity_id: sensor.mitsubishi_next_dhw_run
+          to: "unavailable"
+          for:
+            minutes: 1
+        - platform: event
+          event_type: recalculate_dhw_run
+        - platform: state
           entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.mitsubishi_next_dhw_run_is_legionella_run
           to: "on"
       sensor:
         - name: "Mitsubishi Next DHW Run"
+          unique_id: eeadbb0e-aa10-4c14-a488-3ef789fc9b53
           icon: mdi:clock-in
           device_class: timestamp
           state: >
-            {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')[0:24] %}
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:100] %}
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
-              {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow')[0:24] %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:100] %}
             {% endif %}
             {% set time = as_datetime(states('sensor.mitsubishi_last_dhw_run')) %}
-            {% set min_wait_hours = 1 if is_state('binary_sensor.negative_electricity_price_today', 'on') or is_state('binary_sensor.negative_electricity_price_tomorrow', 'on') else 8 %}
-            {% set next_hour_prices = list | selectattr('start', '>', time + timedelta(hours=min_wait_hours)) | selectattr('start', '<', time + timedelta(hours=30)) | list %}
-            {% set lowest_price = next_hour_prices | map(attribute='value') | min %}
-            {{ (next_hour_prices | selectattr('value', 'eq', lowest_price) | map(attribute='start') | list)[0] }}
+            {% set current_tank_temp = states('sensor.mitsubishi_tank_water_temperature') | float(0) %}
+            {% set current_setpoint = states('input_number.dhw_temperature_setpoint') | float(0) %}
+            {% set min_wait = timedelta(minutes=30) if is_state('binary_sensor.negative_electricity_price_today', 'on') or is_state('binary_sensor.negative_electricity_price_tomorrow', 'on') or current_tank_temp < current_setpoint else timedelta(hours=8) %}
+            {% if current_tank_temp - current_setpoint > 3 %}
+              {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '>=', time + min_wait) | list %}
+            {% else %}
+              {% set temp = states('sensor.average_outdoor_temperature_last_3_days') | float(5) %}
+              {% if temp < 8 %}
+                {% set max_wait_time = time + timedelta(hours=36) if now() - time < timedelta(hours=26) else now() + timedelta(hours=10) %}
+              {% else %}
+                {% set max_wait_time = time + timedelta(hours=40) if now() - time < timedelta(hours=28) else now() + timedelta(hours=12) %}
+              {% endif %}
+              {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '>=', time + min_wait) | selectattr('start', '<', max_wait_time) | list %}
+            {% endif %}
+            {% set lowest_price_item = (next_hour_prices | sort(attribute='value_solar_adjusted'))[0] %}
+            {{ lowest_price_item.start }}
+
+    - binary_sensor:
+        - name: "Mitsubishi Next DHW Run is legionella run"
+          unique_id: 1ed47196-b0b8-47fa-9db1-a0e10f9dc603
+          icon: mdi:virus
+          state: >
+            {% if is_state('binary_sensor.negative_electricity_price_this_hour', 'on') %}
+              {{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=1, hours=14) }}
+            {% elif is_state('input_boolean.vacation_mode_no_dhw', 'on') and is_state('input_boolean.vacation_mode_coming_home', 'off') %}
+              {{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=27, hours=14) }}
+            {% elif now().weekday() < 5 %}
+              {{
+                (now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=9, hours=14) and is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') and states('sensor.day_ahead_price') | float(0) < states('sensor.cheapest_electricity_price_tomorrow') | float(0))
+                or (now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=10, hours=14))
+              }}
+            {% elif is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=5, hours=13) and states('sensor.day_ahead_price') | float(0) < states('sensor.cheapest_electricity_price_tomorrow') | float(0) }}
+            {% else %}
+              {{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=6, hours=13) }}
+            {% endif %}
 
   script:
     mitsubishi_soft_force_dhw:
@@ -117,30 +137,36 @@ heat_pump_dhw_package:
       mode: single
       icon: mdi:fire-alert
       sequence:
-        - service: number.set_value
-          target:
-            entity_id: number.mitsubishi_set_tank_water_temperature
-          data:
-            value: 65
         - alias: "Check if legionella is necessary"
           if:
-            - or:
-              - and:
-                  - condition: state
-                    entity_id: binary_sensor.negative_electricity_price_this_hour
-                    state: "on"
-                  - "{{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(hours=20) }}"
-              - and:
-                  - "{{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=5, hours=20) }}"
-                  - condition: state
-                    entity_id: binary_sensor.electricity_is_cheaper_today
-                    state: "on"
-              - and:
-                  - "{{ now() > states('sensor.mitsubishi_last_legionella_run') | as_datetime + timedelta(days=6, hours=20) }}"
+            - condition: state
+              entity_id: binary_sensor.mitsubishi_next_dhw_run_is_legionella_run
+              state: "on"
+            # - not:
+            #   - condition: state
+            #     entity_id: sensor.season
+            #     state: "winter"
           then:
             - service: input_boolean.turn_on
               target:
                 entity_id: input_boolean.legionella_run_active
+            # - if:
+            #     - "{{ state_attr('weather.combined', 'temperature') | float(0) < 18 }}"
+            #   then:
+            #     - service: switch.turn_off
+            #       data:
+            #         entity_id: switch.mitsubishi_dhw_eco_mode
+            - service: number.set_value
+              target:
+                entity_id: number.mitsubishi_set_tank_water_temperature
+              data:
+                value: 65
+          else:
+            - service: number.set_value
+              target:
+                entity_id: number.mitsubishi_set_tank_water_temperature
+              data:
+                value: 60
 
   automation:
     - alias: "Heat pump: Set tank water temperature"
@@ -162,31 +188,60 @@ heat_pump_dhw_package:
           entity_id: sensor.mitsubishi_operating_mode
           from: "Hot Water"
         - platform: state
+          entity_id: number.mitsubishi_set_tank_water_temperature
+          to: "60.0"
+          for:
+            minutes: 2
+        - platform: state
           entity_id: input_boolean.legionella_run_active
+          to: "off"
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          to: "Legionella"
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          from: "Legionella"
+        - platform: state
+          entity_id: input_boolean.vacation_mode_no_dhw
+          from: "on"
           to: "off"
       condition:
         - condition: state
           entity_id: input_boolean.legionella_run_active
           state: "off"
       action:
-        - service: input_number.set_value
-          target:
-            entity_id: input_number.dhw_temperature_current_setpoint
-          data:
-            value: >
-              {% set sun_offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
-              {% set heat_drop_offset = 5 if is_state('sensor.mitsubishi_operating_mode', 'Hot Water')
-                and state_attr('script.mitsubishi_soft_force_dhw', 'last_triggered') < now() - timedelta(hours=1)
-                and is_state('binary_sensor.electricity_cheapest_4_hours', 'off') else 0 %}
-              {{ states('input_number.dhw_temperature_setpoint') | float(48) - sun_offset - heat_drop_offset if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 55 }}
+        - if:
+            - condition: state
+              entity_id: input_boolean.vacation_mode_no_dhw
+              state: "on"
+            - condition: state
+              entity_id: input_boolean.vacation_mode_coming_home
+              state: "off"
+          then:
+            - service: input_number.set_value
+              target:
+                entity_id: input_number.dhw_temperature_current_setpoint
+              data:
+                value: 30
+          else:
+            - service: input_number.set_value
+              target:
+                entity_id: input_number.dhw_temperature_current_setpoint
+              data:
+                value: >
+                  {% set sun_offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+                  {% set heat_drop_offset = 3.5 if is_state('sensor.mitsubishi_operating_mode', 'Hot Water')
+                    and state_attr('script.mitsubishi_soft_force_dhw', 'last_triggered') < now() - timedelta(hours=1)
+                    and is_state('binary_sensor.electricity_cheapest_6_hours', 'off') else 0 %}
+                  {{ states('input_number.dhw_temperature_setpoint') | float(48) - sun_offset - heat_drop_offset if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 57 }}
         - service: number.set_value
           target:
             entity_id: number.mitsubishi_set_tank_water_temperature
           data:
             value: >
-              {{ states('input_number.dhw_temperature_current_setpoint') | float(48) }}
+              {{ states('input_number.dhw_temperature_current_setpoint') | float(48) if not is_state('sensor.mitsubishi_operating_mode', 'Legionella') else 54 }}
 
-    - alias: "Heat pump: Handle domestic hot water"
+    - alias: "Heat pump: Handle domestic hot water runs"
       id: 8e2e729f-6253-4b45-9b4e-781624511ede
       mode: queued
       trigger:
@@ -194,7 +249,7 @@ heat_pump_dhw_package:
           at: sensor.mitsubishi_next_dhw_run
           id: turn_on
         - platform: time
-          at: input_datetime.heat_pump_next_dhw_run_delayed
+          at: sensor.mitsubishi_next_dhw_run
           id: turn_on
         - platform: numeric_state
           entity_id: number.mitsubishi_set_tank_water_temperature
@@ -204,12 +259,12 @@ heat_pump_dhw_package:
         - platform: state
           entity_id: input_boolean.legionella_run_active
           to: "on"
-          for: "01:50:00"
+          for: "02:05:00"
           id: keep_legionella_on
         - platform: numeric_state
           entity_id: sensor.mitsubishi_tank_water_temperature
-          above: 60.5
-          for: "00:10:00"
+          above: 59.9
+          for: "00:05:00"
           id: legionella_done
       action:
         - choose:
@@ -238,26 +293,14 @@ heat_pump_dhw_package:
                   state: "off"
               sequence:
                 - if:
-                    - "{{ states('input_number.dhw_temperature_current_setpoint') | float(0) - states('sensor.mitsubishi_tank_water_temperature') | float(0) >= 5 }}"
+                    or:
+                      - "{{ states('input_number.dhw_temperature_current_setpoint') | float(0) - states('sensor.mitsubishi_tank_water_temperature') | float(0) >= 3 }}"
+                      - "{{ is_state('binary_sensor.negative_electricity_price_this_hour', 'on') and 55 - states('sensor.mitsubishi_tank_water_temperature') | float(55) >= 5 }}"
                   then:
                     - service: script.turn_on
                       entity_id: script.mitsubishi_soft_force_dhw
                   else:
-                    - service: input_datetime.set_datetime
-                      target:
-                        entity_id: input_datetime.heat_pump_next_dhw_run_delayed
-                      data:
-                        datetime: >
-                          {% set list = state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_today')[0:24] %}
-                          {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
-                            {% set list = list + state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'raw_tomorrow')[0:24] %}
-                          {% endif %}
-                          {% set time = trigger.now %}
-                          {% set dhw_run_in_last_18_hours = states('sensor.mitsubishi_last_dhw_run') | as_datetime > now() - timedelta(hours=18) %}
-                          {% set max_hours_wait = 24 if dhw_run_in_last_18_hours else 12 %}
-                          {% set next_hour_prices = list | selectattr('start', '>', time + timedelta(hours=1)) | selectattr('start', '<', time + timedelta(hours=max_hours_wait)) | list %}
-                          {% set lowest_price = next_hour_prices | map(attribute='value') | min %}
-                          {{ (next_hour_prices | selectattr('value', 'eq', lowest_price) | map(attribute='start') | list)[0] }}
+                    - event: recalculate_dhw_run
             - conditions:
                 - condition: trigger
                   id: turn_off
@@ -277,23 +320,29 @@ heat_pump_dhw_package:
       mode: queued
       trigger:
         - platform: numeric_state
-          # entity_id: weather.combined_daily
-          # attribute: temperature
           entity_id: sensor.mitsubishi_outdoor_ambient_temperature
-          above: 7
+          above: 5
           for: "00:10:00"
         - platform: numeric_state
-          # entity_id: weather.combined_daily
-          # attribute: temperature
           entity_id: sensor.mitsubishi_outdoor_ambient_temperature
-          below: 7
+          below: 5
           for: "00:10:00"
+        - platform: state
+          entity_id: input_boolean.legionella_run_active
+          to: "off"
+      condition:
+        - condition: state
+          entity_id: input_boolean.legionella_run_active
+          state: "off"
+        - condition: state
+          entity_id: sensor.mitsubishi_defrost
+          state: "Off"
       action:
         - choose:
             - conditions:
                 - condition: numeric_state
                   entity_id: sensor.mitsubishi_outdoor_ambient_temperature
-                  below: 7
+                  below: 5
               sequence:
                 - service: switch.turn_off
                   data:
@@ -302,3 +351,21 @@ heat_pump_dhw_package:
             - service: switch.turn_on
               data:
                 entity_id: switch.mitsubishi_dhw_eco_mode
+
+    - alias: "Heat pump: Turn on legionella during DHW run"
+      id: 392b3746-84bb-4fa5-9d7d-5ca5ef34369d
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.mitsubishi_next_dhw_run_is_legionella_run
+          from: "off"
+          to: "on"
+      condition:
+        - condition: state
+          entity_id: sensor.mitsubishi_operating_mode
+          state: "Hot Water"
+          for:
+            minutes: 1
+      action:
+        - service: script.turn_on
+          entity_id: script.mitsubishi_soft_force_dhw

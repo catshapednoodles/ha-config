@@ -9,18 +9,20 @@ electricity_negative_price_package:
         - name: "Negative electricity price this hour"
           unique_id: negative_electricity_price_this_hour
           state: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | float(1) <= 0 }}
+            {{ states('sensor.day_ahead_price') | float(1) <= 0 }}
           availability: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+            {{ states('sensor.day_ahead_price') | is_number }}
         - name: "Negative electricity price today"
           unique_id: negative_electricity_price_today
           state: >
-            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "today") | min <= 0 }}
+            {{ states('sensor.cheapest_electricity_price_today') | float(1) <= 0 }}
           availability: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+            {{ states('sensor.cheapest_electricity_price_today') | is_number }}
     - trigger:
         - platform: state
           entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          for:
+            minutes: 1
       binary_sensor:
         - name: "Negative electricity price tomorrow"
           unique_id: negative_electricity_price_tomorrow
@@ -28,10 +30,10 @@ electricity_negative_price_package:
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'off') %}
             off
             {% else %}
-            {{ state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", "tomorrow") | min <= 0 }}
+            {{ states('sensor.cheapest_electricity_price_tomorrow') | float(1) <= 0 }}
             {% endif %}
           availability: >
-            {{ states('sensor.nordpool_kwh_nl_eur_3_09_0') | is_number }}
+            {{ states('sensor.cheapest_electricity_price_tomorrow') | is_number }}
 
   automation:
     - alias: "Energy: Notification for negative electricity price today"
@@ -69,7 +71,7 @@ electricity_negative_price_package:
               importance: high
               notification_icon: "mdi:home-lightning-bolt"
 
-    - alias: "Energy: Use office desk during hours with negative electricity prices"
+    - alias: "Energy: Switch on office desk during hours with negative electricity prices"
       id: 918fc7fa-7d52-46c0-be05-c405d7511952
       trigger:
         - platform: state

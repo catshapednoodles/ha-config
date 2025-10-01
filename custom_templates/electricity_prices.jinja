@@ -10,8 +10,10 @@
     {% set ns = namespace(costs=0, time=time) %}
 
     {% for kwh in kwh_pattern %}
-        {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
-        {% set ns.costs = ns.costs + kwh * state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", today_or_tomorrow)[ns.time.hour] %}
+        {% set today_or_tomorrow = 'raw_tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'raw_today' %}
+        {% set time_selector = today_at(ns.time.hour | string +":00") + timedelta(days=1) if (now() + timedelta(days=1)).day == ns.time.day else today_at(ns.time.hour | string +":00") %}
+        {% set ns.costs = ns.costs + kwh * (state_attr('sensor.day_ahead_price', today_or_tomorrow)| selectattr('start', 'eq', time_selector) | list)[0].value %}
+        {# {% set ns.costs = ns.costs + kwh * state_attr("sensor.day_ahead_price", today_or_tomorrow)[ns.time.hour] %} #}
         {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
     {% endfor %}
     {{ns.costs | round(3)}}
@@ -32,8 +34,10 @@
         {% if only_today or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
             {% set ns = namespace(costs=0, time=time_loop) %}
             {% for kwh in kwh_pattern %}
-                {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
-                {% set ns.costs = ns.costs + kwh * state_attr("sensor.nordpool_kwh_nl_eur_3_09_0", today_or_tomorrow)[ns.time.hour] %}
+                {% set today_or_tomorrow = 'raw_tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'raw_today' %}
+                {% set time_selector = today_at(ns.time.hour | string +":00") + timedelta(days=1) if (now() + timedelta(days=1)).day == ns.time.day else today_at(ns.time.hour | string +":00") %}
+                {% set ns.costs = ns.costs + kwh * (state_attr('sensor.day_ahead_price', today_or_tomorrow)| selectattr('start', 'eq', time_selector) | list)[0].value %}
+                {# {% set ns.costs = ns.costs + kwh * state_attr("sensor.day_ahead_price", today_or_tomorrow)[ns.time.hour] %} #}
                 {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
             {% endfor %}
             {% set start_time = time_loop %}
@@ -59,7 +63,7 @@
         {% set time_loop = list.time %}
         {% set ns = namespace(costs=0, time=time_loop) %}
         {% for kwh in kwh_pattern %}
-            {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', 'tomorrow')[ns.time.hour] %}
+            {% set ns.costs = ns.costs + kwh * (state_attr('sensor.day_ahead_price', 'raw_tomorrow')| selectattr('start', 'eq', today_at(ns.time.hour | string +":00") + timedelta(days=1)) | list)[0].value %}
             {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
         {% endfor %}
         {% set start_time = time_loop %}

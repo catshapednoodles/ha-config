@@ -7,6 +7,10 @@ attic_lights_package:
     max_brightness: 100
     autoreset_control_seconds: 3600
     detect_non_ha_changes: true
+    separate_turn_on_commands: true
+    skip_redundant_commands: true
+    transition: 0
+    interval: 15
 
   input_boolean:
     automatic_attic_lights:

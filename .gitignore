@@ -15,6 +15,8 @@
 !includes/*
 !packages/
 !packages/**
+!python_scripts/
+!python_scripts/**
 !scripts/
 !scripts/*
 !themes/
@@ -36,3 +38,4 @@ known_devices.yaml
 
 packages/persons/Ellen/work_notification.yaml
 packages/persons/Sicco/finance.yaml
+packages/car/citigo.yaml

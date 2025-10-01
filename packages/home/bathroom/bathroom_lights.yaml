@@ -1,21 +1,22 @@
 bathroom_lights_package:
   adaptive_lighting:
-  - name: "Bathroom"
-    lights:
-      - light.bathroom_ceiling
-      - light.bathroom_mirror
-    min_brightness: 65
-    max_brightness: 90
-    autoreset_control_seconds: 3600
-    detect_non_ha_changes: true
-    sunrise_time: "09:00:00"
+    - name: "Bathroom"
+      lights:
+        - light.bathroom_lights
+      min_brightness: 65
+      max_brightness: 90
+      autoreset_control_seconds: 3600
+      detect_non_ha_changes: true
+      max_sunrise_time: "09:00:00"
+      separate_turn_on_commands: true
+      skip_redundant_commands: true
 
   binary_sensor:
     - platform: threshold
       name: Bathroom is dark
-      entity_id: sensor.bathroom_motion_sensor_illuminance_lux
-      lower: 90
-      hysteresis: 50
+      entity_id: sensor.bathroom_motion_sensor_illuminance
+      lower: 100
+      hysteresis: 75
 
   input_boolean:
     automatic_bathroom_lights:
@@ -39,7 +40,9 @@ bathroom_lights_package:
           unique_id: activity_in_bathroom
           device_class: occupancy
           state: >
-            {{ is_state("binary_sensor.bathroom_motion_sensor_occupancy", "on") }}
+            {{ is_state("binary_sensor.bathroom_motion_sensor_occupancy", "on")
+              or (is_state('sensor.smart_series_6000_9426_toothbrush_state', 'running')
+                and not is_state_attr('sensor.smart_series_6000_9426_toothbrush_state', 'assumed_state', True)) }}
 
   automation:
     - alias: "Bathroom: Toggle lights on motion"
@@ -74,18 +77,17 @@ bathroom_lights_package:
                   entity_id: binary_sensor.activity_in_bathroom
                   state: "on"
                 - or:
-                  - condition: state
-                    entity_id: binary_sensor.sun_low_elevation
-                    state: "on"
-                  - condition: state
-                    entity_id: binary_sensor.bathroom_is_dark
-                    state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.sun_low_elevation
+                      state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.bathroom_is_dark
+                      state: "on"
               sequence:
                 - service: light.turn_on
                   data:
                     entity_id:
-                      - light.bathroom_ceiling
-                      - light.bathroom_mirror
+                      - light.bathroom_lights
             # Turn off lights when there's no activity
             - conditions:
                 - condition: state
@@ -99,8 +101,7 @@ bathroom_lights_package:
                 - service: light.turn_off
                   data:
                     entity_id:
-                      - light.bathroom_ceiling
-                      - light.bathroom_mirror
+                      - light.bathroom_lights
             - conditions:
                 - condition: state
                   entity_id: binary_sensor.sun_low_elevation
@@ -115,8 +116,7 @@ bathroom_lights_package:
                 - service: light.turn_off
                   data:
                     entity_id:
-                      - light.bathroom_ceiling
-                      - light.bathroom_mirror
+                      - light.bathroom_lights
 
     - alias: "Bathroom: Turn off switch helper"
       id: 4e6db72b-a84c-4908-bb67-495aa32e33d6
@@ -129,12 +129,25 @@ bathroom_lights_package:
         - service: input_boolean.turn_off
           entity_id: input_boolean.bathroom_lights_manually_switched_on
 
+    - alias: "Bathroom: Reset automatic boolean helper"
+      id: 10e4e3d9-fe52-4fe6-8e41-adb555e824f2
+      trigger:
+        - platform: state
+          entity_id: input_boolean.automatic_bathroom_lights
+          to: "off"
+          for:
+            hours: 2
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.automatic_bathroom_lights
+
     - alias: "Bathroom: Light switch"
       id: 84fe8d75-a5b8-4749-be2a-7ea653a20ae7
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Bathroom Switch
           button_1_pressed:
             - service: light.turn_on
@@ -147,7 +160,7 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Mirror/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
             - service: input_boolean.turn_on
@@ -156,7 +169,7 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Mirror/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_2_pressed:
@@ -170,14 +183,14 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Mirror/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_2_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Mirror/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_3_pressed:
@@ -191,7 +204,7 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Ceiling/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
             - service: input_boolean.turn_on
@@ -200,7 +213,7 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_4_pressed:
@@ -214,14 +227,14 @@ bathroom_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Ceiling/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_4_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bathroom Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_1_and_3_pressed:

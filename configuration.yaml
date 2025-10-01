@@ -27,7 +27,12 @@ logbook:
       - '*.battery_sim_*'
       - '*sensor.grocy*'
       - automation.*_status_monitor*
+      - automation.battery_control_*
       - binary_sensor.pixel_6a*
+      - binary_sensor.ground_floor_camera_*
+      - binary_sensor.g4_doorbell_*
+      - binary_sensor.g5_bullet_*
+      - device_tracker.*_mobile
       - sensor.pixel_6a*
       - sensor.*_switch*_action
 
@@ -35,7 +40,6 @@ lovelace:
   mode: storage
 
 recorder:
-  purge_keep_days: 15
   exclude:
     domains:
       - button
@@ -48,7 +52,6 @@ recorder:
       - sun
       - time
       - update
-      - weather
     entity_globs:
       - '*sensor.iphone_*'
       - binary_sensor.show_garbage_information*
@@ -63,22 +66,82 @@ recorder:
       - select.*_power_outage_memory
       - sensor.*_action
       - sensor.*_geocoded_*
+      - sensor.*_last_data_*
       - sensor.*_last_notification
       - sensor.*_last_removed_notification
       - sensor.*_last_seen
       - sensor.*_linkquality
       - sensor.*_poe_power
-      - sensor.*_uptime*
-      - sensor.afvalinfo_*
-      - sensor.power_highest_peak_time_*
-      - sensor.smart_series_6000_9426_*
-      - sensor.replay*
+      - sensor.*uptime*
       - sensor.192_168_*
+      - sensor.afvalinfo_*
+      - sensor.anniversary_*
+      - sensor.backup_*_automatic_backup
+      - sensor.home_charging_session_start_*
+      - sensor.mitsubishi_*ly_cop_*
+      - sensor.power_highest_peak_time_*
+      - sensor.replay*
+      - sensor.smart_series_6000_9426_*
+      - sensor.travel_time_next_destination_address_*
+      - switch.*_overlay_*
       - switch.battery_sim_*
     entities:
       - sensor.date_time
       - sensor.season
       - sensor.time
+      - sensor.id_3_minimum_workweek_charge
+      ### Spook sensors
+      - sensor.air_quality
+      - sensor.alarm_control_panels
+      - sensor.areas
+      - sensor.automations
+      - sensor.binary_sensors
+      - sensor.buttons
+      - sensor.calendars
+      - sensor.cameras
+      - sensor.climate
+      - sensor.covers
+      - sensor.custom_integrations
+      - sensor.datetimes
+      - sensor.dates
+      - sensor.device_trackers
+      - sensor.devices
+      - sensor.entities
+      - sensor.expected_travel_distance_list
+      - sensor.fans
+      - sensor.humidifiers
+      - sensor.images
+      - sensor.input_booleans
+      - sensor.input_buttons
+      - sensor.input_datetimes
+      - sensor.input_numbers
+      - sensor.input_selects
+      - sensor.input_texts
+      - sensor.integrations
+      - sensor.lights
+      - sensor.locks
+      - sensor.media_players
+      - sensor.numbers
+      - sensor.persistent_notifications
+      - sensor.persons
+      - sensor.remotes
+      - sensor.scenes
+      - sensor.scripts
+      - sensor.selects
+      - sensor.sensors
+      - sensor.sirens
+      - sensor.stt
+      - sensor.suns
+      - sensor.switches
+      - sensor.texts
+      - sensor.travel_time_next_destinations_updated
+      - sensor.tts
+      - sensor.times
+      - sensor.update
+      - sensor.vacuums
+      - sensor.water_heaters
+      - sensor.weather
+      - sensor.zones
 
 #################################################################
 ## Includes and other platforms
@@ -86,10 +149,6 @@ recorder:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
-
-home_connect_alt: 
-  client_id: !secret home_connect_alt_client_id
-  client_secret: !secret home_connect_alt_client_secret
 
 sensor:
   - platform: time_date
@@ -105,6 +164,8 @@ device_tracker:
     track_new_devices: false
     track_battery: false
     track_battery_interval: "01:00:00"
+
+python_script:
 
 custom_templates:
   preload_translations:

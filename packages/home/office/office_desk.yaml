@@ -1,4 +1,11 @@
 office_desk_package:
+  # energy_meter:
+  #   office_desk_energy:
+  #     source: sensor.office_desk_energy
+  #     name: Office Desk Energy
+  #     price_entity: sensor.day_ahead_price
+  #     create_utility_meter: false
+
   template:
     - binary_sensor:
         - name: "Work laptop at desk and active"
@@ -37,10 +44,18 @@ office_desk_package:
               sequence:
                 - service: switch.turn_on
                   entity_id: switch.office_desk
-                - wait_template: "{{ is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') }}"
-                  timeout: "00:45:00"
+                - wait_for_trigger:
+                    - platform: state
+                      entity_id: binary_sensor.work_laptop_at_desk_and_active
+                      from: "off"
+                      to: "on"
+                      for: "00:01:00"
+                    - platform: state
+                      entity_id: person.sicco
+                      from: "home"
+                  timeout: "00:43:00"
                 - if:
-                    - "{{ not wait.completed }}"
+                    - "{{ wait.trigger == none or wait.trigger.entity_id == 'person.sicco' }}"
                   then:
                     - service: switch.turn_off
                       entity_id: switch.office_desk
@@ -61,10 +76,15 @@ office_desk_package:
               sequence:
                 - service: switch.turn_on
                   entity_id: switch.office_desk
-                - wait_template: "{{ is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') }}"
-                  timeout: "00:15:00"
+                - wait_for_trigger:
+                    - platform: state
+                      entity_id: binary_sensor.work_laptop_at_desk_and_active
+                      from: "off"
+                      to: "on"
+                      for: "00:01:00"
+                  timeout: "00:20:00"
                 - if:
-                    - "{{ not wait.completed }}"
+                    - "{{ wait.trigger == none }}"
                   then:
                     - service: switch.turn_off
                       entity_id: switch.office_desk
@@ -77,7 +97,7 @@ office_desk_package:
           to: "off"
           for: "00:00:10"
         - platform: time
-          at: "18:00:00"
+          at: "18:05:00"
       condition:
         - condition: time
           after: "16:30:00"

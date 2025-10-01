@@ -1,0 +1,33 @@
+# water_fountain_package:
+#   automation:
+#     - alias: "Cats: Toggle water fountain"
+#       id: 97f013f1-8677-476e-85d4-8c7e7919c7ba
+#       trigger:
+#         - platform: state
+#           entity_id: binary_sensor.everyone_is_sleeping
+#           for:
+#             minutes: 1
+#         - platform: state
+#           entity_id: zone.home
+#           to: "0"
+#         - platform: state
+#           entity_id: zone.home
+#           from: "0"
+#       action:
+#         - choose:
+#           - conditions:
+#               - or:
+#                 - condition: state
+#                   entity_id: binary_sensor.everyone_is_sleeping
+#                   state: "on"
+#                 - condition: state
+#                   entity_id: zone.home
+#                   state: "0"
+#             sequence:
+#               - service: switch.turn_on
+#                 target:
+#                   entity_id: switch.water_fountain
+#           default:
+#             - service: switch.turn_off
+#               target:
+#                 entity_id: switch.water_fountain

@@ -3,21 +3,26 @@ living_room_media_players_package:
     sensors:
     - create_group: Living room media devices
       entities:
-        - entity_id: media_player.shield
-          standby_power: 1.9
+        # - entity_id: media_player.shield
+        #   standby_power: 1.9
+        #   fixed:
+        #     states_power:
+        #       playing: 6.9
+        #       paused: 6.9
+        #       idle: 3.2
+        #       standby: 3.2
+        - entity_id: media_player.philips_65oled807
+          standby_power: 16.8
           fixed:
-            states_power:
-              playing: 6.9
-              paused: 6.9
-              idle: 3.2
-              standby: 3.2
+            power: 69
         - entity_id: media_player.yamaha_receiver
-          standby_power: 0.1
+          standby_power: 2.1
           fixed:
-            power: 20
+            power: 22.1
             states_power:
               playing: 40
         - entity_id: switch.subwoofer
+          name: Subwoofer
           power_sensor_id: sensor.subwoofer_power
           energy_sensor_id: sensor.subwoofer_energy
 
@@ -45,60 +50,85 @@ living_room_media_players_package:
         - "TIDAL"
         - "TUNER"
 
+  template:
+    - binary_sensor:
+      - name: "Nintendo Switch is on"
+        unique_id: d1734be7-17fc-4bd4-adff-d6cd0ede5061
+        state: >
+          {{ is_state_attr('media_player.philips_65oled807', 'hdmi_input', 'HW2') }}
+
   automation:
     - alias: "Media player: Toggle extra bass on receiver"
       id: 344f6a66-dca9-4369-b75b-759634913b8d
       trigger:
-      - entity_id: media_player.yamaha_receiver
-        platform: state
-        attribute: source
-        to: "Spotify"
-        id: extra_bass_off
-      - entity_id: media_player.yamaha_receiver
-        platform: state
-        attribute: source
-        from: "Spotify"
-        id: extra_bass_on
+        - entity_id: media_player.yamaha_receiver
+          platform: state
+          attribute: source
+          to: "Spotify"
+          id: spotify_on
+        - entity_id: media_player.yamaha_receiver
+          platform: state
+          attribute: source
+          from: "Spotify"
+          id: spotify_off
       action:
-      - choose:
-        - conditions:
-          - condition: trigger
-            id: extra_bass_on
-          sequence:
-          - service: switch.turn_on
-            entity_id: switch.extra_bass
-        - conditions:
-          - condition: trigger
-            id: extra_bass_off
-          sequence:
-          - service: switch.turn_off
-            entity_id: switch.extra_bass
+        - choose:
+          - conditions:
+              - condition: trigger
+                id: spotify_on
+            sequence:
+              - service: switch.turn_off
+                entity_id: switch.extra_bass
+          - conditions:
+              - condition: trigger
+                id: spotify_off
+            sequence:
+              - service: switch.turn_on
+                entity_id: switch.extra_bass
 
     - alias: "Media player: Sync receiver and subwoofer"
       trigger: 
-      - entity_id: media_player.yamaha_receiver
-        platform: state
-        to: "on"
-        id: receiver_on
-      - entity_id: media_player.yamaha_receiver
-        platform: state
-        to: "playing"
-        id: receiver_on
-      - entity_id: media_player.yamaha_receiver
-        platform: state
-        to: "off"
-        id: receiver_off
+        - entity_id: media_player.yamaha_receiver
+          platform: state
+          to: "on"
+          id: receiver_on
+        - entity_id: media_player.yamaha_receiver
+          platform: state
+          to: "playing"
+          id: receiver_on
+        - entity_id: media_player.yamaha_receiver
+          platform: state
+          to: "off"
+          id: receiver_off
       action:
-      - choose:
-        - conditions:
-          - condition: trigger
-            id: receiver_on
-          sequence:
-          - service: switch.turn_on
-            entity_id: switch.subwoofer
-        - conditions:
-          - condition: trigger
-            id: receiver_off
-          sequence:
-          - service: switch.turn_off
-            entity_id: switch.subwoofer
+        - choose:
+          - conditions:
+            - condition: trigger
+              id: receiver_on
+            sequence:
+            - service: switch.turn_on
+              entity_id: switch.subwoofer
+          - conditions:
+            - condition: trigger
+              id: receiver_off
+            sequence:
+            - service: switch.turn_off
+              entity_id: switch.subwoofer
+
+    - alias: "Media player: Handle living room receiver"
+      trigger:
+        - entity_id: binary_sensor.nintendo_switch_is_on
+          platform: state
+          to: "on"
+      action:
+        - choose:
+          - conditions:
+            - condition: state
+              entity_id: binary_sensor.nintendo_switch_is_on
+              state: "on"
+            sequence:
+            - service: media_player.select_source
+              data:
+                source: Nintendo Switch
+              target:
+                entity_id: media_player.yamaha_receiver

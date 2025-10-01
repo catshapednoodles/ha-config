@@ -4,7 +4,7 @@ front_door_lights_package:
     lights:
       - light.front_door
       - light.backyard_light
-    min_brightness: 40
+    min_brightness: 5
     max_brightness: 100
     autoreset_control_seconds: 1800
     detect_non_ha_changes: true
@@ -24,7 +24,7 @@ front_door_lights_package:
           icon: "mdi:weather-sunset"
 
   automation:
-    - alias: "Front Door: Turn on when sun is down"
+    - alias: "Outside Lights: Turn on when sun is down"
       id: 680ccc85-de92-412a-a85a-3cea121e7b54
       trigger:
         - platform: state
@@ -43,7 +43,7 @@ front_door_lights_package:
               - service: light.turn_on
                 data: {}
                 target:
-                  entity_id: 
+                  entity_id:
                     - light.front_door
                     - light.backyard_light
           - conditions:
@@ -54,31 +54,89 @@ front_door_lights_package:
               - service: light.turn_off
                 data: {}
                 target:
-                  entity_id: 
+                  entity_id:
                     - light.front_door
                     - light.backyard_light
 
-    - alias: "Front Door: More light when coming home"
-      id: a44169ff-33a0-495c-8280-e484118eadf1
+    - alias: "Outside Lights: More light when person is detected"
+      id: 10263021-1c5b-4243-bfe6-d43b6390d8a5
       trigger:
         - platform: state
-          entity_id: device_tracker.iva_nce
-          to: "home"
-      condition:
-        - condition: state
-          entity_id: light.front_door
-          state: "on"
+          entity_id: binary_sensor.g4_doorbell_person_detected
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.g4_doorbell_person_detected
+          to: "off"
+          for:
+            minutes: 5
+        - platform: state
+          entity_id: binary_sensor.g5_bullet_person_detected
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.g5_bullet_person_detected
+          to: "off"
+          for:
+            minutes: 5
       action:
-        - service: light.turn_on
-          data:
-            brightness_pct: 100
-            transition: 2
-          target:
-            entity_id: light.front_door
-        - delay: "00:05:00"
-        - service: adaptive_lighting.set_manual_control
-          data:
-            entity_id: switch.adaptive_lighting_front_door
-            lights:
-              - light.front_door
-            manual_control: false
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: light.front_door
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.g4_doorbell_person_detected
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    brightness_pct: 100
+                    transition: 1
+                  target:
+                    entity_id: light.front_door
+            - conditions:
+                - condition: state
+                  entity_id: light.front_door
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.g4_doorbell_person_detected
+                  state: "off"
+                  for:
+                    minutes: 5
+              sequence:
+                - service: adaptive_lighting.set_manual_control
+                  data:
+                    entity_id: switch.adaptive_lighting_front_door
+                    lights:
+                      - light.front_door
+                    manual_control: false
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: light.backyard_light
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.g5_bullet_person_detected
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    brightness_pct: 100
+                    transition: 1
+                  target:
+                    entity_id: light.backyard_light
+            - conditions:
+                - condition: state
+                  entity_id: light.backyard_light
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.g5_bullet_person_detected
+                  state: "off"
+                  for:
+                    minutes: 5
+              sequence:
+                - service: adaptive_lighting.set_manual_control
+                  data:
+                    entity_id: switch.adaptive_lighting_front_door
+                    lights:
+                      - light.backyard_light
+                    manual_control: false

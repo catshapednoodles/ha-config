@@ -1,16 +1,40 @@
 inverter_package:
+  input_boolean:
+    solar_mode_nom_test:
+      name: Solar Mode NOM Test
+      icon: mdi:solar-power
+  input_select:
+    solar_mode:
+      name: Solar Mode
+      icon: mdi:solar-power
+      options:
+        - Normal
+        - NOM
+        - "Off"
+
+  rest_command:
+    # Rest Command to upload PV generation data to PVOutput
+    update_pvoutput:
+      url: https://pvoutput.org/service/r2/addstatus.jsp
+      method: post
+      content_type: "application/x-www-form-urlencoded"
+      headers:
+        X-Pvoutput-Apikey: !secret pvoutput_api_key
+        X-Pvoutput-SystemId: !secret pvoutput_system_id
+      payload: >-
+        d={{now().strftime("%Y%m%d")}}
+        &t={{now().strftime("%H:%M")}}
+        &v1={{(states('sensor.today_s_pv_generation')|float(0))*1000}}
+        &v2={{(states('sensor.pv_power')|float(0))|round(0)}}
+        &v5={{state_attr('weather.combined', 'temperature')|float(0)}}
+        &v6={{states('sensor.on_grid_l1_voltage')|float(0)}}
+
   template:
     - binary_sensor:
         - name: "Electricity market price too low"
           unique_id: electricity_market_price_too_low
           state: >
-            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.05 }}
-          availability: >
-            {{ states('sensor.current_price_for_electricity_return') | is_number }}
-        - name: "Electricity market price low"
-          unique_id: electricity_market_price_low
-          state: >
-            {{ states('sensor.current_price_for_electricity_return') | float(1) < -0.02 }}
+            {{ states('sensor.current_price_for_electricity_return') | float(1) <= 0 }}
           availability: >
             {{ states('sensor.current_price_for_electricity_return') | is_number }}
         - name: "Electricity market price below zero"
@@ -19,70 +43,162 @@ inverter_package:
             {{ states('sensor.current_price_for_electricity_return') | float(1) < 0 }}
           availability: >
             {{ states('sensor.current_price_for_electricity_return') | is_number }}
+    - sensor:
+        - name: "Solar Mode"
+          unique_id: 8ebc5545-4f4e-4595-83eb-ab30dc1dc082
+          icon: mdi:solar-power
+          state: >
+            {% set pv_forecast = states('sensor.emhass_p_pv_forecast') | float(1) %}
+            {% if pv_forecast > 100 and pv_forecast - states('sensor.emhass_p_pv_curtailment') | float(0) <= 1 %}
+              Off
+            {% elif states('sensor.emhass_p_pv_curtailment') | float(0) > 100 %}
+              NOM
+            {% else %}
+              Normal
+            {% endif %}
+            {# {% if states("sensor.day_ahead_price") | float(1) < 0 %}
+              Off
+            {% elif states('sensor.current_price_for_electricity_return') | float(1) <= 0 %}
+              NOM
+            {% else %}
+              Normal
+            {% endif %} #}
+          attributes:
+            options: "{{ ['Off', 'NOM', 'Normal'] }}"
+        - name: "Solar NOM Percentage"
+          unique_id: 329ca694-cf45-4328-bdfa-010fb96aa02d
+          icon: mdi:solar-power
+          unit_of_measurement: '%'
+          state: >
+            {% if is_state('sensor.solar_mode', 'NOM') %}
+              {% set max_pw_power = 5000 %}
+              {% set home_usage = states('sensor.home_power_usage_filter') | int(1000) %}
+              {{ max(0, min(100, (home_usage / max_pw_power * 100 + 1) | round(0, "ceil") )) }}
+            {% else %}
+              100
+            {% endif %}
 
   automation:
-    - alias: "Inverter: Limit output during hours with low electricity prices"
+    - alias: "Inverter: Send PV information to PVOutput"
+      id: c1d9b695-2e94-4c93-a9eb-d546275a48a0
+      description: Upload values to PVOutput
+      trigger:
+        - platform: time_pattern
+          minutes: /5
+          seconds: "0"
+      condition:
+        - condition: state
+          entity_id: sensor.work_mode
+          state: "Normal"
+      action:
+        - service: rest_command.update_pvoutput
+          data: {}
+      mode: single
+
+    - alias: "Inverter: Handle solar mode"
       id: d25c0588-d6db-4a0d-8b6a-863ce6483cf2
       mode: queued
+      max: 2
+      max_exceeded: silent
       trigger:
         - platform: state
-          entity_id: binary_sensor.negative_electricity_price_this_hour
+          entity_id: sensor.solar_mode
+          not_to: unavailable
         - platform: state
-          entity_id: binary_sensor.electricity_market_price_too_low
-        - platform: state
-          entity_id: binary_sensor.electricity_market_price_below_zero
+          entity_id: sensor.solar_nom_percentage
         - platform: state
           entity_id: sensor.work_mode
           to: "Normal"
+      condition:
+        - condition: state
+          entity_id: sensor.work_mode
+          state: "Normal"
+        - not:
+            - condition: state
+              entity_id: sensor.pv_power
+              state: "unavailable"
       action:
         - choose:
             - conditions:
                 - condition: state
-                  entity_id: binary_sensor.negative_electricity_price_this_hour
-                  state: "on"
+                  entity_id: sensor.solar_mode
+                  state: "Normal"
               sequence:
-                - service: number.set_value
+                - action: number.set_value
+                  data:
+                    value: "100"
+                  target:
+                    entity_id: number.grid_export_limit
+            - conditions:
+                - condition: state
+                  entity_id: sensor.solar_mode
+                  state: "NOM"
+              sequence:
+                - action: number.set_value
+                  data:
+                    value: "{{ states('sensor.solar_nom_percentage') | int(100) }}"
+                  target:
+                    entity_id: number.grid_export_limit
+            - conditions:
+                - condition: state
+                  entity_id: sensor.solar_mode
+                  state: "Off"
+              sequence:
+                - action: number.set_value
                   data:
                     value: "0"
                   target:
                     entity_id: number.grid_export_limit
-            - conditions:
-                - condition: state
-                  entity_id: binary_sensor.electricity_market_price_too_low
-                  state: "on"
-              sequence:
-                - service: number.set_value
-                  data:
-                    value: "10"
-                  target:
-                    entity_id: number.grid_export_limit
-            - conditions:
-                - condition: state
-                  entity_id: binary_sensor.electricity_market_price_low
-                  state: "on"
-              sequence:
-                - service: number.set_value
-                  data:
-                    value: "40"
-                  target:
-                    entity_id: number.grid_export_limit
-            - conditions:
-                - condition: state
-                  entity_id: binary_sensor.electricity_market_price_below_zero
-                  state: "on"
-              sequence:
-                - service: number.set_value
-                  data:
-                    value: "80"
-                  target:
-                    entity_id: number.grid_export_limit
           default:
-            - service: number.set_value
+            - action: number.set_value
               data:
                 value: "100"
               target:
                 entity_id: number.grid_export_limit
-        - delay: "00:00:05"
+        - delay: "00:00:10"
+
+    # - alias: "Inverter: Limit output during hours with low electricity prices"
+    #   id: d25c0588-d6db-4a0d-8b6a-863ce6483cf2
+    #   mode: queued
+    #   trigger:
+    #     - platform: state
+    #       entity_id: binary_sensor.negative_electricity_price_this_hour
+    #     # - platform: state
+    #     #   entity_id: binary_sensor.electricity_market_price_too_low
+    #     - platform: state
+    #       entity_id: binary_sensor.electricity_market_price_below_zero
+    #     - platform: state
+    #       entity_id: sensor.work_mode
+    #       to: "Normal"
+    #   action:
+    #     - choose:
+    #         - conditions:
+    #             or:
+    #               - condition: state
+    #                 entity_id: binary_sensor.negative_electricity_price_this_hour
+    #                 state: "on"
+    #               - condition: state
+    #                 entity_id: binary_sensor.electricity_market_price_below_zero
+    #                 state: "on"
+    #           sequence:
+    #             - service: number.set_value
+    #               data:
+    #                 value: "0"
+    #               target:
+    #                 entity_id: number.grid_export_limit
+    #       default:
+    #         - if:
+    #             not:
+    #               - condition: state
+    #                 entity_id: sensor.pv_power
+    #                 state: "unavailable"
+    #           then:
+    #             - service: number.set_value
+    #               data:
+    #                 value: "100"
+    #               target:
+    #                 entity_id: number.grid_export_limit
+    #     - delay: "00:00:05"
 
     - alias: "Inverter: Send notification when inverter has output limit without reason"
       id: c2135a93-eb01-45cb-bc59-7a714db4bce2
@@ -91,10 +207,17 @@ inverter_package:
           entity_id: number.grid_export_limit
           below: 100
           for: "00:10:00"
+        - platform: state
+          entity_id: sensor.solar_mode
+          to: "Normal"
+          for: "00:10:00"
       condition:
         - condition: state
-          entity_id: binary_sensor.electricity_market_price_below_zero
-          state: "off"
+          entity_id: sensor.solar_mode
+          state: "Normal"
+        - condition: numeric_state
+          entity_id: number.grid_export_limit
+          below: 100
       action:
         - service: notify.sicco_phone
           data:

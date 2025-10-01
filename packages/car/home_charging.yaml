@@ -1,0 +1,766 @@
+home_charging_package:
+  energy_meter:
+    home_charger_energy_meter:
+      source: sensor.smartevse_ev_import_active_energy
+      name: Home Charger Energy Meter
+      price_entity: sensor.day_ahead_price
+      create_utility_meter: true
+      net_consumption: true
+    home_charger_energy_this_month:
+      source: sensor.smartevse_ev_import_active_energy
+      name: Home Charger Energy This Month
+      price_entity: sensor.day_ahead_price
+      create_utility_meter: true
+      cycle: monthly
+      net_consumption: true
+
+  utility_meter:
+    home_charger_utility_meter:
+      name: Home Charger Utility Meter
+      unique_id: a749d6a7-2dd7-4f64-9fb6-7fa3972a503f
+      source: sensor.smartevse_ev_import_active_energy
+      always_available: true
+      tariffs:
+        - "ID.3"
+        - Citigo
+        - Other
+    home_charger_utility_this_month:
+      name: Home Charger Utility This Month
+      unique_id: eb1f0bd5-4ee5-4a49-bfeb-9a401be3932e
+      source: sensor.smartevse_ev_import_active_energy
+      always_available: true
+      cycle: monthly
+      tariffs:
+        - "ID.3"
+        - Citigo
+        - Other
+
+  input_boolean:
+    guest_car_connected_to_home_charger:
+      name: Guest car connected to home charger
+      icon: mdi:ev-station
+    id_3_is_connected_to_home_charger:
+      name: ID.3 is connected to home charger
+      icon: mdi:car-electric
+    home_charging_allowed:
+      name: Home Charging Allowed
+      icon: mdi:ev-station
+    home_charging_session_active:
+      name: Home Charging Session Active
+      icon: mdi:ev-station
+    home_charging_smart_mode:
+      name: Home Charging Smart Mode
+      icon: mdi:ev-station
+    home_charging_manual_target_soc:
+      name: Home Charging Manual Target SOC
+      icon: mdi:battery-sync
+    home_charging_manual_target_soc_2:
+      name: Home Charging Manual Target SOC
+      icon: mdi:battery-sync
+
+  input_button:
+    home_charger_manually_start_charging:
+      name: Manually start charging
+      icon: mdi:play-circle-outline
+    home_charger_manually_stop_charging:
+      name: Manually stop charging
+      icon: mdi:stop-circle-outline
+
+  input_number:
+    home_charging_target_charge:
+      name: "Home Charging Target Charge"
+      icon: mdi:battery
+      min: 0
+      max: 100
+      mode: slider
+      step: 5
+      unit_of_measurement: "%"
+    home_charging_initial_charge:
+      name: "Home Charging Initial Charge"
+      icon: mdi:battery
+      min: 0
+      max: 100
+      mode: box
+      step: 1
+      unit_of_measurement: "%"
+
+  input_select:
+    home_charging_mode:
+      name: Home Charging Mode
+      icon: mdi:car-cog
+      options:
+        - "Off"
+        - "ID.3 & Citigo"
+        - "Any car"
+
+  mqtt:
+    - sensor:
+      - name: "SmartEVSE MQTT Connected"
+        state_topic: "SmartEVSE-7209/connected"
+
+  template:
+    - binary_sensor:
+        - name: "Home charger is load balancing"
+          unique_id: f616c941-d504-4164-b840-f40ad43c2406
+          state: >
+            {% set smartevse_l1 = states('sensor.smartevse_7209_evcurrentl1') | float(0) %}
+            {% set mains_l1 = states('sensor.smartevse_7209_mainscurrentl1') | float(0) %}
+            {% set mains_l2 = states('sensor.smartevse_7209_mainscurrentl2') | float(0) %}
+            {% set mains_l3 = states('sensor.smartevse_7209_mainscurrentl3') | float(0) %}
+            {{ 5 < smartevse_l1 < 15 and (mains_l1 >= 25 or mains_l2 >= 25 or mains_l3 >= 25) }}
+          delay_off: "00:00:05"
+        - name: "ID.3 is connected to home charger"
+          unique_id: 64b68d23-6d8d-4ed5-ac03-3dc980cc0725
+          state: >
+            {{
+              is_state('device_tracker.id_3_position', 'home')
+              and is_state('binary_sensor.id_3_charging_cable_connected', 'on')
+              and is_state('sensor.smartevse_car_connected', 'True')
+            }}
+        - name: "ID.3 Charging Needed"
+          unique_id: 2a4b4483-3f7a-4627-9624-d5f627928d4e
+          state: >
+            {{
+              is_state('binary_sensor.id_3_charging_needed_for_next_trip', 'on')
+              or is_state('binary_sensor.id_3_charging_needed_for_long_trip_this_week', 'on')
+              or (is_state('binary_sensor.id_3_charging_needed_for_workweek', 'on') and is_state('binary_sensor.low_charging_price_in_next_12_hours', 'on'))
+            }}
+        - name: "Citigo is charging on home charger"
+          unique_id: 750cb231-2e13-4ff6-a84d-7de17a4b8650
+          state: >
+            {{
+              is_state('sensor.smartevse_car_connected', 'True')
+              and is_state('sensor.smartevse_7209_state', 'Charging')
+              and is_state('sensor.smartevse_7209_evcurrentl3', '0.0')
+              and states('sensor.smartevse_7209_evcurrentl2') | float(0) > 0
+            }}
+          delay_off: "00:00:20"
+        - name: "Smart Charging is planned"
+          unique_id: 38756bd9-f32b-4f40-9506-74d728884078
+          state: >
+            {{ is_state_attr('sensor.ev_smart_charging_charging', 'charging_is_planned', true)
+              or is_state_attr('sensor.ev_smart_charging_charging_2', 'charging_is_planned', true) }}
+        - name: "Hours before charging is done"
+          unique_id: 25b4215e-33d7-45a5-9a0f-f7fba30aaf9f
+          state: >
+            {{ state_attr('sensor.expected_travel_distance', 'time') in state_attr('select.ev_smart_charging_charge_completion_time', 'options')
+            and now() < today_at(state_attr('sensor.expected_travel_distance', 'time'))
+            and (today_at(state_attr('sensor.expected_travel_distance', 'time')) - now()) < timedelta(hours=3) }}
+
+    - sensor:
+        - name: "Car connected to home charger"
+          unique_id: 34a29b93-55b0-4f81-a813-0d9f3c033c2c
+          state: >
+            {% if is_state('sensor.smartevse_7209_evplugstate', 'Disconnected') %}
+            No car
+            {% elif is_state('input_boolean.id_3_is_connected_to_home_charger', 'on') %}
+            ID.3
+            {% elif is_state('input_boolean.guest_car_connected_to_home_charger', 'on') %}
+            Other car
+            {% else %}
+            Citigo
+            {% endif %}
+        - name: "Home Charger Utility Meter ID.3 Cost"
+          unique_id: 74c0f8d2-b1d0-4590-856a-fb8a945fe9cc
+          state: >
+            {% set total_cost = states('sensor.home_charger_energy_meter_cost') | float(0) %}
+            {% set total_kwh = states('sensor.home_charger_energy_meter') | float(0) %}
+            {% set car_kwh = states('sensor.home_charger_utility_meter_id_3') | float(0) %}
+            {{ (car_kwh / total_kwh * total_cost) | round(2) }}
+          unit_of_measurement: €
+          device_class: monetary
+        - name: "Home Charger Utility This Month ID.3 Cost"
+          unique_id: f4d68854-4d24-4751-aaa9-7d84676c61ef
+          state: >
+            {% set total_cost = states('sensor.home_charger_energy_this_month_cost') | float(0) %}
+            {% set total_kwh = states('sensor.home_charger_energy_this_month') | float(0) %}
+            {% set car_kwh = states('sensor.home_charger_utility_this_month_id_3') | float(0) %}
+            {{ (car_kwh / total_kwh * total_cost) | round(2) }}
+          unit_of_measurement: €
+          device_class: monetary
+        - name: "Home Charger Utility Meter Citigo Cost"
+          unique_id: ec59a660-569e-4ed2-8311-026bf05e41e8
+          state: >
+            {% set total_cost = states('sensor.home_charger_energy_meter_cost') | float(0) %}
+            {% set total_kwh = states('sensor.home_charger_energy_meter') | float(0) %}
+            {% set car_kwh = states('sensor.home_charger_utility_meter_citigo') | float(0) %}
+            {{ (car_kwh / total_kwh * total_cost) | round(2) }}
+          unit_of_measurement: €
+          device_class: monetary
+        - name: "Home Charger Utility This Month Citigo Cost"
+          unique_id: 0644fccb-0a92-4def-b368-9061ed168075
+          state: >
+            {% set total_cost = states('sensor.home_charger_energy_this_month_cost') | float(0) %}
+            {% set total_kwh = states('sensor.home_charger_energy_this_month') | float(0) %}
+            {% set car_kwh = states('sensor.home_charger_utility_this_month_citigo') | float(0) %}
+            {{ (car_kwh / total_kwh * total_cost) | round(2) }}
+          unit_of_measurement: €
+          device_class: monetary
+        - name: "Average price per kWh last 2 months"
+          unique_id: 6b0b0d4a-ad6e-485d-a22e-a0bffaca3d30
+          state: >
+            {% set cost_last_month = state_attr('sensor.home_charger_energy_this_month_cost', 'last_period') | float(0) %}
+            {% set per_kwh_last_month = cost_last_month / state_attr('sensor.home_charger_energy_this_month', 'last_period') | float(1) %}
+            {% set cost_this_month = states('sensor.home_charger_energy_this_month_cost') | float(0) %}
+            {% if cost_this_month == 0 %}
+              {% set per_kwh_this_month = per_kwh_last_month %}
+            {% else %}
+              {% set per_kwh_this_month = cost_this_month / states('sensor.home_charger_energy_this_month') | float(1) %}
+            {% endif %}
+            {{ ((per_kwh_this_month + per_kwh_last_month) / 2) | round(4) }}
+          unit_of_measurement: €/kWh
+          device_class: monetary
+          state_class: measurement
+
+    - trigger:
+        - platform: time_pattern
+          hours: "/1"
+        - platform: state
+          entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+          to: "on"
+      binary_sensor:
+        - name: "Opportunistic charging today"
+          unique_id: ff666397-21db-4b8a-862d-31fb4b4e483f
+          state: >
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+            {% endif %}
+            {% set next_hour_prices = list | selectattr('start', '>', now() - timedelta(minutes=50)) | list %}
+            {% if states('select.ev_smart_charging_charge_completion_time') != "None" %}
+              {% set next_hour_prices = next_hour_prices | selectattr('start', '<', today_at(states('select.ev_smart_charging_charge_completion_time'))) | list %}
+            {% endif %}
+            {% set three_hour_average = (next_hour_prices | sort(attribute='value_solar_adjusted') | map(attribute='value_solar_adjusted') | list)[0:3] | average %}
+            {{ three_hour_average + 0.02 < states('sensor.average_price_per_kwh_last_2_months') | float(0) }}
+        - name: "Low charging price in next 12 hours"
+          unique_id: b36fc0b9-45cf-4008-96e4-70a20b41e47f
+          state: >
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+            {% endif %}
+            {% set min_price = (list | selectattr('start', '>', now()) | map(attribute='value') | list)[:12] | min %}
+            {{ min_price + 0.01 < states('sensor.average_price_per_kwh_last_2_months') | float(0) }}
+
+  automation:
+    - alias: "SmartEVSE: Detached ID.3 connected status"
+      id: 87f21b0e-88d4-4819-8dfe-d7f51c74b84d
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+          to:
+            - "on"
+            - "off"
+      action:
+        - service: "input_boolean.turn_{{ states('binary_sensor.id_3_is_connected_to_home_charger') }}"
+          entity_id: input_boolean.id_3_is_connected_to_home_charger
+
+    - alias: "SmartEVSE: Set charging mode"
+      id: 015168a2-0647-4bcb-9cf6-dc50e4f7e998
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: input_select.home_charging_mode
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+        - platform: state
+          entity_id: input_boolean.citigo_connected_to_home_charger
+        - platform: state
+          entity_id: sensor.smartevse_7209_evplugstate
+      action:
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.home_charging_mode
+                state: "ID.3 & Citigo"
+              - condition: state
+                entity_id: sensor.smartevse_7209_evplugstate
+                state: "Connected"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: state
+                      entity_id: binary_sensor.id_3_is_connected_to_home_charger
+                      state: "on"
+                  sequence:
+                    - if:
+                        - condition: state
+                          entity_id: switch.ev_smart_charging_ev_connected
+                          state: "off"
+                      then:
+                        - action: input_number.set_value
+                          data:
+                            value: "{{ states('sensor.id_3_battery_level') | float(10) }}"
+                          target:
+                            entity_id: input_number.home_charging_initial_charge
+                        - service: switch.turn_on
+                          entity_id: switch.ev_smart_charging_ev_connected
+                        - service: switch.turn_off
+                          entity_id: switch.ev_smart_charging_ev_connected_2
+                - conditions:
+                    - condition: state
+                      entity_id: input_boolean.citigo_connected_to_home_charger
+                      state: "on"
+                  sequence:
+                    - service: switch.turn_on
+                      entity_id: switch.ev_smart_charging_ev_connected_2
+                    - service: switch.turn_off
+                      entity_id: switch.ev_smart_charging_ev_connected
+          - conditions:
+              - condition: state
+                entity_id: input_select.home_charging_mode
+                state: "Any car"
+              - condition: state
+                entity_id: sensor.smartevse_7209_evplugstate
+                state: "Connected"
+            sequence:
+              - if:
+                  - condition: state
+                    entity_id: binary_sensor.id_3_is_connected_to_home_charger
+                    state: "on"
+                  - condition: state
+                    entity_id: switch.ev_smart_charging_ev_connected
+                    state: "off"
+                then:
+                  - action: input_number.set_value
+                    data:
+                      value: "{{ states('sensor.id_3_battery_level') | float(10) }}"
+                    target:
+                      entity_id: input_number.home_charging_initial_charge
+              - service: switch.turn_on
+                entity_id: switch.ev_smart_charging_ev_connected
+          default:
+            - service: switch.turn_off
+              entity_id:
+                - switch.ev_smart_charging_ev_connected
+                - switch.ev_smart_charging_ev_connected_2
+
+    - alias: "SmartEVSE: Set charging mode when ID.3 car position is unavailable"
+      id: 481e2649-714e-4960-9401-554bf929f571
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: device_tracker.id_3_position
+          to: "unavailable"
+        - platform: state
+          entity_id: device_tracker.id_3_position
+          from: "unavailable"
+      condition:
+        - not:
+          - condition: state
+            entity_id: input_select.home_charging_mode
+            state: "Off"
+      action:
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: device_tracker.id_3_position
+                state: "unavailable"
+            sequence:
+              - service: input_select.select_option
+                target:
+                  entity_id: input_select.home_charging_mode
+                data:
+                  option: Any car
+          default:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.home_charging_mode
+              data:
+                option: "ID.3 & Citigo"
+
+    - alias: "SmartEVSE: Keep charger on"
+      id: 403a4e99-1548-4689-a25b-4e84ca458b90
+      mode: queued
+      trigger:
+        - platform: numeric_state
+          entity_id: sensor.id_3_battery_level
+          above: 99
+        - platform: numeric_state
+          entity_id: sensor.id_3_battery_level
+          below: 99
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+      action:
+        - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: sensor.id_3_battery_level
+                above: 99
+            sequence:
+              - service: switch.turn_on
+                entity_id: switch.ev_smart_charging_keep_charger_on
+          default:
+            - service: switch.turn_off
+              entity_id: switch.ev_smart_charging_keep_charger_on
+
+    - alias: "SmartEVSE: Handle charging"
+      id: 1400fdd3-7f9c-4d12-a06c-329937cf96ba
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: sensor.smartevse_7209_evplugstate
+        - platform: state
+          entity_id: sensor.ev_smart_charging_charging
+          for:
+            seconds: 1
+        - platform: state
+          entity_id: sensor.ev_smart_charging_charging_2
+          for:
+            seconds: 1
+      action:
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: sensor.smartevse_7209_evplugstate
+                state: "Disconnected"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.smartevse_7209_mode
+                data:
+                  option: "Off"
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.home_charging_session_active
+              - if:
+                  - condition: state
+                    entity_id: sensor.ev_smart_charging_charging
+                    state: "on"
+                then:
+                  - service: button.press
+                    entity_id: button.ev_smart_charging_manually_stop_charging
+              - if:
+                  - condition: state
+                    entity_id: sensor.ev_smart_charging_charging_2
+                    state: "on"
+                then:
+                  - service: button.press
+                    entity_id: button.ev_smart_charging_manually_stop_charging_2
+          - conditions:
+              - condition: state
+                entity_id: sensor.ev_smart_charging_charging
+                state: "off"
+              - condition: state
+                entity_id: sensor.ev_smart_charging_charging_2
+                state: "off"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.smartevse_7209_mode
+                data:
+                  option: "Pause"
+              # - service: select.select_option
+              #   target:
+              #     entity_id: select.smartevse_7209_mode
+              #   data:
+              #     option: "Off"
+          - conditions:
+              or:
+                - condition: state
+                  entity_id: sensor.ev_smart_charging_charging
+                  state: "on"
+                - condition: state
+                  entity_id: sensor.ev_smart_charging_charging_2
+                  state: "on"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.smartevse_7209_mode
+                data:
+                  option: "Smart"
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.home_charging_session_active
+
+    - alias: "SmartEVSE: Set target charge level and time"
+      id: 0ef605a2-6608-4783-b812-beb58b78118c
+      mode: restart
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+        - platform: state
+          entity_id: binary_sensor.id_3_charging_needed_for_next_trip
+        - platform: state
+          entity_id: binary_sensor.id_3_charging_needed_for_workweek
+        - platform: state
+          entity_id: binary_sensor.id_3_charging_needed_for_long_trip_this_week
+        - platform: state
+          entity_id: binary_sensor.hours_before_charging_is_done
+        - platform: state
+          entity_id: input_number.home_charging_initial_charge
+        - platform: state
+          entity_id: sensor.expected_travel_distance
+        - platform: template
+          value_template: "{{ now().weekday() == 5 and (now() >= today_at('14:00') or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on')) }}"
+          for:
+            seconds: 5
+        - platform: template
+          value_template: "{{ now().weekday() == 6 }}"
+        - platform: template
+          value_template: "{{ now().weekday() < 5 }}"
+      condition:
+        - condition: state
+          entity_id: input_boolean.home_charging_manual_target_soc
+          state: "off"
+      action:
+        - service: input_number.set_value
+          data:
+            value: >
+              {% if states('select.ev_smart_charging_charge_completion_time') != "None" and is_state('binary_sensor.id_3_charging_needed_for_next_trip', 'on') %}
+                {% set idle_charge = (today_at(states('select.ev_smart_charging_charge_completion_time')) - now()).seconds / 3600 * 18.8 %}
+              {% else %}
+                {% set idle_charge = 80 %}
+              {% endif %}
+              {% set expected_travel_distance = states('sensor.expected_travel_distance') | float(75) %}
+              {% set max_charge = 100 if expected_travel_distance > 250 and is_state("binary_sensor.hours_before_charging_is_done", "on") else 95 %}
+              {% set max_range = states('sensor.id_3_max_range') | float(330) %}
+              {% set is_weekend_or_day_off = (now().weekday() == 5 and (now() >= today_at('14:00') or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') ))
+                  or (now().weekday() == 6 and now() < today_at("20:00"))
+                  or (now().weekday() < 5 and is_state('binary_sensor.workday_today', 'off')) %}
+              {% set weekend_charge = 100 if is_state('binary_sensor.negative_electricity_price_this_hour', 'on') else 90 %}
+              {% set needed_range = expected_travel_distance * 1.25 + 13 %}
+              {% set needed_charge = ((needed_range / max_range * 100) / 5) | round(0, "ceil") * 5 %}
+              {% if is_state('binary_sensor.negative_electricity_price_in_next_3_hours', 'on') %}
+                {% set wanted_charge = max_charge %}
+              {% elif is_weekend_or_day_off and needed_charge < 40 %}
+                {% set wanted_charge = weekend_charge if weekend_charge > needed_charge else needed_charge %}
+              {% elif is_state('binary_sensor.opportunistic_charging_today', 'on') %}
+                {% set wanted_charge = idle_charge if idle_charge > needed_charge else needed_charge %}
+              {% else %}
+                {% set wanted_charge = needed_charge %}
+              {% endif %}
+              {% if is_state('binary_sensor.id_3_charging_needed_for_workweek', 'on') %}
+                {% set workweek_charge = states('sensor.id_3_minimum_workweek_charge') | float(0) %}
+              {% else %}
+                {% set workweek_charge = 0 %}
+              {% endif %}
+              {% if is_state('binary_sensor.id_3_charging_needed_for_long_trip_this_week', 'on') %}
+                {% set extra_charge = states('input_number.home_charging_initial_charge') | float(0) + 15 %}
+              {% else %}
+                {% set extra_charge = 0 %}
+              {% endif %}
+              {{ (min(max_charge, max(wanted_charge, workweek_charge, extra_charge)) / 5) | round(0) * 5 }}
+          target:
+            entity_id: input_number.home_charging_target_charge
+        - if:
+            - "{{ state_attr('sensor.expected_travel_distance', 'time') in state_attr('select.ev_smart_charging_charge_completion_time', 'options') }}"
+            - condition: template
+              value_template: >
+                {% set is_weekend_or_day_off = (now().weekday() == 5 and (now() >= today_at('14:00') or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') ))
+                    or (now().weekday() == 6 and now() < today_at("20:00"))
+                    or (now().weekday() < 5 and is_state('binary_sensor.workday_today', 'off')) %}
+                {% set max_range = states('sensor.id_3_max_range') | float(330) %}
+                {% set expected_travel_distance = states('sensor.expected_travel_distance') | float(75) %}
+                {% set needed_range = expected_travel_distance * 1.1 + 25 %}
+                {% set needed_charge = ((needed_range / max_range * 100) / 5) | round(0, "ceil") * 5 %}
+                {% if is_weekend_or_day_off %}
+                  {{ needed_charge >= 40 }}
+                {% else %}
+                  True
+                {% endif %}
+            - or:
+                - condition: state
+                  entity_id: binary_sensor.id_3_charging_needed_for_next_trip
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.id_3_charging_needed_for_workweek
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.sicco_workday_today
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.ellen_free_today
+                  state: "off"
+          then:
+            - service: select.select_option
+              target:
+                entity_id: select.ev_smart_charging_charge_completion_time
+              data:
+                option: >
+                  {% if is_state('binary_sensor.id_3_charging_needed_for_next_trip', 'on') %}
+                    {% set option = state_attr('sensor.expected_travel_distance', 'time') | string %}
+                  {% elif is_state('binary_sensor.id_3_charging_needed_for_workweek', 'on')
+                      or is_state('binary_sensor.sicco_workday_today', 'on')
+                      or is_state('input_boolean.ellen_free_today', 'off') %}
+                    {% set option = '08:00' %}
+                  {% else %}
+                    {% set option = state_attr('sensor.expected_travel_distance', 'time') | string %}
+                  {% endif %}
+                  {{ option if option in state_attr('select.ev_smart_charging_charge_completion_time', 'options') else 'None' }}
+            # - service: select.select_option
+            #   target:
+            #     entity_id: select.ev_smart_charging_charge_completion_time
+            #   data:
+            #     option: >
+            #       {% set option = state_attr('sensor.expected_travel_distance', 'time') | string %}
+            #       {{ option if option in state_attr('select.ev_smart_charging_charge_completion_time', 'options') else 'None' }}
+          else:
+            - service: select.select_option
+              target:
+                entity_id: select.ev_smart_charging_charge_completion_time
+              data:
+                option: None
+
+    - alias: "SmartEVSE: Sync target charge to ID.3"
+      id: bd3ce279-206d-465c-b115-811380649487
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: input_number.home_charging_target_charge
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.id_3_charging_cable_connected
+          to: "on"
+      condition:
+        - condition: numeric_state
+          entity_id: input_number.home_charging_target_charge
+          above: 79
+        - or:
+            - condition: state
+              entity_id: binary_sensor.id_3_is_connected_to_home_charger
+              state: "on"
+            - and:
+              - condition: state
+                entity_id: device_tracker.id_3_position
+                state: "unavailable"
+              - condition: state
+                entity_id: binary_sensor.id_3_charging_cable_connected
+                state: "on"
+      action:
+        - service: number.set_value
+          data:
+            value: >
+              {{ min(100, max(80, (states('input_number.home_charging_target_charge') | int / 10) | round(0, "ceil") * 10)) }}
+          target:
+            entity_id: number.id_3_battery_target_charge_level
+        - delay: "00:00:10"
+
+    - alias: "SmartEVSE: Send notification on error"
+      id: 15ac64ce-ab86-4eda-b63b-db41d50904ed
+      trigger:
+        - platform: state
+          entity_id: sensor.smartevse_7209_error
+          from: "None"
+          for:
+            minutes: 1
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "SmartEVSE error"
+            message: "SmartEVSE has thrown an error: {{ trigger.to_state.state }}. Check if there's anything wrong"
+            data:
+              channel: "Alerts"
+              importance: high
+              notification_icon: "mdi:alert"
+
+    - alias: "SmartEVSE: Manually overwrite target SOC and time"
+      id: 5c13e6f0-9882-4116-a7db-5fee1e2550ed
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id:
+            - input_number.home_charging_target_charge
+            - select.ev_smart_charging_charge_completion_time
+      condition:
+        - condition: template
+          value_template: >
+            {{ trigger.to_state.context.user_id != None
+              and not trigger.to_state.context.parent_id }}
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.home_charging_manual_target_soc
+
+    - alias: "SmartEVSE: Resume automatic target SOC and time"
+      id: 69112a00-f457-4dba-821c-fc882e0b3be5
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: sensor.smartevse_7209_evplugstate
+          to: "Disconnected"
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.home_charging_manual_target_soc
+
+    - alias: "SmartEVSE: Select car energy meter for home charger"
+      id: 98a96022-f719-414c-bf37-439184d0a166
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.citigo_is_charging_on_home_charger
+        - platform: state
+          entity_id: binary_sensor.id_3_is_connected_to_home_charger
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.citigo_is_charging_on_home_charger
+                  state: "on"
+              sequence:
+                - action: select.select_option
+                  data:
+                    option: Citigo
+                  target:
+                    entity_id:
+                      - select.home_charger_utility_meter
+                      - select.home_charger_utility_this_month
+          default:
+            - action: select.select_option
+              data:
+                option: ID.3
+              target:
+                entity_id:
+                  - select.home_charger_utility_meter
+                  - select.home_charger_utility_this_month
+
+    - alias: "SmartEVSE: Manual charging"
+      id: 430cd6fe-2b18-403a-8a4f-47e70ce180cb
+      mode: queued
+      trigger:
+        - trigger: state
+          entity_id: input_button.home_charger_manually_start_charging
+          id: start
+        - trigger: state
+          entity_id: input_button.home_charger_manually_stop_charging
+          id: stop
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: start
+              sequence:
+                - action: select.select_option
+                  data:
+                    option: SMART
+                  target:
+                    entity_id: select.smartevse_mode_selector
+            - conditions:
+                - condition: trigger
+                  id: stop
+              sequence:
+                - action: select.select_option
+                  data:
+                    option: "OFF"
+                  target:
+                    entity_id: select.smartevse_mode_selector
+
+    - alias: "SmartEVSE: Refresh data from ID.3"
+      id: c639c549-05a7-4c97-bce6-3e8d0598a096
+      mode: single
+      max_exceeded: silent
+      trigger:
+        - trigger: state
+          entity_id: sensor.smartevse_7209_evplugstate
+          from: "Disconnected"
+          to: "Connected"
+      action:
+        - if:
+            - condition: state
+              entity_id: switch.id_3_force_data_refresh
+              state: "off"
+          then:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.id_3_force_data_refresh
+        - delay: "00:02:00"

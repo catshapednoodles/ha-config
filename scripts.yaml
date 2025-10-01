@@ -1,0 +1,99 @@
+new_year:
+  alias: New Year
+  sequence:
+  - service: scene.turn_on
+    target:
+      entity_id: scene.game_room_color_burst
+    data: {}
+  - delay:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - service: scene.turn_on
+    target:
+      entity_id: scene.game_room_blue_planet
+    data: {}
+  mode: single
+  icon: mdi:firework
+'1704039243172':
+  alias: New Year 2
+  sequence:
+  - service: switch.turn_off
+    target:
+      entity_id:
+      - switch.adaptive_lighting_living_room
+      - switch.adaptive_lighting_front_door
+      - switch.adaptive_lighting_game_room
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 10
+      milliseconds: 0
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_ceiling_1
+    data:
+      effect: colorloop
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: light.turn_on
+    data:
+      effect: colorloop
+    target:
+      entity_id: light.living_room_ceiling_2
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: light.turn_on
+    data:
+      effect: colorloop
+    target:
+      entity_id: light.living_room_ceiling_3
+  - service: light.turn_on
+    data:
+      effect: colorloop
+    target:
+      entity_id: light.front_door_1
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: light.turn_on
+    data:
+      effect: colorloop
+    target:
+      entity_id:
+      - light.front_door_2
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: light.turn_on
+    data:
+      effect: colorloop
+    target:
+      entity_id:
+      - light.backyard_light
+  - delay:
+      hours: 0
+      minutes: 20
+      seconds: 0
+      milliseconds: 0
+  - service: switch.turn_on
+    target:
+      entity_id:
+      - switch.adaptive_lighting_living_room
+      - switch.adaptive_lighting_front_door
+      - switch.adaptive_lighting_game_room
+    data: {}
+  mode: single
+  icon: mdi:firework

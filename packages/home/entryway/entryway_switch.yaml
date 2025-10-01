@@ -1,0 +1,64 @@
+entryway_switch_package:
+  automation:
+    - alias: "Entryway: Car switch"
+      id: 8e99f14a-3b39-4edb-8f6c-1f8bc22171d0
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: event.entryway_dimmer_switch_action
+          to: ~
+      conditions:
+        - condition: template
+          value_template: "{{trigger.from_state.state != 'unavailable'}}"
+      action:
+        - choose:
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'press' and trigger.to_state.attributes.button == 'on' }}"
+              sequence:
+                - if:
+                    or:
+                      - condition: state
+                        entity_id: device_tracker.id_3_position
+                        state: "home"
+                      - condition: state
+                        entity_id: device_tracker.id_3_position
+                        state: "unavailable"
+                  then:
+                    - service: switch.turn_on
+                      entity_id: switch.id_3_electric_climatisation
+            # - conditions:
+            #     - "{{ trigger.to_state.state == 'up_press' }}"
+            #   sequence:
+            #     - service: light.turn_off
+            #       target:
+            #         entity_id: light.bedroom_lights
+            # - conditions:
+            #     - "{{ trigger.to_state.state == 'down_press' }}"
+            #   sequence:
+            #     - service: mqtt.publish
+            #       data:
+            #         topic: zigbee2mqtt/Bedroom Ceiling/set
+            #         payload: "{\"brightness_move_onoff\": 85}"
+            #         qos: 0
+            #         retain: false
+            #     - service: mqtt.publish
+            #       data:
+            #         topic: zigbee2mqtt/Bed Headboard/set
+            #         payload: "{\"brightness_move_onoff\": 85}"
+            #         qos: 0
+            #         retain: false
+            # - conditions:
+            #     - "{{ trigger.to_state.state == 'off_press' }}"
+            #   sequence:
+            #     - service: mqtt.publish
+            #       data:
+            #         topic: zigbee2mqtt/Bedroom Ceiling/set
+            #         payload: "{\"brightness_move_onoff\": -85}"
+            #         qos: 0
+            #         retain: false
+            #     - service: mqtt.publish
+            #       data:
+            #         topic: zigbee2mqtt/Bed Headboard/set
+            #         payload: "{\"brightness_move_onoff\": -85}"
+            #         qos: 0
+            #         retain: false

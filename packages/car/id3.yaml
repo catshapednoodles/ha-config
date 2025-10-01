@@ -1,0 +1,29 @@
+id3_package:
+  rest_command:
+    log_id3_charges:
+      url: http://192.168.1.4:8069/Vehicle/Index?vehicleId=1
+      method: POST
+      payload: >
+        {
+          'date': '{{ now().strftime('%Y-%m-%d') }}',
+          'odometer': '{{ states('sensor.id_3_odometer') }}',
+          'fuelConsumed': '{{ states('sensor.home_charging_session_charge') | round(1) }}',
+          'cost': '{{ states('sensor.home_charging_session_costs') | round(2) }}',
+          'isFillToFull': {{ is_state('sensor.id_3_battery_level', '100') }},
+          'missedFuelUp': False
+        }
+      content_type: 'application/json; charset=utf-8'
+
+  template:
+    - trigger:
+        - platform: state
+          entity_id: sensor.wican_id_3_soc
+          not_to: 'unavailable'
+      sensor:
+        - name: "ID.3 SoC"
+          unique_id: 6d3d9d47-228d-41ed-b5ca-13902833ac45
+          unit_of_measurement: '%'
+          state_class: measurement
+          device_class: battery
+          state: >
+            {{ states('sensor.wican_id_3_soc') | float(0) if has_value('sensor.wican_id_3_soc') else states('sensor.id_3_soc') | float(0) }}

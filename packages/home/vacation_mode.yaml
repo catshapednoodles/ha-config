@@ -1,4 +1,4 @@
-vacation_lighting_package:
+vacation_mode_package:
   sensor:
     - platform: history_stats
       name: "replay_bathroom_ceiling"
@@ -9,8 +9,8 @@ vacation_lighting_package:
         {{ as_timestamp(now()) - (7*86400) }}
       duration: 00:00:30
     - platform: history_stats
-      name: "replay_ellens_room_main"
-      entity_id: light.ellens_room_main
+      name: "replay_ellens_room_ceiling"
+      entity_id: light.ellens_room_ceiling
       state: "on"
       type: count
       start: >
@@ -25,8 +25,24 @@ vacation_lighting_package:
         {{ as_timestamp(now()) - (7*86400) }}
       duration: 00:00:30
     - platform: history_stats
-      name: "replay_game_room"
-      entity_id: light.game_room
+      name: "replay_game_room_wall_lamp"
+      entity_id: light.game_room_wall_lamp
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_game_room_monitor"
+      entity_id: light.game_room_monitor
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
+    - platform: history_stats
+      name: "replay_game_room_shelf"
+      entity_id: light.game_room_shelf
       state: "on"
       type: count
       start: >
@@ -72,38 +88,16 @@ vacation_lighting_package:
       start: >
         {{ as_timestamp(now()) - (7*86400) }}
       duration: 00:00:30
+    - platform: history_stats
+      name: "replay_living_room_cozy"
+      entity_id: light.living_room_cozy
+      state: "on"
+      type: count
+      start: >
+        {{ as_timestamp(now()) - (7*86400) }}
+      duration: 00:00:30
 
   automation:
-    # - alias: "Vacation: Simulate lights"
-    #   id: d37ec936-ef92-47f7-8dd0-b80010cdca3e
-    #   mode: queued
-    #   trigger:
-    #     - platform: state
-    #       entity_id: input_boolean.vacation_mode_short_trip
-    #     - platform: state
-    #       entity_id: input_boolean.vacation_mode
-    #     - platform: state
-    #       entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
-    #   action:
-    #     - choose:
-    #         - conditions:
-    #             or:
-    #               - condition: state
-    #                 entity_id: input_boolean.vacation_mode_short_trip
-    #                 state: "on"
-    #               - condition: state
-    #                 entity_id: input_boolean.vacation_mode
-    #                 state: "on"
-    #               - condition: state
-    #                 entity_id: input_boolean.vacation_mode_turned_off_because_of_guest
-    #                 state: "off"
-    #           sequence:
-    #             - service: switch.turn_on
-    #               entity_id: switch.presence_simulation
-    #       default:
-    #         - service: switch.turn_off
-    #           entity_id: switch.presence_simulation
-
     - alias: 'Vacation: Replay lighting from 7 days ago'
       id: 3da83415-9e36-402d-bf97-28947375910c
       mode: queued
@@ -111,35 +105,37 @@ vacation_lighting_package:
         - platform: state
           entity_id:
             - sensor.replay_bathroom_ceiling
-            - sensor.replay_ellens_room_main
+            - sensor.replay_ellens_room_ceiling
             - sensor.replay_entryway_ceiling
-            - sensor.replay_game_room
+            - sensor.replay_game_room_wall_lamp
+            - sensor.replay_game_room_monitor
+            - sensor.replay_game_room_shelf
             - sensor.replay_kitchen_ceiling
             - sensor.replay_kitchen_dining_light
             - sensor.replay_living_room_ceiling
             - sensor.replay_living_room_corner
             - sensor.replay_office_ceiling
+            - sensor.replay_living_room_cozy
       condition:
-        or:
-          - condition: state
-            entity_id: input_boolean.vacation_mode
-            state: 'on'
-          - condition: state
-            entity_id: input_boolean.vacation_mode_short_trip
-            state: 'on'
+        - condition: state
+          entity_id: input_boolean.vacation_mode_short_trip
+          state: 'on'
       action:
         - variables:
             corresponding_light: >
               {% set lights = {
                 'sensor.replay_bathroom_ceiling': 'light.bathroom_ceiling',
-                'sensor.replay_ellens_room_main': 'light.ellens_room_main',
+                'sensor.replay_ellens_room_ceiling': 'light.ellens_room_ceiling',
                 'sensor.replay_entryway_ceiling': 'light.entryway_ceiling',
-                'sensor.replay_game_room': 'light.game_room',
+                'sensor.replay_game_room_wall_lamp': 'light.game_room_wall_lamp',
+                'sensor.replay_game_room_monitor': 'light.game_room_monitor',
+                'sensor.replay_game_room_shelf': 'light.game_room_shelf',
                 'sensor.replay_kitchen_ceiling': 'light.kitchen_ceiling',
                 'sensor.replay_kitchen_dining_light': 'light.kitchen_dining_light',
                 'sensor.replay_living_room_ceiling': 'light.living_room_ceiling',
                 'sensor.replay_living_room_corner': 'light.living_room_corner',
                 'sensor.replay_office_ceiling': 'light.office_ceiling',
+                'sensor.replay_living_room_cozy': 'light.living_room_cozy',
               } %}
               {{ lights[trigger.entity_id] }}
         - choose:
@@ -168,6 +164,89 @@ vacation_lighting_package:
                     message: 'Replay Lighting: {{trigger.to_state.entity_id}}: turning off:{{ corresponding_light }}'
                     level: info
 
+    - alias: 'Vacation: Automate curtains'
+      id: 6b93bf24-74a6-4bdd-a06f-10e1c9eab15c
+      mode: queued
+      trigger:
+        - platform: time
+          at: "23:45:00"
+          id: close_curtains
+        - platform: time
+          at: "07:35:00"
+          id: open_curtains
+      condition:
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: 'on'
+      action:
+        - delay:
+            seconds: "{{ range(0, 1800)|random|int }}"
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: open_curtains
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.living_room_curtains_tahoma
+                - service: button.press
+                  entity_id: button.kitchen_curtains_tahoma_my_position
+                - service: system_log.write
+                  data:
+                    message: 'Vacation mode: Opened the curtains'
+                    level: info
+            - conditions:
+                - condition: trigger
+                  id: close_curtains
+              sequence:
+                - service: button.press
+                  entity_id: button.living_room_curtains_tahoma_my_position
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.kitchen_curtains_tahoma
+                - service: system_log.write
+                  data:
+                    message: 'Vacation mode: Closed the curtains'
+                    level: info
+
+    - alias: 'Vacation: Skip Sint-Maarten'
+      id: 59b9cbe1-023c-4c89-90f8-d3fba75d8856
+      mode: queued
+      triggers:
+        - platform: time
+          at: "17:00:00"
+          id: start
+        - platform: time
+          at: "20:45:00"
+          id: end
+      conditions:
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: 'on'
+        - condition: template
+          value_template: "{{ now().day == 11 and now().month == 11 }}"
+      actions:
+        - delay:
+            seconds: "{{ range(0, 900)|random|int }}"
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: start
+              sequence:
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.vacation_mode_short_trip
+                - service: light.turn_off
+                  entity_id: light.inside_lights
+            - conditions:
+                - condition: trigger
+                  id: end
+              sequence:
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.vacation_mode_short_trip
+                - service: script.turn_on
+                  target:
+                    entity_id: script.restore_vacation_lights_after_guest_leaves
+
   script:
     restore_vacation_lights_after_guest_leaves:
       alias: Restore vacation lights after guest leaves
@@ -182,12 +261,12 @@ vacation_lighting_package:
                 entity_id: light.bathroom_ceiling
         - if:
             - condition: state
-              entity_id: sensor.replay_ellens_room_main
+              entity_id: sensor.replay_ellens_room_ceiling
               state: "1"
           then:
             - service: light.turn_on
               data:
-                entity_id: light.ellens_room_main
+                entity_id: light.ellens_room_ceiling
         - if:
             - condition: state
               entity_id: sensor.replay_entryway_ceiling
@@ -198,12 +277,28 @@ vacation_lighting_package:
                 entity_id: light.entryway_ceiling
         - if:
             - condition: state
-              entity_id: sensor.replay_game_room
+              entity_id: sensor.replay_game_room_monitor
               state: "1"
           then:
             - service: light.turn_on
               data:
-                entity_id: light.game_room
+                entity_id: light.game_room_monitor
+        - if:
+            - condition: state
+              entity_id: sensor.replay_game_room_shelf
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.game_room_shelf
+        - if:
+            - condition: state
+              entity_id: sensor.replay_game_room_wall_lamp
+              state: "1"
+          then:
+            - service: light.turn_on
+              data:
+                entity_id: light.game_room_wall_lamp
         - if:
             - condition: state
               entity_id: sensor.replay_kitchen_ceiling

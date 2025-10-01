@@ -35,7 +35,7 @@ kitchen_curtains_package:
           to: "on"
           id: close_curtains
         - platform: time
-          at: "10:59:00"
+          at: "06:30:00"
           id: open_curtains
       action:
         - choose:
@@ -46,8 +46,10 @@ kitchen_curtains_package:
                   after: "06:00:00"
                   before: "11:00:00"
               sequence:
-                - service: button.press
-                  entity_id: button.kitchen_curtains_tahoma_my_position
+                # - service: button.press
+                #  entity_id: button.kitchen_curtains_tahoma_my_position
+                - service: cover.close_cover
+                  entity_id: cover.kitchen_curtains_tahoma
             - conditions:
                 - condition: trigger
                   id: close_curtains

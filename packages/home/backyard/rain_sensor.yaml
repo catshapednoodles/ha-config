@@ -1,0 +1,16 @@
+rain_sensor_package:
+  template:
+    - sensor:
+        - name: "Solar Rain Sensor Rate"
+          state: >
+            {% set intensity = states('sensor.solar_rain_sensor_rain_intensity') | int(0) %}
+            {% if intensity < 10 %}
+              No Rain
+            {% elif intensity <= 2000 %}
+              Light Rain
+            {% elif intensity <= 2600 %}
+              Moderate Rain
+            {% else %}
+              Heavy Rain
+            {% endif %}
+          availability: "{{ is_number(states('sensor.solar_rain_sensor_rain_intensity')) }}"

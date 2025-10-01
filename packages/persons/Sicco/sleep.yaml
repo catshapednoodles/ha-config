@@ -1,0 +1,86 @@
+sicco_sleep_package:
+  input_boolean:
+    sicco_is_sleeping:
+      name: Sicco is sleeping
+      icon: mdi:sleep
+
+  automation:
+    - alias: "Sleep: Toggle from Sleep As Android webhook"
+      id: 1e74eb19-51e5-4c4d-82cc-8fa47aac1278
+      trigger:
+        - platform: webhook
+          webhook_id: !secret sleep_as_android_webhook
+          allowed_methods:
+            - POST
+          local_only: false
+      condition:
+        - condition: state
+          entity_id: person.sicco
+          state: home
+      action:
+        choose:
+          - conditions:
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_started' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_resumed' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_stopped' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+              - service: script.turn_on
+                entity_id: script.handle_turn_off_someone_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'sleep_tracking_paused' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+          - conditions: 
+              condition: template
+              value_template: "{{ trigger.json.event == 'alarm_alert_dismiss' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                entity_id: input_boolean.sicco_is_sleeping
+              - service: script.turn_on
+                entity_id: script.handle_turn_off_someone_is_sleeping
+              # - service: script.turn_on
+              #   entity_id: script.good_morning
+      mode: restart
+
+    - alias: "Sleep: Turn on Sicco is sleeping"
+      id: f41cf779-94e2-4fd8-bca4-316152c76a95
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sm_s931b_is_charging
+          from: "off"
+          to: "on"
+          for: "00:02:00"
+      condition:
+        - condition: state
+          entity_id: person.sicco
+          state: home
+        - condition: time
+          after: "23:00:00"
+          before: "05:00:00"
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.sicco_is_sleeping
+
+    - alias: "Sleep: Turn off Sicco is sleeping"
+      id: c7be5750-7c11-4eab-8602-1a54f95b1921
+      trigger:
+        - platform: time
+          at: "11:30:00"
+      action:
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.sicco_is_sleeping

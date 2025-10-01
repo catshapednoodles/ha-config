@@ -1,10 +1,326 @@
 emhass_package:
+  rest_command:
+    emhass_forecast:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% macro time_to_timestep(time) -%}
+          {{ (((today_at(time) - now()) / timedelta(minutes=30)) | round(0, 'ceiling')) % 48 }}
+        {%- endmacro %}
+        {%- set horizon = 24 -%}
+        {%- set heated_intervals = [[time_to_timestep("06:30")|int, time_to_timestep("07:30")|int], [time_to_timestep("17:30")|int, time_to_timestep("23:00")|int]] -%}
+        {%- set pv_power_forecast = namespace(all=[]) -%}
+        {% for i in range(horizon) %}
+          {%- set pv_power_forecast.all = pv_power_forecast.all + [ 0.0 ] -%}
+        {% endfor %}
+        {%- set load_power_forecast = namespace(all=[]) -%}
+        {% for i in range(horizon) %}
+          {%- set load_power_forecast.all = load_power_forecast.all + [ 0.0 ] -%}
+        {% endfor %}
+        {
+          "prediction_horizon": {{ horizon }},
+          "load_cost_forecast": {{ (state_attr('sensor.electricity_price_forecast', 'forecasts') | map(attribute='currency_per_kWh') | list)[:horizon] | tojson }},
+          "pv_power_forecast": {{ (pv_power_forecast.all)[:horizon] | tojson }},
+          "load_power_forecast": {{ (load_power_forecast.all)[:horizon] | tojson }},
+          "def_load_config": [
+            {"thermal_config": {
+              "heating_rate": 5.0,
+              "cooling_constant": 0.1,
+              "overshoot_temperature": {{ (states('sensor.my_room_temperature') | float) + 3.0 }},
+              "start_temperature": {{ states('sensor.my_room_temperature') }},
+              "desired_temperatures": [
+                {%- set comma = joiner(", ") -%}
+                {%- for i in range(horizon) -%}
+                  {%- set timestep = i -%}
+                  {{ comma() }}
+                  {% for interval in heated_intervals if timestep >= interval[0] and timestep <= interval[1] %}
+                  21.0
+                  {%- else -%}
+                  15.0
+                  {%- endfor %}
+                {%- endfor %}
+              ]}
+            }
+          ],
+          "outdoor_temperature_forecast": {{ ((state_attr("sensor.weather_hourly", "forecast") | map(attribute="temperature") | list)[:horizon] | tojson) }}
+        }
+    emhass_dayahead_optim:
+      url: http://localhost:5000/action/dayahead-optim
+      method: post
+      timeout: 300
+      content_type: 'application/json'
+      payload: >
+        {
+          "load_cost_forecast": {{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours_emhass_1h') }},
+          "prod_price_forecast": {{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours_emhass_1h') }},
+          "def_total_hours": {{ states('sensor.deferrable_loads') }}
+        }
+    emhass_npc_optim_with_pv:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(72, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | length | int) %}
+        {
+          "load_cost_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | tojson }},
+          "prod_price_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | tojson }},
+          {% if state_attr('sensor.solcast_forecast_data', 'forecasts') != [] %}"pv_power_forecast": {{ state_attr('sensor.solcast_24hrs_forecast', 'forecasts')[:horizon] | tojson }},{% endif %}
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (state_attr('sensor.battery_sim_zendure_hyper_2000_5_76_kwh', 'percentage') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": 0.5
+        }
+    emhass_npc_optim_with_pv_15m:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(144, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min') | length | int) %}
+        {
+          "load_cost_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min') | tojson }},
+          "prod_price_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min_return') | tojson }},
+          {% if state_attr('sensor.solcast_forecast_data', 'forecasts') != [] %}"pv_power_forecast": {{ state_attr('sensor.solcast_24hrs_forecast_15m', 'forecasts')[:horizon] | tojson }},{% endif %}
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (states('sensor.hyper_2000_electric_level') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": 0.6
+        }
+    emhass_npc_optim_with_pv_15m_test:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(144, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min') | length | int) %}
+        {% set hours = 36 * 4 %}
+        {% set today = now().strftime('%Y-%m-%d') %}
+        {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+        {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>=', now().replace(minute=0, second=0, microsecond=0)) | list)
+        + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | list %}
+        {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
+        {% set opslag = 0.02 %}
+        {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
+        {% set sunrise = state_attr('sun.sun','next_rising') | as_datetime | as_local %}
+        {% set sunset = state_attr('sun.sun','next_setting') | as_datetime | as_local %}
+        {% set ns = namespace(z=[]) %}
+        {% for i in x %}
+          {% set market_price = i.value - tax_kWh - opslag %}
+          {% if i.start.hour >= sunrise.hour and i.start.hour <= sunset.hour and market_price > 0 %}
+            {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
+          {% else %}
+            {% set value = ((market_price + opslag) + included_tax) | round(4) %}
+          {% endif %}
+          {% set value = -1 %}
+          {% if loop.index == 1 and now().minute >= 14 %}
+            {% if now().minute >= 59 %}
+              {% set ns.z = ns.z %}
+            {% elif now().minute >= 44 %}
+              {% set ns.z = ns.z + [value] %}
+            {% elif now().minute >= 29 %}
+              {% set ns.z = ns.z + [value] + [value] %}
+            {% else %}
+              {% set ns.z = ns.z + [value] + [value] + [value] %}
+            {% endif %}
+          {% else %}
+            {% set ns.z = ns.z + [value] + [value] + [value] + [value] %}
+          {% endif %}
+        {% endfor %}
+        {% set return = ns.z[:hours] %}
+        {% set ns = namespace(z=[]) %}
+        {% for i in x %}
+          {% set market_price = i.value - tax_kWh - opslag %}
+          {% if i.start.hour >= sunrise.hour and i.start.hour <= sunset.hour and market_price > 0 %}
+            {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
+          {% else %}
+            {% set value = ((market_price + opslag) + included_tax) | round(4) %}
+          {% endif %}
+          {% set value = -0.05 %}
+          {% if loop.index == 1 and now().minute >= 14 %}
+            {% if now().minute >= 59 %}
+              {% set ns.z = ns.z %}
+            {% elif now().minute >= 44 %}
+              {% set ns.z = ns.z + [value] %}
+            {% elif now().minute >= 29 %}
+              {% set ns.z = ns.z + [value] + [value] %}
+            {% else %}
+              {% set ns.z = ns.z + [value] + [value] + [value] %}
+            {% endif %}
+          {% else %}
+            {% set ns.z = ns.z + [value] + [value] + [value] + [value] %}
+          {% endif %}
+        {% endfor %}
+        {% set from_grid = ns.z[:hours] %}
+        {
+          "load_cost_forecast": {{ from_grid | tojson }},
+          "prod_price_forecast": {{ return | tojson }},
+          {% if state_attr('sensor.solcast_forecast_data', 'forecasts') != [] %}"pv_power_forecast": {{ state_attr('sensor.solcast_24hrs_forecast_15m', 'forecasts')[:horizon] | tojson }},{% endif %}
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (states('sensor.hyper_2000_electric_level') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": 0.6
+        }
+    emhass_npc_optim_with_pv_15m_with_def:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(144, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min') | length | int) %}
+        {% set charging_on_or_planned = is_state('switch.ev_smart_charging_ev_connected', 'on') and (is_state('sensor.ev_smart_charging_charging', 'on') or is_state_attr('sensor.ev_smart_charging_charging', 'charging_is_planned', true)) %}
+        {% set charging_load = (state_attr('sensor.ev_smart_charging_charging', 'charging_number_of_hours') | float(0) / 0.25) | int if charging_on_or_planned else 0 %}
+        {% set dhw_load = 
+          6 if is_state('binary_sensor.mitsubishi_next_dhw_run_is_legionella_run', 'on') else
+          2 if states('sensor.mitsubishi_tank_water_temperature') | float(0) - states('input_number.dhw_temperature_setpoint') | float(0) < 0 else
+          0 %}
+        {
+          "load_cost_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min') | tojson }},
+          "prod_price_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h_15min_return') | tojson }},
+          {% if state_attr('sensor.solcast_forecast_data', 'forecasts') != [] %}"pv_power_forecast": {{ state_attr('sensor.solcast_24hrs_forecast_15m', 'forecasts')[:horizon] | tojson }},{% endif %}
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (states('sensor.hyper_2000_electric_level') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": 0.6,
+          "operating_timesteps_of_each_deferrable_load": {{ [charging_load, dhw_load] | tojson }}
+        }
+    emhass_npc_optim_with_pv_test:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(72, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | length | int) %}
+        {% set ns = namespace(temps=[], weather=[]) %}
+        {% for i in range(horizon) %}
+          {% set ns.temps = ns.temps + [20.7] %}
+          {% set ns.weather = ns.weather + [15.1] %}
+        {% endfor %}
+        {
+          "load_cost_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | tojson }},
+          "prod_price_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | tojson }},
+          {% if state_attr('sensor.solcast_forecast_data', 'forecasts') != [] %}"pv_power_forecast": {{ state_attr('sensor.solcast_24hrs_forecast', 'forecasts')[:horizon] | tojson }},{% endif %}
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (state_attr('sensor.battery_sim_zendure_hyper_2000_5_76_kwh', 'percentage') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": 0.6,
+          "def_load_config": [
+            {"thermal_config": {
+              "heating_rate": 0.1,
+              "cooling_constant": 0.005,
+              "overshoot_temperature": 23,
+              "start_temperature": 20,
+              "desired_temperatures": {{ ns.temps | tojson }}
+              }
+            }
+          ],
+          "outdoor_temperature_forecast": {{ ns.weather | tojson }}
+        }
+    emhass_npc_optim_test:
+      url: http://localhost:5000/action/naive-mpc-optim
+      method: post
+      timeout: 300
+      payload: >
+        {% set horizon = min(72, state_attr('sensor.entsoe_prices_forecast_30', 'prices_36h') | length | int) %}
+        {% set ns = namespace(temps=[]) %}
+        {%- for i in range(horizon) -%}
+          {% set ns.temps = ns.temps + [states('input_number.thermostat_temperature_setpoint') | float] %}
+        {%- endfor %}
+        {
+          "load_cost_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices') | tojson }},
+          "prod_price_forecast": {{ state_attr('sensor.entsoe_prices_forecast_30', 'prices') | tojson }},
+          "prediction_horizon": {{ horizon | tojson }},
+          "soc_init": {{ (state_attr('sensor.battery_sim_zendure_hyper_2000_5_76_kwh', 'percentage') | float(0) / 100) | round(2) | tojson }},
+          "soc_final": {{ max(0.3, (state_attr('sensor.battery_sim_zendure_hyper_2000_5_76_kwh', 'percentage') | float(30) / 100) | round(2)) | tojson }},
+          "def_load_config": [
+            {"thermal_config": {
+              "heating_rate": 0.6,
+              "cooling_constant": 0.4,
+              "overshoot_temperature": {{ (states('sensor.master_temperature_minimum') | float) + 1.0 }},
+              "start_temperature": {{ states('sensor.master_temperature_minimum') }},
+              "desired_temperatures": {{ ns.temps | tojson }}
+              }
+            }
+          ]
+        }
+    emhass_publish_data:
+      url: http://localhost:5000/action/publish-data
+      method: post
+      timeout: 300
+      payload: >
+        {}
+
   shell_command:
-    trigger_nordpool_forecast: "curl -i -H \"Content-Type: application/json\" -X POST -d '{\"load_cost_forecast\":{{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours_emhass_1h') }},\"prod_price_forecast\":{{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours_emhass_1h') }},\"def_total_hours\":{{states('sensor.deferrable_loads')}}}' http://localhost:5000/action/dayahead-optim"
-    trigger_nordpool_forecast_manual: "curl -i -H \"Content-Type: application/json\" -X POST -d '{\"load_cost_forecast\":{{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours') }},\"prod_price_forecast\":{{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours') }},\"def_total_hours\":{{states('sensor.deferrable_loads')}}}' http://localhost:5000/action/dayahead-optim"
-    publish_data: "curl -i -H \"Content-Type:application/json\" -X POST -d '{}' http://localhost:5000/action/publish-data"
+    # trigger_nordpool_forecast: >
+    #   curl -i -H 'Content-Type: application/json' -X POST -d '{
+    #     "load_cost_forecast": {{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours_emhass_1h') }},
+    #     "prod_price_forecast": {{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours_emhass_1h') }},
+    #     "def_total_hours": {{ states('sensor.deferrable_loads') }}
+    #   }' http://localhost:5000/action/dayahead-optim
+    # trigger_nordpool_forecast_manual: >
+    #   curl -i -H 'Content-Type: application/json' -X POST -d '{
+    #     "load_cost_forecast": {{ state_attr('sensor.current_price_for_electricity_usage', 'upcoming_24_hours') }},
+    #     "prod_price_forecast": {{ state_attr('sensor.current_price_for_electricity_return', 'upcoming_24_hours') }},
+    #     "def_total_hours": {{ states('sensor.deferrable_loads') }}
+    #   }' http://localhost:5000/action/dayahead-optim
+    publish_data: >
+      curl -i -H 'Content-Type:application/json' -X POST -d '{}' http://localhost:5000/action/publish-data
+
+  sensor:
+    - platform: filter
+      name: "Power load no var loads filter"
+      unique_id: d2261339-79ee-4d0f-a225-bb7c3357da87
+      entity_id: sensor.power_load_no_var_loads
+      filters:
+        - filter: time_simple_moving_average
+          window_size: "00:05"
+          precision: 0
 
   template:
+    - trigger:
+        - platform: time_pattern
+          minutes: "58"
+          id: half
+        - platform: time_pattern
+          minutes: "13"
+          id: quarter
+        - platform: time_pattern
+          minutes: "28"
+          id: half
+        - platform: time_pattern
+          minutes: "43"
+          id: quarter
+      action:
+        - action: solcast_solar.query_forecast_data
+          data:
+            start_date_time: >
+              {% set time = now() + timedelta(minutes=3) %}
+              {{ time.replace(minute=(time.minute / 15) | round(0) * 15, second=0).strftime('%Y-%m-%d %H:%M:%S')}}
+            end_date_time: "{{ (now() + timedelta(days=2)).replace(hour=0, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')}}"
+          response_variable: forecasts
+      sensor:
+        - name: solcast_24hrs_forecast_15m
+          unique_id: solcast_24hrs_forecast_15m
+          state: '15 minute solcast forecasts'
+          attributes:
+            forecasts: >
+              {% set ns = namespace(pv=[]) %}
+              {% if trigger.id == "quarter" %}
+                {% for item in forecasts['data'] | map(attribute='pv_estimate') | list %}
+                  {% set pv = (item * 1000) | round(0) %}
+                  {% if loop.last %}
+                    {% set ns.pv = ns.pv + [pv] + [pv]  %}
+                  {% elif loop.first %}
+                    {% set avg_pv = ((pv + loop.nextitem * 1000) / 2) | int %}
+                    {% set ns.pv = ns.pv + [avg_pv]  %}
+                  {% else %}
+                    {% set avg_pv = ((pv + loop.nextitem * 1000) / 2) | int %}
+                    {% set ns.pv = ns.pv + [pv] + [avg_pv]  %}
+                  {% endif %}
+                {% endfor %}
+              {% elif trigger.id == "half" %}
+                {% for item in forecasts['data'] | map(attribute='pv_estimate') | list %}
+                  {% set pv = (item * 1000) | round(0) %}
+                  {% if loop.last %}
+                    {% set ns.pv = ns.pv + [pv] + [pv]  %}
+                  {% else %}
+                    {% set avg_pv = ((pv + loop.nextitem * 1000) / 2) | int %}
+                    {% set ns.pv = ns.pv + [pv] + [avg_pv]  %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+              {{ ns.pv }}
     - sensor:
         - name: "Power load no var loads"
           icon: mdi:home-lightning-bolt
@@ -12,8 +328,16 @@ emhass_package:
           state: >
             {% set net_power = states('sensor.net_power') | float(0) %}
             {% set pv_power = states('sensor.pv_power') | float(0) %}
-            {% set deferrable_load0 = states('sensor.boiler_power') | float(0) if states('sensor.boiler_power') | float(0) > 5 else 0 %}
-            {{ (net_power + pv_power - deferrable_load0) | round(0) }}
+            {% set batt_out = states('sensor.hyper_2000_output_home_power') | float(0) %}
+            {% set batt_in = states('sensor.hyper_2000_grid_input_power') | float(0) %}
+            {% set ev_charger = states('sensor.smartevse_7209_evchargepower') | float(0) * 1000 %}
+            {% set heat_pump = states('sensor.heat_pump_power') | float(0) + states('sensor.heat_pump_booster_heater_power') | float(0) %}
+            {% set dishwasher = states('sensor.dishwasher_power') | float(0) if states('sensor.dishwasher_power') | float(0) > 5 else 0 %}
+            {% set washing_machine = states('sensor.washing_machine_power') | float(0) if states('sensor.washing_machine_power') | float(0) > 5 else 0 %}
+            {% set dryer = states('sensor.dryer_power') | float(0) if states('sensor.dryer_power') | float(0) > 5 else 0 %}
+            {% set boiler = states('sensor.boiler_power') | float(0) if states('sensor.boiler_power') | float(0) > 5 else 0 %}
+            {% set deferrable_loads = dishwasher + washing_machine + dryer + boiler %}
+            {{ (net_power + pv_power + batt_out - batt_in - ev_charger - heat_pump - deferrable_loads) | round(0) }}
           unit_of_measurement: W
           state_class: measurement
           device_class: power
@@ -23,6 +347,134 @@ emhass_package:
           state: >
             {% set boiler_hours = 6 if is_state('input_boolean.vacation_mode', 'on') else 18 %}
             {{ [ boiler_hours ] | list }}
+        - name: "EMHASS battery mode"
+          unique_id: 76b82247-2d26-4dc1-9ec5-d228cf75b3bd
+          icon: mdi:battery-heart-outline
+          state: >
+            {# Waarden ophalen #}
+            {% set p_pv = states('sensor.p_pv')| float(0) %}
+            {% set p_batt = states('sensor.emhass_p_batt_forecast') | float(0) %}
+            {% set p_load = states('sensor.p_load_forecast') | float(0) %}
+            {% set p_grid = states('sensor.p_grid_forecast') | float(0) %}
+            {% set soc = states('sensor.hyper_2000_electric_level') | float(0) %}
+            {# Bepaal modus #}
+            {% set mode = 'idle' %}
+            {% if p_batt < 0 %}
+              {% set mode = 'charge' %}
+            {% else %}
+              {% if soc < 10 %}
+                {% set mode = 'blocked' %}
+              {% elif p_grid < 20 %}
+                {% set mode = 'net_zero' %}
+              {% else %}
+                {% set mode = 'discharge' %}
+              {% endif %}
+            {% endif %}
+            {{ mode }}
+        - name: solcast_24hrs_forecast
+          unique_id: solcast_24hrs_forecast
+          state: '30 minute solcast forecasts'
+          attributes:
+            forecasts: >
+              {% set ns = namespace(forecasts=[]) %}
+              {% for forecast in state_attr('sensor.solcast_forecast_data', 'forecasts') if forecast['period_end'] | as_datetime > now() + timedelta(minutes=2) %} {# NPC optim start at xx:29 #}
+                {% set entry = forecast['pv_estimate'] | float(0) | multiply(1000) | int %}
+                {% set ns.forecasts = ns.forecasts + [entry] %}
+              {% endfor %}
+              {{ ns.forecasts }}
+        - name: entsoe_prices_forecast_30
+          unique_id: entsoe_prices_forecast_30
+          state: '30 minute entsoe forecast prices'
+          attributes:
+            # prices: >
+            #   {% set today = now().strftime('%Y-%m-%d') %}
+            #   {% set tomorrow = (now().timestamp() + 86400) | timestamp_custom('%Y-%m-%d') %}
+            #   {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', 'match', today ) | map(attribute='value') | list)[now().hour:]
+            #   + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | map(attribute='value') | list %}
+            #   {% set ns = namespace(z=[]) %}
+            #   {% for i in x %}
+            #     {% if loop.index == 1 and now().minute >= 29 %}
+            #       {% set ns.z = ns.z + [i] %}
+            #     {% else %}
+            #       {% set ns.z = ns.z + [i] + [i] %}
+            #     {% endif %}
+            #   {% endfor %}
+            #   {% set ns.z = ns.z[:48] %}
+            #   {{ ns.z }}
+            prices_36h: >
+              {% set hours = 36 * 2 %}
+              {% set today = now().strftime('%Y-%m-%d') %}
+              {% set tomorrow = (now().timestamp() + 86400) | timestamp_custom('%Y-%m-%d') %}
+              {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', 'match', today ) | map(attribute='value') | list)[now().hour:]
+              + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | map(attribute='value') | list %}
+              {% set ns = namespace(z=[]) %}
+              {% for i in x %}
+                {% if loop.index == 1 and now().minute >= 29 %}
+                  {% set ns.z = ns.z + [i] %}
+                {% else %}
+                  {% set ns.z = ns.z + [i] + [i] %}
+                {% endif %}
+              {% endfor %}
+              {% set ns.z = ns.z[:hours] %}
+              {{ ns.z }}
+            prices_36h_15min: >
+              {% set hours = 36 * 4 %}
+              {% set today = now().strftime('%Y-%m-%d') %}
+              {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+              {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=8)) | map(attribute='value') | list)[:100]
+              + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow) | map(attribute='value') | list)[:100] %}
+              {% set ns = namespace(z=[]) %}
+              {% for i in x %}
+                {% set ns.z = ns.z + [i] %}
+                {# {% if loop.index == 1 and now().minute >= 14 %}
+                  {% if now().minute >= 58 %}
+                    {% set ns.z = ns.z %}
+                  {% elif now().minute >= 43 %}
+                    {% set ns.z = ns.z + [i] %}
+                  {% elif now().minute >= 28 %}
+                    {% set ns.z = ns.z + [i] + [i] %}
+                  {% else %}
+                    {% set ns.z = ns.z + [i] + [i] + [i] %}
+                  {% endif %}
+                {% else %}
+                  {% set ns.z = ns.z + [i] + [i] + [i] + [i] %}
+                {% endif %} #}
+              {% endfor %}
+              {{ ns.z[:hours] }}
+            prices_36h_15min_return: >
+              {% set hours = 36 * 4 %}
+              {% set today = now().strftime('%Y-%m-%d') %}
+              {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+              {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>=', now().replace(minute=0, second=0, microsecond=0)) | list)
+              + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | list %}
+              {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
+              {% set opslag = 0.02 %}
+              {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
+              {% set sunrise = state_attr('sun.sun','next_rising') | as_datetime | as_local %}
+              {% set sunset = state_attr('sun.sun','next_setting') | as_datetime | as_local %}
+              {% set ns = namespace(z=[]) %}
+              {% for i in x %}
+                {% set market_price = i.value - tax_kWh - opslag %}
+                {% if i.start.hour >= sunrise.hour and i.start.hour <= sunset.hour and market_price > 0 %}
+                  {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
+                {% else %}
+                  {% set value = ((market_price + opslag) + included_tax) | round(4) %}
+                {% endif %}
+                {% if loop.index == 1 and now().minute >= 14 %}
+                  {% if now().minute >= 59 %}
+                    {% set ns.z = ns.z %}
+                  {% elif now().minute >= 44 %}
+                    {% set ns.z = ns.z + [value] %}
+                  {% elif now().minute >= 29 %}
+                    {% set ns.z = ns.z + [value] + [value] %}
+                  {% else %}
+                    {% set ns.z = ns.z + [value] + [value] + [value] %}
+                  {% endif %}
+                {% else %}
+                  {% set ns.z = ns.z + [value] + [value] + [value] + [value] %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.z[:hours] }}
 
     - trigger:
         - platform: state
@@ -41,167 +493,277 @@ emhass_package:
             {{ states('sensor.p_batt_forecast') }}
           unit_of_measurement: W
           device_class: power
-
+        - name: "emhass_p_pv_forecast"
+          icon: mdi:home-battery
+          unique_id: emhass_p_pv_forecast
+          state: >
+            {{ states('sensor.p_pv_forecast') }}
+          unit_of_measurement: W
+          device_class: power
+        - name: "emhass_p_pv_curtailment"
+          icon: mdi:home-battery
+          unique_id: emhass_p_pv_curtailment
+          state: >
+            {{ states('sensor.p_pv_curtailment') }}
+          unit_of_measurement: W
+          device_class: power
 
   automation:
     - alias: "EMHASS: day-ahead optimization"
-      trigger:
-        - platform: time
-          at: '16:55:00'
-      action:
-        - service: shell_command.trigger_nordpool_forecast
-
-    - alias: "EMHASS: publish data"
-      trigger:
-        - minutes: 0
-          platform: time_pattern
-      action:
-        - service: shell_command.publish_data
-
-    - alias: "Battery: Control 14 kWh Victron"
-      id: 5f2ba0d3-ac08-4e56-8e6c-ccabe9f27a70
+      id: fcd4ae32-e3c4-4e5e-8afb-0c615f47733d
       mode: queued
       trigger:
+        # - trigger: time_pattern
+        #   minutes: 0
+        #   variables:
+        #     optimize: false
+        #     publish: true
+        # - trigger: time_pattern
+        #   minutes: 15
+        #   variables:
+        #     optimize: false
+        #     publish: true
+        # - trigger: time_pattern
+        #   minutes: 30
+        #   variables:
+        #     optimize: true
+        #     publish: true
+        # - trigger: time_pattern
+        #   minutes: 45
+        #   variables:
+        #     optimize: false
+        #     publish: true
+        - trigger: time_pattern
+          minutes: 59
+          seconds: 42
+          variables:
+            optimize: true
+            publish: true
+        - trigger: time_pattern
+          minutes: 14
+          seconds: 42
+          variables:
+            optimize: true
+            publish: true
+        - trigger: time_pattern
+          minutes: 29
+          seconds: 42
+          variables:
+            optimize: true
+            publish: true
+        - trigger: time_pattern
+          minutes: 44
+          seconds: 42
+          variables:
+            optimize: true
+            publish: true
+        # - trigger: state
+        #   entity_id: binary_sensor.electricity_prices_for_tomorrow_available
+        #   from: "off"
+        #   to: "on"
+        #   variables:
+        #     optimize: true
+        #     publish: true
+        - platform: homeassistant
+          event: start
+          variables:
+            optimize: false
+            publish: true
         - platform: state
-          entity_id: sensor.emhass_p_batt_forecast
-        - platform: state
-          entity_id: sensor.battery_sim_victron_14_kwh
-          attribute: percentage
+          entity_id: update.emhass_update
+          to: 'off'
+          for:
+            minutes: 10
+          variables:
+            optimize: false
+            publish: true
       action:
-        - choose:
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: -1
-                  below: 1
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: 1000
-                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
-            - conditions:
-                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
-                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(90) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_14_kwh_pause_battery
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_14_kwh_pause_battery
-
-        - choose:
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: 2000
-                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(0) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_14_kwh_force_discharge
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_14_kwh_force_discharge
-
-        - choose:
-            - conditions:
-                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
-                - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') < states('sensor.emhass_soc_batt_forecast') | float(10) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_14_kwh_force_charge
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_14_kwh_force_charge
-
         - if:
-            - condition: numeric_state
-              entity_id: sensor.emhass_p_batt_forecast
-              below: 1
+            - "{{ optimize }}"
           then:
-            - service: switch.turn_on
-              entity_id: switch.battery_sim_victron_14_kwh_charge_only
-          else:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_14_kwh_charge_only
+            - service: rest_command.emhass_npc_optim_with_pv_15m_with_def
+              data: {}
+        - if:
+            - "{{ publish }}"
+          then:
+            - service: shell_command.publish_data
 
-    - alias: "Battery: Control 28 kWh Victron"
-      id: 458374bb-7563-4a76-898f-73e22cbf527a
-      mode: queued
+    - alias: "EMHASS: Send notification when EMHASS is not Optimal"
+      id: 44eab879-db18-4099-a4e9-9fff3d6b18a5
       trigger:
-        # - platform: state
-        #   entity_id: sensor.p_batt_forecast
         - platform: state
-          entity_id: sensor.emhass_p_batt_forecast
-        # - platform: state
-        #   entity_id: sensor.soc_batt_forecast
-        - platform: state
-          entity_id: sensor.battery_sim_victron_28_kwh
-          attribute: percentage
+          entity_id: sensor.optim_status
+          from: "Optimal"
       action:
-        - choose:
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: -1
-                  below: 1
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_28_kwh_pause_battery
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: 1000
-                - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_28_kwh_pause_battery
-            - conditions:
-                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
-                - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(90) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_28_kwh_pause_battery
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_28_kwh_pause_battery
+        - service: notify.sicco_phone
+          data:
+            title: "EMHASS error"
+            message: "EMHASS has status {{ states('sensor.optim_status') }}. Check if there's anything wrong"
+            data:
+              channel: "Energy"
+              importance: high
+              notification_icon: "mdi:alert"
 
-        - choose:
-            - conditions:
-                - condition: numeric_state
-                  entity_id: sensor.emhass_p_batt_forecast
-                  above: 2000
-                - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(0) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_28_kwh_force_discharge
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_28_kwh_force_discharge
+    # - alias: "EMHASS: day-ahead optimization"
+    #   trigger:
+    #     - platform: time
+    #       at: '16:55:00'
+    #   action:
+    #     - service: shell_command.trigger_nordpool_forecast
 
-        - choose:
-            - conditions:
-                - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
-                - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') < states('sensor.emhass_soc_batt_forecast') | float(10) }}"
-              sequence:
-                - service: switch.turn_on
-                  entity_id: switch.battery_sim_victron_28_kwh_force_charge
-          default:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_28_kwh_force_charge
+    # - alias: "EMHASS: publish data"
+    #   trigger:
+    #     - minutes: 0
+    #       platform: time_pattern
+    #   action:
+    #     - service: shell_command.publish_data
 
-        - if:
-            - condition: numeric_state
-              entity_id: sensor.emhass_p_batt_forecast
-              below: 1
-          then:
-            - service: switch.turn_on
-              entity_id: switch.battery_sim_victron_28_kwh_charge_only
-          else:
-            - service: switch.turn_off
-              entity_id: switch.battery_sim_victron_28_kwh_charge_only
+    # - alias: "Battery: Control 14 kWh Victron"
+    #   id: 5f2ba0d3-ac08-4e56-8e6c-ccabe9f27a70
+    #   mode: restart
+    #   trigger:
+    #     - platform: state
+    #       entity_id: sensor.emhass_p_batt_forecast
+    #     - platform: state
+    #       entity_id: sensor.emhass_soc_batt_forecast
+    #     - platform: state
+    #       entity_id: sensor.battery_sim_victron_14_kwh
+    #       attribute: percentage
+    #   action:
+    #     - choose:
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: -1
+    #               below: 1
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: 1000
+    #             - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') <= min(90, max(10, (states('sensor.emhass_soc_batt_forecast') | float(10) - 45) / (90 - 45) * 90)) | round(2) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+    #         - conditions:
+    #             - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+    #             - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= min(90, max(10, (states('sensor.emhass_soc_batt_forecast') | float(90) - 45) / (90 - 45) * 90)) | round(2) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_14_kwh_pause_battery
+
+    #     - choose:
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: 2000
+    #             - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') >= min(90, max(10, (states('sensor.emhass_soc_batt_forecast') | float(0) - 45) / (90 - 45) * 90)) | round(2) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_14_kwh_force_discharge
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_14_kwh_force_discharge
+
+    #     - choose:
+    #         - conditions:
+    #             - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+    #             - "{{ state_attr('sensor.battery_sim_victron_14_kwh', 'percentage') < min(90, max(10, (states('sensor.emhass_soc_batt_forecast') | float(10) - 45) / (90 - 45) * 90)) | round(2) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_14_kwh_force_charge
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_14_kwh_force_charge
+
+    #     - if:
+    #         - condition: numeric_state
+    #           entity_id: sensor.emhass_p_batt_forecast
+    #           below: 1
+    #       then:
+    #         - service: switch.turn_on
+    #           entity_id: switch.battery_sim_victron_14_kwh_charge_only
+    #       else:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_14_kwh_charge_only
+
+    # - alias: "Battery: Control 28 kWh Victron"
+    #   id: 458374bb-7563-4a76-898f-73e22cbf527a
+    #   mode: restart
+    #   trigger:
+    #     # - platform: state
+    #     #   entity_id: sensor.p_batt_forecast
+    #     - platform: state
+    #       entity_id: sensor.emhass_p_batt_forecast
+    #     - platform: state
+    #       entity_id: sensor.emhass_soc_batt_forecast
+    #     - platform: state
+    #       entity_id: sensor.battery_sim_victron_28_kwh
+    #       attribute: percentage
+    #   action:
+    #     - choose:
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: -1
+    #               below: 1
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_28_kwh_pause_battery
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: 1000
+    #             - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') <= states('sensor.emhass_soc_batt_forecast') | float(10) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_28_kwh_pause_battery
+    #         - conditions:
+    #             - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+    #             - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(90) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_28_kwh_pause_battery
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_28_kwh_pause_battery
+
+    #     - choose:
+    #         - conditions:
+    #             - condition: numeric_state
+    #               entity_id: sensor.emhass_p_batt_forecast
+    #               above: 2000
+    #             - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') >= states('sensor.emhass_soc_batt_forecast') | float(0) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_28_kwh_force_discharge
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_28_kwh_force_discharge
+
+    #     - choose:
+    #         - conditions:
+    #             - "{{ (states('sensor.emhass_p_batt_forecast') | float(0)) * -1 - states('sensor.p_pv_forecast') | float(0) > 1000 }}"
+    #             - "{{ state_attr('sensor.battery_sim_victron_28_kwh', 'percentage') < states('sensor.emhass_soc_batt_forecast') | float(10) }}"
+    #           sequence:
+    #             - service: switch.turn_on
+    #               entity_id: switch.battery_sim_victron_28_kwh_force_charge
+    #       default:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_28_kwh_force_charge
+
+    #     - if:
+    #         - condition: numeric_state
+    #           entity_id: sensor.emhass_p_batt_forecast
+    #           below: 1
+    #       then:
+    #         - service: switch.turn_on
+    #           entity_id: switch.battery_sim_victron_28_kwh_charge_only
+    #       else:
+    #         - service: switch.turn_off
+    #           entity_id: switch.battery_sim_victron_28_kwh_charge_only

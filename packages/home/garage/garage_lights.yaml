@@ -1,0 +1,181 @@
+garage_lights_package:
+  adaptive_lighting:
+    - name: "Garage"
+      lights:
+        - light.garage_lightstrip
+      min_brightness: 60
+      max_brightness: 100
+      autoreset_control_seconds: 1800
+      detect_non_ha_changes: true
+      separate_turn_on_commands: true
+      skip_redundant_commands: true
+
+  input_boolean:
+    automatic_garage_lights:
+      name: Automatic garage lights
+      icon: mdi:lightbulb-auto
+
+  automation:
+    - alias: "Garage: Toggle lights"
+      id: 37dbf41a-9ecf-410b-b98b-50d381b7a881
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.garage_door
+          to: "on"
+          from: "off"
+        - platform: state
+          entity_id: binary_sensor.garage_door
+          to: "off"
+          for: "00:05:00"
+        - platform: state
+          entity_id: binary_sensor.garage_door
+          to: "off"
+          for: "01:00:00"
+      action:
+        - choose:
+            # Turn on light when the door is opened
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.garage_door
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.automatic_garage_lights
+                  state: "on"
+              sequence:
+                - service: light.turn_on
+                  data:
+                    entity_id:
+                      - light.garage_lightstrip
+            # Turn off lights when the door is closed
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.garage_door
+                  state: "off"
+                - condition: state
+                  entity_id: input_boolean.automatic_garage_lights
+                  state: "on"
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.garage_lightstrip
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.garage_door
+                  state: "off"
+                  for: "01:00:00"
+              sequence:
+                - service: light.turn_off
+                  data:
+                    entity_id:
+                      - light.garage_lightstrip
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.automatic_garage_lights
+
+    - alias: "Garage: Light switch"
+      id: 8b052a01-d1a0-4a42-ac92-91ae6b02c0f1
+      description: ""
+      use_blueprint:
+        path: chris-1243/PTM_215Z_ZE.yaml
+        input:
+          hold_delay: 300
+          controller: Garage Switch
+          button_1_pressed:
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights
+          button_1_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move_onoff": -85}'
+                qos: 0
+                retain: false
+          button_1_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move": "stop"}'
+                qos: 0
+                retain: false
+          button_2_pressed:
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights
+          button_2_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move_onoff": 85}'
+                qos: 0
+                retain: false
+          button_2_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move": "stop"}'
+                qos: 0
+                retain: false
+          button_3_pressed:
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights
+          button_3_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move_onoff": -85}'
+                qos: 0
+                retain: false
+          button_3_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move": "stop"}'
+                qos: 0
+                retain: false
+          button_4_pressed:
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights
+          button_4_held:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move_onoff": -85}'
+                qos: 0
+                retain: false
+          button_4_released:
+            - service: mqtt.publish
+              data:
+                topic: zigbee2mqtt/Garage Light/set
+                payload: '{"brightness_move": "stop"}'
+                qos: 0
+                retain: false
+          button_1_and_3_pressed:
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights
+          button_2_and_4_pressed:
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.garage_lightstrip
+            - service: input_boolean.turn_off
+              entity_id: input_boolean.automatic_garage_lights

@@ -1,20 +1,22 @@
 bedroom_lights_package:
   adaptive_lighting:
-  - name: "Bedroom"
-    lights:
-      - light.bedroom_ceiling
-    min_brightness: 20
-    max_brightness: 80
-    autoreset_control_seconds: 10800
-    detect_non_ha_changes: true
-  - name: "Bedroom Headboard"
-    lights:
-      - light.bed_headboard
-      - light.bedroom_closet_wall
-    min_brightness: 40
-    max_brightness: 80
-    autoreset_control_seconds: 10800
-    detect_non_ha_changes: true
+    - name: "Bedroom"
+      lights:
+        - light.bedroom_ceiling
+      min_brightness: 20
+      max_brightness: 80
+      autoreset_control_seconds: 10800
+      detect_non_ha_changes: true
+      skip_redundant_commands: true
+    - name: "Bedroom Headboard"
+      lights:
+        - light.bed_headboard
+        - light.bedroom_closet_wall
+      min_brightness: 40
+      max_brightness: 80
+      autoreset_control_seconds: 10800
+      detect_non_ha_changes: true
+      skip_redundant_commands: true
 
   input_boolean:
     automatic_bedroom_lights:
@@ -24,141 +26,214 @@ bedroom_lights_package:
   automation:
     - alias: "Bedroom: Light switch"
       id: 5f5dedfa-dc52-4c61-9adc-59c4cbbda0ca
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Bedroom Switch
           button_1_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.bed_headboard
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.bed_headboard
           button_1_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bed Headboard/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
           button_1_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bed Headboard/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_2_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.bed_headboard
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.bed_headboard
           button_2_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bed Headboard/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_2_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bed Headboard/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: 
-                - light.bedroom_ceiling
-                - light.bedroom_closet_wall
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id:
+                  - light.bedroom_ceiling
+                  - light.bedroom_closet_wall
           button_3_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Ceiling/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Closet Wall/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
           button_3_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Closet Wall/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
             - service: adaptive_lighting.set_manual_control
               data:
                 entity_id: switch.adaptive_lighting_bedroom
-                lights: 
+                lights:
                   - light.bedroom_ceiling
                   - light.bedroom_closet_wall
                 manual_control: true
           button_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: 
-                - light.bedroom_ceiling
-                - light.bedroom_closet_wall
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id:
+                  - light.bedroom_ceiling
+                  - light.bedroom_closet_wall
           button_4_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Ceiling/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Closet Wall/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_4_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Bedroom Closet Wall/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
             - service: adaptive_lighting.set_manual_control
               data:
                 entity_id: switch.adaptive_lighting_bedroom
-                lights: 
+                lights:
                   - light.bedroom_ceiling
                   - light.bedroom_closet_wall
                 manual_control: true
           button_1_and_3_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id:
-                - light.bedroom_lights
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id:
+                  - light.bedroom_lights
           button_2_and_4_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id:
-                - light.bedroom_lights
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id:
+                  - light.bedroom_lights
+
+    - alias: "Bedroom: Ellen nightstand switch"
+      id: 4d9166e1-1544-47aa-bba4-974d7f80cbe4
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: event.ellen_nightstand_switch_action
+          to: ~
+      conditions:
+        - condition: template
+          value_template: "{{trigger.from_state.state != 'unavailable'}}"
+      action:
+        - choose:
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'on' }}"
+              sequence:
+                - service: light.turn_on
+                  target:
+                    entity_id:
+                      - light.bedroom_ceiling
+                      - light.bed_headboard
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'off' }}"
+              sequence:
+                - service: light.turn_off
+                  target:
+                    entity_id: light.bedroom_lights
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'brightness_move_up' }}"
+              sequence:
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bedroom Ceiling/set
+                    payload: '{"brightness_move_onoff": 85}'
+                    qos: 0
+                    retain: false
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bed Headboard/set
+                    payload: '{"brightness_move_onoff": 85}'
+                    qos: 0
+                    retain: false
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'brightness_move_down' }}"
+              sequence:
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bedroom Ceiling/set
+                    payload: '{"brightness_move_onoff": -85}'
+                    qos: 0
+                    retain: false
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bed Headboard/set
+                    payload: '{"brightness_move_onoff": -85}'
+                    qos: 0
+                    retain: false
+            - conditions:
+                - "{{ trigger.to_state.attributes.event_type == 'brightness_stop' }}"
+              sequence:
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bedroom Ceiling/set
+                    payload: '{"brightness_move": "stop"}'
+                    qos: 0
+                    retain: false
+                - service: mqtt.publish
+                  data:
+                    topic: zigbee2mqtt/Bed Headboard/set
+                    payload: '{"brightness_move": "stop"}'
+                    qos: 0
+                    retain: false
 
     - alias: "Bedroom: Closet lights"
       id: 34847718-3608-46af-a59f-d3f806f90c3a

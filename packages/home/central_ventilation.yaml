@@ -1,17 +1,22 @@
 central_ventilation_package:
+  binary_sensor:
+  - platform: generic_hygrostat
+    name: Bathroom Hygrostat
+    sensor: sensor.bathroom_humidity # Source humidity sensor
+    delta_trigger: 5 # Optional humidity swing to detect. Default = 3
+    target_offset: 10 # Optional dehumidification target offset. Default = 3
+    min_on_time: 1200 # Optional min on time in seconds. Default = 0 seconds
+    max_on_time: 3600 # Optional safety max on time in seconds. Default = 7200 seconds
+    sample_interval: 240 # Optional time between taking humidity samples in seconds, default 300 seconds
+    min_humidity: 30 # Optional minimum humidity to enable dehumidification. Default = 0
+    unique_id: bathroom_hygrostat # Optional ID that uniquely identifies this sensor. Set this to a unique value to allow customization through the UI.
+
   input_boolean:
     ventilation_on_full_during_sleep:
       name: Ventilation on full during sleep
       icon: mdi:fan-chevron-up
 
   input_number:
-    bathroom_humidity_threshold:
-      name: "Bathroom humidity threshold"
-      icon: "mdi:water-percent"
-      min: 60
-      max: 90
-      mode: slider
-      step: 1
     co2_threshold:
       name: "CO2 threshold"
       icon: "mdi:molecule-co2"
@@ -51,20 +56,18 @@ central_ventilation_package:
           state: "{{ states('sensor.kitchen_pm2_5') | float(0) >= states('input_number.pm2_5_threshold') | float(1) }}"
           delay_off: "00:15:00"
           device_class: gas
-        - name: "Bathroom humidity above threshold"
-          unique_id: "bathroom_humidity_above_threshold"
-          state: "{{ states('sensor.bathroom_humidity') | float(0) >= states('input_number.bathroom_humidity_threshold') | float(1) }}"
-          device_class: moisture
         - name: "High humidity at home"
           unique_id: "high_humidity_at_home"
           state: >
             {% set cutoff = 67 %}
-            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') - 4 %}
+            {% set outside_humidity = state_attr('weather.combined', 'humidity') - 4 %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
                 | rejectattr('state', 'eq', 'unavailable')
+                | rejectattr('state', 'eq', 'unknown')
+                | selectattr('attributes.unit_of_measurement', 'eq', '%')
                 | selectattr('state', '>', cutoff|string)
                 | selectattr('state', '>', outside_humidity|string)
                 | list
@@ -75,12 +78,14 @@ central_ventilation_package:
           unique_id: "medium_high_humidity_at_home"
           state: >
             {% set cutoff = 55 %}
-            {% set outside_humidity = state_attr('weather.combined_daily', 'humidity') - 2 %}
+            {% set outside_humidity = state_attr('weather.combined', 'humidity') - 2 %}
             {{
               states.sensor
                 | select('search', '_humidity')
                 | reject('search', 'bathroom')
                 | rejectattr('state', 'eq', 'unavailable')
+                | rejectattr('state', 'eq', 'unknown')
+                | selectattr('attributes.unit_of_measurement', 'eq', '%')
                 | selectattr('state', '>', cutoff|string)
                 | selectattr('state', '>', outside_humidity|string)
                 | list
@@ -107,9 +112,13 @@ central_ventilation_package:
           unique_id: esp_wtw_ventilation_percentage
           unit_of_measurement: "%"
           state: "{{ state_attr('fan.esp_wtw_ventilation', 'percentage') }}"
+        - name: "WTW Ventilation Percentage"
+          unique_id: wtw_ventilation_percentage
+          unit_of_measurement: "%"
+          state: "{{ state_attr('fan.wtw_ventilation', 'percentage') }}"
 
   automation:
-    - alias: "Fan: Control Central Ventilation"
+    - alias: "Central Ventilation: Control ventilation modes"
       id: 1c6823df-301e-47da-b8f1-6334d8f67a80
       mode: queued
       trigger:
@@ -128,7 +137,7 @@ central_ventilation_package:
         - platform: state
           entity_id: binary_sensor.pm2_5_above_threshold
         - platform: state
-          entity_id: binary_sensor.bathroom_humidity_above_threshold
+          entity_id: binary_sensor.bathroom_hygrostat
         - platform: state
           entity_id: binary_sensor.medium_high_humidity_at_home
         - platform: state
@@ -139,10 +148,22 @@ central_ventilation_package:
           entity_id: binary_sensor.co2_high_in_bedroom
         - platform: state
           entity_id: binary_sensor.co2_very_high_in_bedroom
+        - platform: state
+          entity_id: input_boolean.wtw_smelly_air_outside
         - platform: time
-          at: "06:30:00"
+          at: "06:00:00"
       action:
         - choose:
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.wtw_smelly_air_outside
+                  state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 10
+                  target:
+                    entity_id: fan.wtw_ventilation
             - conditions:
                 - condition: state
                   entity_id: input_boolean.ventilation_on_full_during_sleep
@@ -155,13 +176,13 @@ central_ventilation_package:
                   entity_id: binary_sensor.co2_very_high_in_bedroom
                   state: "on"
                 - condition: time
-                  before: "06:30:00"
+                  before: "06:00:00"
               sequence:
                 - service: fan.set_percentage
                   data:
                     percentage: 100
                   target:
-                    entity_id: fan.esp_wtw_ventilation
+                    entity_id: fan.wtw_ventilation
             - conditions:
                 - condition: state
                   entity_id: input_boolean.sicco_is_sleeping
@@ -175,7 +196,7 @@ central_ventilation_package:
                   data:
                     percentage: 66
                   target:
-                    entity_id: fan.esp_wtw_ventilation
+                    entity_id: fan.wtw_ventilation
             - conditions:
                 or:
                   - condition: state
@@ -189,7 +210,7 @@ central_ventilation_package:
                   data:
                     percentage: 33
                   target:
-                    entity_id: fan.esp_wtw_ventilation
+                    entity_id: fan.wtw_ventilation
             - conditions:
                 or:
                 - condition: state
@@ -202,7 +223,7 @@ central_ventilation_package:
                   entity_id: binary_sensor.pm2_5_above_threshold
                   state: "on"
                 - condition: state
-                  entity_id: binary_sensor.bathroom_humidity_above_threshold
+                  entity_id: binary_sensor.bathroom_hygrostat
                   state: "on"
                 - condition: state
                   entity_id: binary_sensor.high_humidity_at_home
@@ -212,7 +233,7 @@ central_ventilation_package:
                   data:
                     percentage: 100
                   target:
-                    entity_id: fan.esp_wtw_ventilation
+                    entity_id: fan.wtw_ventilation
             - conditions:
                 or:
                 - condition: state
@@ -226,10 +247,10 @@ central_ventilation_package:
                   data:
                     percentage: 66
                   target:
-                    entity_id: fan.esp_wtw_ventilation
+                    entity_id: fan.wtw_ventilation
           default:
             - service: fan.set_percentage
               data:
                 percentage: 33
               target:
-                entity_id: fan.esp_wtw_ventilation
+                entity_id: fan.wtw_ventilation

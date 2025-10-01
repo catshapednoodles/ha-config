@@ -64,46 +64,47 @@ technical_room_lights_package:
 
     - alias: "Technical Room: Light switch"
       id: c4786885-4c16-4991-8ab3-47110ffc575b
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Technical Room Switch
           button_1_pressed:
-          - service: light.turn_on
-            data: {}
-            target:
-              entity_id: light.technical_room_light
+            - service: light.turn_on
+              data: {}
+              target:
+                entity_id: light.technical_room_light
           button_1_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Technical Room Light/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
           button_1_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Technical Room Light/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_2_pressed:
-          - service: light.turn_off
-            data: {}
-            target:
-              entity_id: light.technical_room_light
+            - service: light.turn_off
+              data: {}
+              target:
+                entity_id: light.technical_room_light
           button_2_held:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Technical Room Light/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_2_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Technical Room Light/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false

@@ -1,0 +1,7 @@
+vr_package:
+  group:
+    basestations:
+      name: Basestations
+      entities:
+        - switch.lhb_1
+        - switch.lhb_2

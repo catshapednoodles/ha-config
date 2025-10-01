@@ -6,6 +6,45 @@ energy_monitoring_package:
           device_class: connectivity
           state: >
             {{ states('sensor.up_chime_last_ring') not in ['unavailable', 'unknown', 'none'] }}
+    - sensor:
+        - name: "L1 consumption"
+          unique_id: c6242e3a-f94d-4181-b465-a357aa840553
+          unit_of_measurement: W
+          state_class: measurement
+          device_class: power
+          state: >
+            {% set import = states('sensor.power_consumed_phase_1') | float(0) %}
+            {% set export = states('sensor.power_produced_phase_1') | float(0) %}
+            {% set pv_phase = states('sensor.on_grid_l1_power') | float(0) %}
+            {% set pv_total = states('sensor.pv_power') | float(0) %}
+            {% set pv = pv_phase if -10 < pv_phase - (pv_total / 3) < 10 else pv_total / 3 %}
+            {{ max(0, (import + pv - export)) | round(0) }}
+        - name: "L2 consumption"
+          unique_id: e27bb8ec-a6a2-4483-9d93-527792c2edf9
+          unit_of_measurement: W
+          state_class: measurement
+          device_class: power
+          state: >
+            {% set import = states('sensor.power_consumed_phase_2') | float(0) %}
+            {% set export = states('sensor.power_produced_phase_2') | float(0) %}
+            {% set pv_phase = states('sensor.on_grid_l2_power') | float(0) %}
+            {% set pv_total = states('sensor.pv_power') | float(0) %}
+            {% set battery_in = states('sensor.battery_plug_in') | float(0) %}
+            {% set battery_out = states('sensor.hyper_2000_output_home_power') | float(0) %}
+            {% set pv = pv_phase if -10 < pv_phase - (pv_total / 3) < 10 else pv_total / 3 %}
+            {{ max(0, (import + pv + battery_out - battery_in - export)) | round(0) }}
+        - name: "L3 consumption"
+          unique_id: 76915cce-a980-44d5-b97a-daa7549fb9e8
+          unit_of_measurement: W
+          state_class: measurement
+          device_class: power
+          state: >
+            {% set import = states('sensor.power_consumed_phase_3') | float(0) %}
+            {% set export = states('sensor.power_produced_phase_3') | float(0) %}
+            {% set pv_phase = states('sensor.on_grid_l3_power') | float(0) %}
+            {% set pv_total = states('sensor.pv_power') | float(0) %}
+            {% set pv = pv_phase if -10 < pv_phase - (pv_total / 3) < 10 else pv_total / 3 %}
+            {{ max(0, (import + pv - export)) | round(0) }}
 
   powercalc:
     enable_autodiscovery: false
@@ -17,6 +56,7 @@ energy_monitoring_package:
           fixed:
             power: "{{ (states('sensor.processor_use') | float(0) * 0.15 + 3.3) | round(2) }}"
         - entity_id: switch.server
+          unique_id: b5cde5bb-20b1-49c7-938b-cc1011f65238
           name: Unraid Server
           power_sensor_id: sensor.server_power
           energy_sensor_id: sensor.server_energy
@@ -24,13 +64,10 @@ energy_monitoring_package:
         entities:
           - entity_id: device_tracker.dream_machine_special_edition  # UDM-SE
             fixed:
-              power: "{{ states('sensor.dream_machine_special_edition_cpu_utilization') | float(0) * 0.06 + 39.5 }}"
+              power: "{{ states('sensor.dream_machine_special_edition_cpu_utilization') | float(0) * 0.08 + 38 }}"
           - entity_id: device_tracker.usw_16_poe  # USW-16-PoE
             fixed:
               power: 9.6
-          - entity_id: device_tracker.usl8lp      # Switch Lite 8
-            fixed:
-              power: 4.4
           - entity_id: device_tracker.u6_iw_ground_floor
             name: In-Wall Ground Floor
             power_sensor_id: sensor.usw_16_poe_port_7_poe_power
@@ -45,61 +82,152 @@ energy_monitoring_package:
             power_sensor_id: sensor.usw_16_poe_port_8_poe_power
       - create_group: Camera devices
         entities:
-          - entity_id: binary_sensor.unifi_chime_available
-            name: Unifi Chime
+          - create_group: L1 Camera devices
+            entities:
+              - entity_id: binary_sensor.unifi_chime_available
+                name: Unifi Chime
+                fixed:
+                  power: 0.7
+              - entity_id: device_tracker.g5_bullet
+                power_sensor_id: sensor.dream_machine_special_edition_port_8_poe_power
+              - entity_id: device_tracker.uvc_g4_doorbell
+                fixed:
+                  power: 4.9
+          - create_group: L2 Camera devices
+            entities:
+              - entity_id: device_tracker.uvc_g3_instant
+                fixed:
+                  power: 2.7
+      - create_group: Speakers
+        hide_members: true
+        entities:
+          - entity_id: media_player.living_room_2
+          - entity_id: media_player.office
+      - create_group: VR Base Stations
+        hide_members: true
+        entities:
+          - entity_id: switch.lhb_1
             fixed:
-              power: 0.7
-          - entity_id: device_tracker.g5_bullet
-            power_sensor_id: sensor.usw_16_poe_port_2_poe_power
-          - entity_id: device_tracker.uvc_g4_doorbell
+              power: 4.4
+            standby_power: 0.9
+            unavailable_power: 0
+          - entity_id: switch.lhb_2
             fixed:
-              power: 4.9
-          - entity_id: device_tracker.uvc_g3_instant
-            fixed:
-              power: 2.7
+              power: 4.4
+            standby_power: 0.9
+            unavailable_power: 0
+      - create_group: Smart switches
+        hide_members: true
+        create_energy_sensor: true
+        force_calculate_group_energy: true
+        entities:
+          - create_group: L1 smart switches
+            entities:
+              - entity_id: switch.boiler
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.dryer
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.warmtedeken
+                create_energy_sensor: false
+                manufacturer: athom
+                model: smart-plug-au
+              - entity_id: switch.heat_pump_switch_0
+                create_energy_sensor: false
+                fixed:
+                  power: 1.22
+          - create_group: L2 smart switches
+            entities:
+              - entity_id: switch.washing_machine
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.battery_plug
+                create_energy_sensor: false
+                manufacturer: shelly
+                model: shelly plus plug s
+          - create_group: L3 smart switches
+            entities:
+              - entity_id: switch.dishwasher
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              # - entity_id: switch.ellens_room_cotton_ball_string
+              #   create_energy_sensor: false
+              #   manufacturer: blitzwolf
+              #   model: SHP6
+              - entity_id: switch.game_room_game_wall
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.office_desk
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.server
+                unique_id: 6fcc8d8c-9db1-49f6-a2af-03cb67de204a
+                create_energy_sensor: false
+                manufacturer: blitzwolf
+                model: SHP6
+              - entity_id: switch.window_lights
+                create_energy_sensor: false
+                manufacturer: athom
+                model: smart-plug-au
       - create_group: All lights
         entities:
-          - entity_id: light.attic_main_1
-          - entity_id: light.attic_main_2
-          - entity_id: light.bathroom_ceiling_1
-          - entity_id: light.bathroom_ceiling_2
-          - entity_id: light.bathroom_ceiling_3
-          - entity_id: light.bedroom_ceiling
-          - entity_id: light.bedroom_closet_wall
-          - entity_id: light.bed_headboard
-          - entity_id: light.cupboard_light
-          - entity_id: switch.ellens_room_cotton_ball_string
-            power_sensor_id: sensor.ellens_room_cotton_ball_string_power
-            energy_sensor_id: sensor.ellens_room_cotton_ball_string_energy
-          - entity_id: light.ellens_room_main_1
-          - entity_id: light.ellens_room_main_2
-          - entity_id: light.ellens_room_reading_lamp
-          - entity_id: light.ellens_room_shelf
-          - entity_id: light.entryway_ceiling
-          - entity_id: light.front_door_1
-          - entity_id: light.front_door_2
-          - entity_id: light.game_room_ceiling_1
-          - entity_id: light.game_room_ceiling_2
-          - entity_id: light.game_room_ceiling_3
-          - entity_id: light.game_room_play_bar
-          - entity_id: light.game_room_play_bar_2
-          - entity_id: light.game_room_sofa
-          - entity_id: light.hallway_ceiling
-            manufacturer: signify
-            model: LWO003
-          - entity_id: light.kitchen_ceiling_1
-          - entity_id: light.kitchen_ceiling_2
-          - entity_id: light.kitchen_ceiling_3
-          - entity_id: light.kitchen_ceiling_4
-          - entity_id: light.living_room_ceiling_1
-          - entity_id: light.living_room_ceiling_2
-          - entity_id: light.living_room_ceiling_3
-          - entity_id: light.living_room_corner_1
-          - entity_id: light.living_room_corner_2
-          - entity_id: light.office_ceiling_1
-          - entity_id: light.office_ceiling_2
-          - entity_id: light.office_ceiling_3
-          - entity_id: light.technical_room_light
+          - create_group: L1 lights
+            entities:
+              - entity_id: light.bedroom_ceiling
+              - entity_id: light.bedroom_closet_wall
+              - entity_id: light.bed_headboard
+              - entity_id: light.kitchen_ceiling_1
+              - entity_id: light.kitchen_ceiling_2
+              - entity_id: light.kitchen_ceiling_3
+              - entity_id: light.kitchen_ceiling_4
+          - create_group: L2 lights
+            entities:
+              - entity_id: light.attic_main_1
+                manufacturer: ikea
+                model: LED2005R5
+              - entity_id: light.attic_main_2
+                manufacturer: ikea
+                model: LED2005R5
+              - entity_id: light.bathroom_ceiling_1
+              - entity_id: light.bathroom_ceiling_2
+              - entity_id: light.bathroom_ceiling_3
+              - entity_id: light.entryway_ceiling
+              - entity_id: light.front_door_1
+              - entity_id: light.front_door_2
+              - entity_id: light.hallway_ceiling
+                manufacturer: signify
+                model: LWO003
+              - entity_id: light.technical_room_light
+          - create_group: L3 lights
+            entities:
+              - entity_id: light.cupboard_light
+              - entity_id: light.ellens_room_ceiling_1
+              - entity_id: light.ellens_room_ceiling_2
+              - entity_id: light.ellens_room_ceiling_3
+              - entity_id: light.ellens_room_reading_lamp
+              - entity_id: light.game_room_play_bar # Ellen's monitor
+              - entity_id: light.game_room_main_1
+              - entity_id: light.game_room_main_2
+              - entity_id: light.game_room_sofa
+              - entity_id: light.game_room_shelf
+              - entity_id: light.living_room_bookcase
+              - entity_id: light.living_room_ceiling_1
+              - entity_id: light.living_room_ceiling_2
+              - entity_id: light.living_room_ceiling_3
+              - entity_id: light.living_room_corner_1
+              - entity_id: light.living_room_corner_2
+              - entity_id: light.living_room_standing_lamp
+              - entity_id: light.office_ceiling_1
+              - entity_id: light.office_ceiling_2
+              - entity_id: light.office_ceiling_3
+
           ### Not supported for now
           # - entity_id: light.backyard_light
           # - entity_id: light.bathroom_mirror

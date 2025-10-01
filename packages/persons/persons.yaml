@@ -12,7 +12,7 @@ persons_package:
     - platform: group
       name: all_phones
       services:
-        - service: mobile_app_pixel_6a_sicco
+        - service: mobile_app_sm_s931b
         - service: mobile_app_pixel_6a_ellen
     - platform: group
       name: ellen_phone
@@ -21,7 +21,9 @@ persons_package:
     - platform: group
       name: sicco_phone
       services:
-        - service: mobile_app_pixel_6a_sicco
+        - service: mobile_app_sm_s931b
+        # - service: mobile_app_galaxy_s25
+        # - service: mobile_app_pixel_6a_sicco
 
     ## Telegram
     - platform: telegram
@@ -30,3 +32,11 @@ persons_package:
     - platform: telegram
       name: telegram_group
       chat_id: !secret telegram_chat_id_2
+
+  template:
+    - binary_sensor:
+        - name: "No one home"
+          unique_id: caed3c97-2b7e-4d56-b9f7-eaac8880a169
+          icon: mdi:account-multiple-remove
+          state: >
+            {{ is_state('zone.home', '0') and is_state('input_boolean.guest_mode', 'off') }}

@@ -5,8 +5,8 @@ power_package:
         icon: mdi:flash
         unique_id: fc2c44b0-ed1a-4c0b-beca-d45c57367cc0
         state: >
-          {% set currently_delivered = states('sensor.dsmr_reading_electricity_currently_delivered') | float(0) %}
-          {% set currently_returned = states('sensor.dsmr_reading_electricity_currently_returned') | float(0) %}
+          {% set currently_delivered = states('sensor.power_consumed') | float(0) %}
+          {% set currently_returned = states('sensor.power_produced') | float(0) %}
           {{ ((currently_delivered - currently_returned) * 1000) | round(0) }}
         unit_of_measurement: W
         state_class: measurement
@@ -27,3 +27,58 @@ power_package:
         unit_of_measurement: W
         state_class: measurement
         device_class: power
+      - name: "Home Power Usage"
+        unique_id: 77a903b9-8782-43fa-ad8f-6336e73874f6
+        icon: mdi:home-lightning-bolt
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set currently_delivered = states('sensor.power_consumed') | float(0) %}
+          {% set currently_returned = states('sensor.power_produced') | float(0) %}
+          {% set pv_power = states('sensor.pv_power') | float(0) %}
+          {% set battery_power_out = states('sensor.hyper_2000_output_home_power') | float(0) %}
+          {% set battery_power_in = states('sensor.hyper_2000_grid_input_power') | float(0) %}
+          {{ max(0, (pv_power + battery_power_out - battery_power_in + (currently_delivered - currently_returned ) * 1000)) | round(0) }}
+        availability: >
+          {{ has_value('sensor.power_consumed') and has_value('sensor.power_produced') }}
+
+      - name: "Home Power Usage CO2 Intensity"
+        icon: mdi:molecule-co2
+        unique_id: 526764b9-bc23-45d1-b8d9-3985a907ba20
+        state: >
+          {% set home_power = states('sensor.home_power_usage') | float(1) %}
+          {% set pv_power = states('sensor.pv_power') | float(0) %}
+          {% set batt_power_to_home = states('sensor.hyper_2000_output_home_power') | float(0) %}
+          {% set batt_power_from_grid = states('sensor.hyper_2000_grid_input_power') | float(0) %}
+          {% set pv_co2 = 0 %}
+          {% set grid_co2 = states('sensor.co2_signal_co2_intensity') | float(0) %}
+          {% if pv_power + batt_power_to_home > home_power + batt_power_from_grid %}
+            {{ pv_co2 }}
+          {% elif pv_power + batt_power_to_home > 0 and home_power + batt_power_from_grid > 0 %}
+            {% set pv_ratio = (pv_power + batt_power_to_home) / (home_power + batt_power_from_grid) %}
+            {{ (pv_ratio * pv_co2 + (1 - pv_ratio) * grid_co2) | round(0) }}
+          {% else %}
+            {{ grid_co2 }}
+          {% endif %}
+        availability: >
+          {{ states('sensor.co2_signal_co2_intensity') | is_number }}
+        unit_of_measurement: gCO2eq/kWh
+
+  sensor:
+    - platform: statistics
+      name: "Home Power Usage Median"
+      unique_id: 6291c359-3996-4e0e-9f80-27d6b30168df
+      entity_id: sensor.home_power_usage
+      state_characteristic: median
+      precision: 0
+      max_age:
+        seconds: 30
+    - platform: filter
+      name: "Home Power Usage Filter"
+      unique_id: 4b9f8d12-796a-4877-8ac2-e6f112e5c717
+      entity_id: sensor.home_power_usage
+      filters:
+        - filter: lowpass
+          time_constant: 2
+          precision: 0

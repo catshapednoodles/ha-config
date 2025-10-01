@@ -3,11 +3,11 @@ central_heating_package:
     - platform: generic_thermostat
       name: Master thermostat
       heater: input_boolean.heating_active
-      target_sensor: sensor.master_temperature
+      target_sensor: sensor.master_temperature_minimum
       min_temp: 15
       max_temp: 25
-      cold_tolerance: 0.1
-      hot_tolerance: 0.2
+      cold_tolerance: 0.3
+      hot_tolerance: 0.3
       min_cycle_duration:
         hours: 1
       precision: 0.1
@@ -15,6 +15,9 @@ central_heating_package:
   input_boolean:
     heating_active:
       name: Heating active
+      icon: mdi:heating-coil
+    heat_pump_variable_water_temperature:
+      name: Heat pump variable water temperature
       icon: mdi:heating-coil
 
   input_number:
@@ -55,17 +58,38 @@ central_heating_package:
     - platform: min_max
       unique_id: 35269488-5754-4fd2-aeeb-eabe7194964c
       name: Master temperature
-      type: mean
+      type: median
       round_digits: 1
       entity_ids:
         - sensor.kitchen_temperature
         - sensor.living_room_temperature
+    - platform: min_max
+      unique_id: a22b2f10-97d4-4464-8e7f-c706cb35d165
+      name: Master temperature whole house
+      type: median
+      round_digits: 1
+      entity_ids:
+        - sensor.kitchen_temperature
+        - sensor.living_room_temperature
+        - sensor.office_temperature
+        - sensor.bedroom_temperature
+        - sensor.game_room_temperature
+    - platform: min_max
+      unique_id: 69976f40-bb5b-4920-bb7c-918a9111a12d
+      name: Master temperature minimum
+      type: min
+      round_digits: 1
+      entity_ids:
+        - sensor.master_temperature
+        - sensor.master_temperature_whole_house
+        - sensor.living_room_temperature
+
+    # https://gathering.tweakers.net/forum/list_message/73381860#73381860
     - platform: nordpool_diff
-      nordpool_entity: sensor.nordpool_kwh_nl_eur_3_09_0
+      nordpool_entity: sensor.day_ahead_price
       filter_length: 10
-      filter_type: triangle
+      filter_type: rectangle
       normalize: max_min
-# https://gathering.tweakers.net/forum/list_message/73381860#73381860
 
   switch:
     - platform: template
@@ -93,35 +117,71 @@ central_heating_package:
               target:
                 entity_id: switch.mitsubishi_set_holiday_mode
 
+  template:
+    - trigger:
+        - platform: numeric_state
+          entity_id: weather.combined
+          attribute: temperature
+          above: 5
+          for: "00:30:00"
+        - platform: numeric_state
+          entity_id: weather.combined
+          attribute: temperature
+          below: 3
+          for: "00:30:00"
+      binary_sensor:
+      - name: Low temperature outside
+        unique_id: 821eccf5-89de-4c48-bd5b-86ff275a4ed5
+        device_class: cold
+        state: >
+          {{ state_attr('weather.combined', 'temperature') < 5 }}
+
   automation:
     - alias: "Heat pump: Set thermostat temperature"
       id: bb4f4038-0965-41c9-87c7-ca6e9f6f69c6
       mode: queued
       trigger:
         - platform: state
-          entity_id: sensor.nordpool_diff_triangle_10_normalize_max_min
+          entity_id: sensor.nordpool_diff_rectangle_10_normalize_max_min
+          for:
+            seconds: 1
       condition:
         - condition: state
           entity_id: select.mitsubishi_hc_control_type
           state: "Heating"
+        - "{{ has_value('sensor.day_ahead_price') }}"
       action:
-        - service: climate.set_temperature
-          target:
-            entity_id: climate.master_thermostat
-          data:
-            temperature: >
-              {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
-              {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
-              {{ (temp_setpoint + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
-        - service: number.set_value
-          target:
-            entity_id: number.mitsubishi_h_c_thermostat_target_temperature
-          data:
-            value: >
-              {% set temp_setpoint = states('input_number.water_temperature_setpoint') | float(25) %}
-              {% set variance = states('input_number.water_temperature_variance') | float(3) %}
-              {% set offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
-              {{ (temp_setpoint - offset + states('sensor.nordpool_diff_triangle_10_normalize_max_min') | float(0) * variance) | round(1, 'half') if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 28 }}
+        - parallel:
+          - service: climate.set_temperature
+            target:
+              entity_id: climate.master_thermostat
+            data:
+              temperature: >
+                {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
+                {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
+                {% set temperature_offset = 0.2 if is_state('binary_sensor.low_temperature_outside', 'on') and is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+                {{ (temp_setpoint - temperature_offset + states('sensor.nordpool_diff_rectangle_10_normalize_max_min') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
+          - if:
+              - condition: state
+                entity_id: input_boolean.heat_pump_variable_water_temperature
+                state: "on"
+            then:
+              - service: number.set_value
+                target:
+                  entity_id: number.mitsubishi_h_c_thermostat_target_temperature
+                data:
+                  value: >
+                    {% set temp_setpoint = states('input_number.water_temperature_setpoint') | float(25) %}
+                    {% set variance = states('input_number.water_temperature_variance') | float(3) %}
+                    {% set irradiance_offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+                    {% if state_attr('weather.combined', 'temperature') < 0 %}
+                      {% set temperature_offset = 1 %}
+                    {% elif state_attr('weather.combined', 'temperature') < 4 %}
+                      {% set temperature_offset = 0.5 %}
+                    {% else %}
+                      {% set temperature_offset = 0 %}
+                    {% endif %}
+                    {{ (temp_setpoint - irradiance_offset + temperature_offset + states('sensor.nordpool_diff_rectangle_10_normalize_max_min') | float(0) * variance) | round(1, 'half') if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 28 }}
 
     - alias: "Heat pump: Toggle heating"
       id: 2d192b97-7726-4e2b-8e5c-e8463c7df4e1
@@ -137,6 +197,20 @@ central_heating_package:
         - choose:
             - conditions:
                 - condition: state
+                  entity_id: input_boolean.vacation_mode
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.vacation_mode_coming_home
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "off"
+              sequence:
+                - service: switch.turn_off
+                  data:
+                    entity_id: switch.heat_pump_heating
+            - conditions:
+                - condition: state
                   entity_id: input_boolean.heating_active
                   state: "on"
               sequence:
@@ -147,32 +221,3 @@ central_heating_package:
             - service: switch.turn_off
               data:
                 entity_id: switch.heat_pump_heating
-
-    - alias: "Notification: High dew point detected"
-      id: b7d58d60-1f96-4006-95b1-76309ef694d7
-      trigger:
-        - platform: numeric_state
-          entity_id:
-            - sensor.bedroom_dew_point
-            - sensor.ellen_s_room_dew_point
-            - sensor.kitchen_dew_point
-            - sensor.living_room_dew_point
-            - sensor.office_dew_point
-          above: 16
-          for:
-            minutes: 10
-      condition:
-        - condition: state
-          entity_id: select.mitsubishi_hc_control_type
-          state: "Cooling"
-      action:
-        - service: notify.sicco_phone
-          data:
-            title: "High dew point detected"
-            message: "{{ trigger.to_state.name }} is above 16°C. Raise water temperature if necessary."
-            data:
-              tag: climate_dew_point
-              channel: "Climate"
-              importance: max
-              timeout: 1800
-              notification_icon: "mdi:waves-arrow-up"

@@ -1,4 +1,11 @@
 dishwasher_package:
+  # energy_meter:
+  #   dishwasher_energy:
+  #     source: sensor.dishwasher_energy
+  #     name: Dishwasher Energy
+  #     price_entity: sensor.day_ahead_price
+  #     create_utility_meter: false
+
   input_boolean:
     dishwasher_ready_to_start:
       name: Dishwasher ready to start
@@ -46,7 +53,7 @@ dishwasher_package:
             {% set programs = {
               'Dishcare.Dishwasher.Program.Eco50': 'eco',
               'Dishcare.Dishwasher.Program.Auto2': 'auto',
-              'Dishcare.Dishwasher.Program.Intensive70': 'intensive',
+              'Dishcare.Dishwasher.Program.Intensiv70': 'intensive',
               'Dishcare.Dishwasher.Program.MachineCare': 'machine_care',
               'Dishcare.Dishwasher.Program.Quick45': 'quick',
             } %}
@@ -61,15 +68,17 @@ dishwasher_package:
             {% endif %}
           attributes:
             default: >
-              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0] }}
+              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,] }}
             auto: >
-              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,0.0,0.0] }}
+              {{ [0.07,0.19,0.01,0.08,0.05,0.0,0.01,0.0,0.0,0.01,0.0,0.0,0.16,0.19,0.1,0.0,0.0,0.0,0.0,0.0,0.01,] }}
             eco: >
               {{ [0.03,0.03,0.04,0.03,0.04,0.03,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.03,0.04,0.04,0.04,0.04,0.04,0.04,0.01,0.01,0.01] }}
+            intensive: >
+              {{ [0.07,0.13,0.14,0.09,0.01,0.0,0.07,0.17,0.05,0.0,0.01,0.0,0.01,0.0,0.0,0.01,0.0,0.1,0.17,0.14,] }}
             intensive_intensiv: >
-              {{ [0.08,0.03,0.17,0.04,0.01,0.0,0.11,0.18,0.02,0.04,0.0,0.0,0.01,0.0,0.01,0.0,0.0,0.01,0.07,0.18,0.12,0.0,0.0,0.0,0.0] }}
+              {{ [0.08,0.03,0.17,0.04,0.01,0.0,0.11,0.18,0.02,0.04,0.0,0.0,0.01,0.0,0.01,0.0,0.0,0.01,0.07,0.18,0.12,] }}
             machine_care: >
-              {{ [0.05,0.19,0.17,0.05,0.01,0.0,0.01,0.0,0.0,0.01,0.13,0.0,0.01,0.0,0.02,0.17,0.01,0.0,0.01,0.0,0.07,0.17,0.03,0.0,0.0,0.0,] }}
+              {{ [0.05,0.19,0.17,0.05,0.01,0.0,0.01,0.0,0.0,0.01,0.13,0.0,0.01,0.0,0.02,0.17,0.01,0.0,0.01,0.0,0.07,0.17,0.03,] }}
             quick: >
               {{ [0.02,0.19,0.09,0.12,0.16,0.08,] }}
 
@@ -95,14 +104,14 @@ dishwasher_package:
           icon: mdi:clock-start
           device_class: timestamp
           state: >
-            {{ as_datetime(states('sensor.dishwasher_ready_to_start_activated')).replace(second=0) }}
+            {{ as_datetime(states('sensor.dishwasher_ready_to_start_activated') | as_timestamp | timestamp_local).replace(second=0) }}
           attributes:
             list: >
               {% set kwh_pattern = state_attr('sensor.dishwasher_energy_usage_pattern', states('sensor.dishwasher_energy_usage_pattern'))%}
               {% set resolution_in_minutes = 5 %}
               {% set minutes = kwh_pattern | count * resolution_in_minutes %}
               {% set total_run_time = timedelta(minutes=minutes) %}
-              {% set start_time = as_datetime(states('sensor.dishwasher_ready_to_start_activated')).replace(second=0) %}
+              {% set start_time = as_datetime(states('sensor.dishwasher_ready_to_start_activated') | as_timestamp | timestamp_local).replace(second=0) %}
               {# Calculate start time to nearest 'resolution' #}
               {% if start_time.minute %resolution_in_minutes >= (resolution_in_minutes // 2) %}
                 {% set start_time = start_time + timedelta(minutes=(resolution_in_minutes - start_time.minute%resolution_in_minutes)) %}
@@ -118,12 +127,14 @@ dishwasher_package:
                 {% if only_today or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
                   {% set ns = namespace(costs=0, time=time_loop) %}
                   {% for kwh in kwh_pattern %}
-                    {% set today_or_tomorrow = 'tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'today' %}
-                    {% set ns.costs = ns.costs + kwh * state_attr('sensor.nordpool_kwh_nl_eur_3_09_0', today_or_tomorrow)[ns.time.hour] %}
+                    {% set today_or_tomorrow = 'raw_tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'raw_today' %}
+                    {% set time_selector = today_at(ns.time.hour | string +":00") + timedelta(days=1) if (now() + timedelta(days=1)).day == ns.time.day else today_at(ns.time.hour | string +":00") %}
+                    {% set ns.costs = ns.costs + kwh * (state_attr('sensor.day_ahead_price', today_or_tomorrow)| selectattr('start', 'eq', time_selector) | list)[0].value %}
                     {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
                   {% endfor %}
-                  {% set start_time = time_loop %}
-                  {% set add_item = {'start': start_time|as_timestamp|timestamp_local, 'costs': ns.costs | round(5)} %}
+                  {% set difference_since_start = ((time_loop - start_time).seconds / 3600 / 2) | round(0, "ceil") %}
+                  {% set penalty = difference_since_start * 0.001 %}
+                  {% set add_item = {'start': time_loop|as_timestamp|timestamp_local, 'costs': (ns.costs + penalty) | round(5)} %}
                   {% set list.expected_costs = list.expected_costs + [add_item] %}
                 {% endif %}
                 {% set list.time = list.time + timedelta(minutes=resolution_in_minutes) %}
@@ -139,9 +150,23 @@ dishwasher_package:
           icon: mdi:clock-start
           device_class: timestamp
           state: >
-              {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
-              {% set time = sorted_list[0].start | as_datetime %}
-              {{ time if time > now() else now() + timedelta(seconds=5) }}
+            {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+            {% set time = sorted_list[0].start | as_datetime %}
+            {% if is_state_attr('sensor.ev_smart_charging_charging', 'charging_is_planned', True) and 
+              (is_state('binary_sensor.mitsubishi_next_dhw_run_is_legionella_run', 'on') or is_state('switch.mitsubishi_dhw_eco_mode', 'off')) %}
+              {% set charging_start = state_attr('sensor.ev_smart_charging_charging', 'charging_start_time') | as_datetime %}
+              {% set charging_stop = state_attr('sensor.ev_smart_charging_charging', 'charging_stop_time') | as_datetime %}
+              {% set dhw_run = states('sensor.mitsubishi_next_dhw_run') | as_datetime | as_local %}
+              {% if charging_start - timedelta(hours=1) < time < charging_stop 
+                and dhw_run - timedelta(minutes=20) < time < dhw_run + timedelta(minutes=20) %}
+                {% set time = time - timedelta(minutes=40) %}
+              {% endif %}
+            {% endif %}
+            {{ time if time > now() else now() + timedelta(seconds=5) }}
+          # state: >
+          #   {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
+          #   {% set time = sorted_list[0].start | as_datetime %}
+          #   {{ time if time > now() else now() + timedelta(seconds=5) }}
           attributes:
             lowest_costs: >
               {% set sorted_list = state_attr('sensor.dishwasher_best_starting_time_list', 'list') %}
@@ -243,8 +268,8 @@ dishwasher_package:
     - alias: "Dishwasher: Start at best time"
       id: 470e151d-48f8-40ae-b941-c11236707822
       trigger:
-        platform: time
-        at: sensor.dishwasher_best_starting_time
+        - platform: time
+          at: sensor.dishwasher_best_starting_time
       condition:
         - condition: state
           entity_id: input_boolean.dishwasher_ready_to_start
@@ -289,6 +314,24 @@ dishwasher_package:
       action:
         - service: input_boolean.turn_off
           entity_id: input_boolean.dishwasher_ready_to_start
+
+    - alias: "Dishwasher: Notify when door is open and dishwasher is scheduled to start"
+      id: 4db150d8-5da7-4012-b2b9-34efc0757cb6
+      trigger:
+        - platform: time
+          at: "23:30:00"
+      condition:
+        - condition: state
+          entity_id: input_boolean.dishwasher_ready_to_start
+          state: "on"
+        - condition: state
+          entity_id: binary_sensor.403010387033006572_bsh_common_status_doorstate
+          state: "on"
+      action:
+        - service: notify.telegram_sicco
+          data:
+            title: Dishwasher - Close the door
+            message: "Dishwasher is scheduled to start, but the door is still open"
 
     - alias: "Utilities: Copy Dishwasher values"
       id: ee605f5e-93bf-4611-886c-8d65777a0c84

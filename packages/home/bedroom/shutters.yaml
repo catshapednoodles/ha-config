@@ -3,11 +3,23 @@ bedroom_shutters_package:
     automatic_bedroom_shutters:
       name: Automatic bedroom shutters
       icon: mdi:window-shutter-auto
+    bedroom_shutters_need_to_open:
+      name: Bedroom shutters need to open
+      icon: mdi:window-shutter-open
+
+  template:
+    - binary_sensor:
+        - name: "Shutters unsafe to leave half-open"
+          unique_id: 8bc5786e-1040-4961-b4ee-6578b3114348
+          device_class: safety
+          state: >
+            {{ state_attr('weather.combined', 'wind_speed') > 40 or state_attr('weather.forecast_home', 'wind_gust_speed') | float(0) > 70 }}
 
   automation:
     - alias: "Bedroom: Set rolling shutters"
       id: ed3b536d-d4e9-4b31-9017-d825f0ca9061
-      mode: restart
+      mode: single
+      max_exceeded: silent
       trigger:
         - platform: state
           entity_id: binary_sensor.someone_is_sleeping
@@ -15,7 +27,7 @@ bedroom_shutters_package:
           to: "off"
           id: open_shutters
         - platform: time
-          at: "11:00:00"
+          at: "11:30:00"
           id: open_shutters
         - platform: state
           entity_id: binary_sensor.someone_is_sleeping
@@ -27,6 +39,15 @@ bedroom_shutters_package:
           from: "off"
           to: "on"
           id: automatically_close_shutters
+          for: "00:30:00"
+        - platform: time
+          at: "21:30:00"
+          id: automatically_close_shutters
+        - platform: state
+          entity_id: binary_sensor.sun_is_heating_east_side
+        - platform: state
+          entity_id: input_boolean.automatic_bedroom_shutters
+          to: "on"
       condition:
         - condition: state
           entity_id: input_boolean.automatic_bedroom_shutters
@@ -36,6 +57,13 @@ bedroom_shutters_package:
             - conditions:
                 - condition: trigger
                   id: open_shutters
+                - or:
+                  - condition: state
+                    entity_id: cover.bedroom_roller_shutter_left
+                    state: closed
+                  - condition: state
+                    entity_id: cover.bedroom_roller_shutter_right
+                    state: closed
                 - condition: time
                   after: "06:00:00"
                   before: "15:00:00"
@@ -43,13 +71,92 @@ bedroom_shutters_package:
                   entity_id: binary_sensor.someone_is_sleeping
                   state: "off"
               sequence:
-                - delay: "00:45:00"
-                - service: cover.open_cover
-                  data:
-                    entity_id: cover.bedroom_roller_shutter_left_low_speed
+                - parallel:
+                  - if:
+                      - condition: state
+                        entity_id: binary_sensor.shutters_unsafe_to_leave_half_open
+                        state: "off"
+                    then:
+                      - delay: "00:01:00"
+                      - service: button.press
+                        target:
+                          entity_id:
+                            - button.bedroom_roller_shutter_left_my_position
+                            - button.bedroom_roller_shutter_right_my_position
+                  - sequence:
+                    - choose:
+                        - conditions:
+                            - or:
+                              - condition: time
+                                weekday:
+                                  - sat
+                                  - sun
+                              - condition: state
+                                entity_id: binary_sensor.sicco_workday_today
+                                state: "off"
+                              - condition: state
+                                entity_id: input_boolean.ellen_free_today
+                                state: "on"
+                          sequence:
+                            - wait_for_trigger:
+                                - platform: state
+                                  entity_id: zone.home
+                                  to: "0"
+                              timeout: "02:30:00"
+                        - conditions:
+                            - condition: time
+                              after: "06:00:00"
+                              before: "08:30:00"
+                              weekday:
+                                - "fri"
+                          sequence:
+                            - delay: "00:45:00"
+                      default:
+                        - wait_for_trigger:
+                            - platform: state
+                              entity_id: binary_sensor.s_dehaan1s_macbook_air_audio_input_in_use
+                              from: "off"
+                              to: "on"
+                            - platform: state
+                              entity_id: zone.home
+                              to: "0"
+                          timeout: "00:45:00"
+                    - if:
+                        - condition: state
+                          entity_id: binary_sensor.sun_is_heating_east_side
+                          state: "on"
+                        - condition: state
+                          entity_id: binary_sensor.block_sunlight_today
+                          state: "on"
+                      then:
+                        - service: input_boolean.turn_on
+                          entity_id: input_boolean.bedroom_shutters_need_to_open
+                        - stop: "Shutters need to stay closed"
+                      else:
+                        - service: cover.open_cover
+                          data:
+                            entity_id:
+                              - cover.bedroom_roller_shutter_left
+                              - cover.bedroom_roller_shutter_right
+                        - wait_for_trigger:
+                            - platform: state
+                              entity_id: cover.bedroom_roller_shutter_left
+                              from: 'opening'
+                              to: 'open'
+                            - platform: state
+                              entity_id: cover.bedroom_roller_shutter_right
+                              from: 'opening'
+                              to: 'open'
+                          timeout: 00:02:00
+                        - service: light.turn_off
+                          target:
+                            entity_id: light.bedroom_lights
             - conditions:
-                - condition: trigger
-                  id: close_shutters
+                - or:
+                  - condition: trigger
+                    id: close_shutters
+                  - condition: trigger
+                    id: automatically_close_shutters
                 - or:
                   - condition: time
                     after: "21:00:00"
@@ -58,13 +165,54 @@ bedroom_shutters_package:
               sequence:
                 - service: cover.close_cover
                   data:
-                    entity_id: cover.bedroom_roller_shutter_left_low_speed
+                    entity_id:
+                      - cover.bedroom_roller_shutter_left_low_speed
+                      - cover.bedroom_roller_shutter_right_low_speed
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.bedroom_shutters_need_to_open
             - conditions:
                 - condition: trigger
                   id: automatically_close_shutters
                 - condition: time
-                  after: "17:00:00"
+                  after: "16:30:00"
               sequence:
                 - service: cover.close_cover
                   data:
-                    entity_id: cover.bedroom_roller_shutter_left
+                    entity_id:
+                      - cover.bedroom_roller_shutter_left
+                      - cover.bedroom_roller_shutter_right
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.bedroom_shutters_need_to_open
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_east_side
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.block_sunlight_today
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.someone_is_sleeping
+                  state: "off"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id:
+                      - cover.bedroom_roller_shutter_left
+                      - cover.bedroom_roller_shutter_right
+                - service: input_boolean.turn_on
+                  entity_id: input_boolean.bedroom_shutters_need_to_open
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_east_side
+                  state: "off"
+                - condition: state
+                  entity_id: input_boolean.bedroom_shutters_need_to_open
+                  state: "on"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id:
+                      - cover.bedroom_roller_shutter_left
+                      - cover.bedroom_roller_shutter_right
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.bedroom_shutters_need_to_open

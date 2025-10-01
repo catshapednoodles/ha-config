@@ -1,0 +1,157 @@
+vacuum_package:
+  input_boolean:
+    no_vacuum_today:
+      name: No vacuum today
+      icon: mdi:broom
+
+  script:
+    vacuum_restore_map:
+      alias: 'Vacuum: Restore map'
+      icon: mdi:map
+      mode: single
+      sequence:
+        - service: vacuum.send_command
+          data:
+            command: load_multi_map
+            params: 0
+          target:
+            entity_id: vacuum.wall_e
+
+  automation:
+    - alias: "Vacuum: Start vacuum cleaner on cleaning day"
+      id: 07f64dba-0da9-41a0-a47d-be83b5932379
+      trigger:
+        - platform: time
+          at: 
+            - "08:00:00"
+            - "14:00:00"
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "vacuum_now"
+          id: "vacuum_now"
+        - platform: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: "vacuum_not_today"
+          id: "vacuum_not_today"
+      condition:
+        - condition: time
+          weekday:
+            - fri
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: "off"
+        - "{{ not is_state('vacuum.wall_e', ['unavailable', 'unknown']) }}"
+      action:
+        - choose:
+            - conditions: "{{ trigger.id == 'vacuum_not_today' }}"
+              sequence:
+                - alias: "Turn on input boolean"
+                  service: input_boolean.turn_on
+                  target:
+                    entity_id: input_boolean.no_vacuum_today
+            - conditions:
+                - alias: "After 9h?"
+                  condition: time
+                  after: "09:00:00"
+              sequence:
+                - if:
+                    - alias: "Input Boolean off"
+                      condition: state
+                      entity_id: input_boolean.no_vacuum_today
+                      state: "off"
+                    - not:
+                      - alias: "condition alias (name)"
+                        condition: state
+                        entity_id: vacuum.wall_e
+                        state: "cleaning"
+                  then:
+                    - service: vacuum.start
+                      target:
+                        entity_id: vacuum.wall_e
+                  else:
+                    - alias: "Turn off input boolean"
+                      service: input_boolean.turn_off
+                      target:
+                        entity_id: input_boolean.no_vacuum_today
+                - service: notify.sicco_phone
+                  data:
+                    message: clear_notification
+                    data:
+                      tag: vacuum_start
+          default:
+            - service: notify.sicco_phone
+              data:
+                title: "Vacuum will clean today at 14:00"
+                message: "Check if there's anything on the floor"
+                data:
+                  channel: Vacuum
+                  priority: high
+                  tag: vacuum_start
+                  notification_icon: mdi:robot-vacuum
+                  actions:
+                    - action: "vacuum_now"
+                      title: "Now"
+                    # - action: "vacuum_earlier"
+                    #   title: "Earlier"
+                    # - action: "vacuum_later"
+                    #   title: "Later"
+                    - action: "vacuum_not_today"
+                      title: "Not today"
+
+    - alias: "Vacuum: Automatically vacuum kitchen"
+      id: ff484267-29b3-4751-9b30-742433ea6652
+      trigger:
+        - platform: time
+          at: "16:00:00"
+      condition:
+        - condition: time
+          weekday:
+            - tue
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: "off"
+        - condition: state
+          entity_id: person.ellen
+          state: "not_home"
+        - "{{ not is_state('vacuum.wall_e', ['unavailable', 'unknown']) }}"
+      action:
+        - service: roborock.vacuum_clean_zone
+          target:
+            entity_id: vacuum.wall_e
+          data:
+            zone:
+              - - 27714
+                - 23491
+                - 30136
+                - 25582
+
+    - alias: "Vacuum: Save Wall-E from an error"
+      trigger:
+        - platform: state
+          entity_id: vacuum.wall_e
+          to: "error"
+      action:
+        - if:
+            - "{{ 'Device stuck' in state_attr('vacuum.wall_e', 'error') | string }}"
+          then:
+            - service: notify.sicco_phone
+              data:
+                title: "Help Wall-E!"
+                message: "Oh no, Wall-E is stuck! Please save him!"
+                data:
+                  channel: "Vacuum alerts"
+                  importance: high
+                  notification_icon: "mdi:robot-vacuum"
+                  tag: vacuum_error
+          else:
+            - service: notify.sicco_phone
+              data:
+                title: "Help Wall-E!"
+                message: "Error: {{ state_attr('vacuum.wall_e', 'error') | string }}"
+                data:
+                  channel: "Vacuum alerts"
+                  importance: high
+                  notification_icon: "mdi:robot-vacuum"
+                  tag: vacuum_error

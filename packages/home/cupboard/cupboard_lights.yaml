@@ -1,12 +1,14 @@
 cupboard_lights_package:
   adaptive_lighting:
-  - name: "Cupboard"
-    lights:
-      - light.cupboard_light
-    min_brightness: 50
-    max_brightness: 100
-    autoreset_control_seconds: 1800
-    detect_non_ha_changes: true
+    - name: "Cupboard"
+      lights:
+        - light.cupboard_light
+      min_brightness: 50
+      max_brightness: 100
+      autoreset_control_seconds: 1800
+      detect_non_ha_changes: true
+      separate_turn_on_commands: true
+      skip_redundant_commands: true
 
   input_boolean:
     automatic_cupboard_lights:
@@ -72,10 +74,11 @@ cupboard_lights_package:
 
     - alias: "Cupboard: Light switch"
       id: 659927e8-1b3d-4b2c-b42f-d41057f4895b
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Cupboard Switch
           button_1_pressed:
             - service: light.turn_on
@@ -88,14 +91,14 @@ cupboard_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Cupboard Light/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
           button_1_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Cupboard Light/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_2_pressed:
@@ -109,13 +112,13 @@ cupboard_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Cupboard Light/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_2_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Cupboard Light/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false

@@ -1,0 +1,245 @@
+mobility_statistics_package:
+  input_number:
+    skoda_citigo_mileage:
+      name: "Skoda Citigo Mileage"
+      icon: mdi:counter
+      min: 0
+      max: 500000
+      mode: box
+      step: 1
+      unit_of_measurement: "km"
+    id3_kwh_per_100_km:
+      name: "ID.3 Energy Usage per 100 km"
+      icon: mdi:counter
+      min: 0
+      max: 50
+      mode: box
+      step: 0.1
+      unit_of_measurement: "kWh/100km"
+
+  utility_meter:
+    skoda_citigo_mileage_since_start:
+      name: Skoda Citigo mileage since start
+      unique_id: 98c4ba20-d219-4fb9-ba76-a36cd8da57cb
+      source: sensor.skoda_citigo_mileage
+      always_available: true
+    skoda_citigo_mileage_monthly:
+      name: Skoda Citigo mileage - This month
+      unique_id: 4532cbb2-954e-434d-b527-b5387f5e5ece
+      source: sensor.skoda_citigo_mileage
+      cycle: monthly
+      always_available: true
+    skoda_citigo_mileage_yearly:
+      name: Skoda Citigo mileage - This year
+      unique_id: f72d10e4-4253-47d5-82bb-4439d6bbfcf4
+      source: sensor.skoda_citigo_mileage
+      cycle: yearly
+      always_available: true
+    id3_mileage_since_start:
+      name: Volkswagen ID.3 mileage since start
+      unique_id: a6a195fc-72ea-46a0-9596-dd4b4f5f057e
+      source: sensor.id_3_odometer
+      always_available: true
+    id3_mileage_monthly:
+      name: Volkswagen ID.3 mileage - This month
+      unique_id: bf469418-eac8-46ba-b974-04961f9ac13f
+      source: sensor.id_3_odometer
+      cycle: monthly
+      always_available: true
+    id3_mileage_yearly:
+      name: Volkswagen ID.3 mileage - This year
+      unique_id: af5db139-3925-42df-8cdd-17710af159d5
+      source: sensor.id_3_odometer
+      cycle: yearly
+      always_available: true
+    total_vehicle_mileage_since_start:
+      name: Total vehicle mileage since start
+      unique_id: 8dfe117b-feea-408f-8072-e705cdf07150
+      source: sensor.total_vehicle_mileage
+      always_available: true
+    total_vehicle_mileage_monthly:
+      name: Total vehicle mileage - This month
+      unique_id: ac7f00df-c26a-4811-8098-35d09d5de031
+      source: sensor.total_vehicle_mileage
+      cycle: monthly
+      always_available: true
+    total_vehicle_mileage_yearly:
+      name: Total vehicle mileage - This year
+      unique_id: f0af5591-0988-4529-aa85-f1b926db547b
+      source: sensor.total_vehicle_mileage
+      cycle: yearly
+      always_available: true
+    home_charger_co2_emissions_monthly:
+      name: Home Charger CO2 Emissions - This month
+      unique_id: 33a3c204-d16f-4c00-9bfd-1347668e4138
+      source: sensor.home_charger_co2_diff
+      cycle: monthly
+      delta_values: true
+      net_consumption: true
+    home_charger_co2_emissions_yearly:
+      name: Home Charger CO2 Emissions - This year
+      unique_id: 04fdbc17-d7be-42a1-ade7-4f9bf26ebd44
+      source: sensor.home_charger_co2_diff
+      cycle: yearly
+      delta_values: true
+      net_consumption: true
+    home_charger_co2_emissions:
+      name: Home Charger CO2 Emissions
+      unique_id: 27974ec7-1a42-43b1-ab4d-ac6b51b27c85
+      source: sensor.home_charger_co2_diff
+      delta_values: true
+      net_consumption: true
+
+  template:
+    - sensor:
+        ### Mileage sensors
+        - name: "Skoda Citigo mileage"
+          icon: mdi:counter
+          unique_id: 00a5acb5-61ce-4402-8d01-0c528d0c95e9
+          state: >
+            {{ states('input_number.skoda_citigo_mileage') | int(0) }}
+          availability: >
+            {{ states('input_number.skoda_citigo_mileage') | is_number }}
+          unit_of_measurement: km
+          state_class: total_increasing
+        - name: "Total vehicle mileage"
+          icon: mdi:counter
+          unique_id: 614379c3-f629-4eb9-8a80-654b4071763f
+          state: >
+            {% set id3 = states('sensor.id_3_odometer') | int(0) %}
+            {% set i10 = states('sensor.skoda_citigo_mileage') | int(0) %}
+            {{ id3 + i10 }}
+          availability: >
+            {{ states('sensor.id_3_odometer') | is_number and states('sensor.skoda_citigo_mileage') | is_number }}
+          unit_of_measurement: km
+          state_class: total_increasing
+
+    - trigger:
+        - platform: state
+          entity_id: input_boolean.home_charging_session_active
+          from: "off"
+          to: "on"
+      sensor:
+        - name: "Home Charging Session Start Charge"
+          unique_id: 9e2439d7-af33-4739-bbe8-dcb3d1623f31
+          unit_of_measurement: kWh
+          state: >
+            {{ states('sensor.smartevse_ev_import_active_energy') | float }}
+        - name: "Home Charging Session Start Costs"
+          unique_id: 621a51b5-3788-49dc-9d1d-0246a1a28ac6
+          unit_of_measurement: €
+          state: >
+            {{ states('sensor.home_charger_energy_meter_cost') | float }}
+        - name: "Home Charging Session Start CO2 Emissions"
+          unique_id: 0093c287-75f0-41f8-b232-e140f6f55e93
+          unit_of_measurement: kgCO2eq
+          state: >
+            {{ states('sensor.home_charger_co2_emissions') | float }}
+    - sensor:
+        ### Charging costs at home
+        - name: "Home Charging Session Charge"
+          unique_id: d88a5be1-2523-4e40-8096-85e0dc08bf86
+          unit_of_measurement: kWh
+          icon: mdi:lightning-bolt
+          state: >
+            {{ states('sensor.smartevse_ev_import_active_energy') | float(0) - states('sensor.home_charging_session_start_charge') | float(0) }}
+          availability: >
+            {{ states('sensor.smartevse_ev_import_active_energy') | is_number and states('sensor.home_charging_session_start_charge') | is_number }}
+        - name: "Home Charging Session Costs"
+          unique_id: 32c83575-4c20-4b3d-9b03-aa1dda68c626
+          unit_of_measurement: €
+          icon: mdi:cash
+          state: >
+            {{ states('sensor.home_charger_energy_meter_cost') | float(0) - states('sensor.home_charging_session_start_costs') | float(0) }}
+          availability: >
+            {{ states('sensor.home_charger_energy_meter_cost') | is_number and states('sensor.home_charging_session_start_costs') | is_number }}
+        - name: "Home Charging Session CO2 Emissions"
+          unique_id: beca3882-ca5f-48b7-ba7d-293a053bbe69
+          unit_of_measurement: kgCO2eq
+          icon: mdi:molecule-co2
+          state: >
+            {{ states('sensor.home_charger_co2_emissions') | float(0) - states('sensor.home_charging_session_start_co2_emissions') | float(0) }}
+          availability: >
+            {{ states('sensor.home_charger_co2_emissions') | is_number and states('sensor.home_charging_session_start_co2_emissions') | is_number }}
+
+        - name: "Average price per kWh"
+          icon: mdi:calculator
+          unique_id: d1eb72e8-b05d-4cf6-9ebf-70e5efc80293
+          state: >
+            {% set costs = states('sensor.home_charger_energy_meter_cost') | float(0) %}
+            {% set energy = states('sensor.home_charger_energy_meter') | float(0) %}
+            {{ (costs / energy) | round(4) if energy > 0 else 0 }}
+          availability: >
+            {{ states('sensor.home_charger_energy_meter_cost') | is_number and states('sensor.home_charger_energy_meter') | is_number }}
+          unit_of_measurement: €/kWh
+        - name: "Average price per kWh this month"
+          icon: mdi:calculator
+          unique_id: 612cbcb9-8766-4a79-8de6-6e49482759d7
+          state: >
+            {% set costs = states('sensor.home_charger_energy_this_month_cost') | float(0) %}
+            {% set energy = states('sensor.home_charger_energy_this_month') | float(0) %}
+            {{ (costs / energy) | round(4) if energy > 0 else 0 }}
+          availability: >
+            {{ states('sensor.home_charger_energy_this_month_cost') | is_number and states('sensor.home_charger_energy_this_month') | is_number }}
+          unit_of_measurement: €/kWh
+        - name: "Average price per kWh this session"
+          icon: mdi:calculator
+          unique_id: c072a978-7852-4b0b-8d0e-b60b32e29c3d
+          state: >
+            {% set costs = states('sensor.home_charging_session_costs') | float(0) %}
+            {% set energy = states('sensor.home_charging_session_charge') | float(0) %}
+            {{ (costs / energy) | round(4) if energy > 0 else 0 }}
+          availability: >
+            {{ states('sensor.home_charging_session_costs') | is_number and states('sensor.home_charging_session_charge') | is_number }}
+          unit_of_measurement: €/kWh
+
+# Implement this -> https://gathering.tweakers.net/forum/list_message/75488754#75488754
+    - trigger:
+        - platform: state
+          entity_id: sensor.smartevse_ev_import_active_energy
+      sensor:
+        - name: "Home Charger CO2 Diff"
+          unit_of_measurement: kgCO2eq
+          icon: mdi:molecule-co2
+          state: >
+            {% set diff = ((trigger.to_state.state | float(0)) - (trigger.from_state.state | float(0))) | round(3) %}
+            {{ (diff * states('sensor.home_power_usage_co2_intensity') | float(100) / 1000) | round(8) }}
+          attributes:
+            last_updated: '{{ now() }}'
+
+  automation:
+    - alias: "Telegram: Bot that updates mileage"
+      id: 20edebaa-99fb-4172-8fa9-fbc397e14148
+      trigger:
+        platform: event
+        event_type: telegram_command
+        event_data:
+          command: "/km"
+      action:
+        - choose:
+            - conditions:
+                - "{{ trigger.event.data['args'][0] in ['skoda', 'citigo'] }}"
+                - "{{ trigger.event.data['args'][1] | int > 0 }}"
+              sequence:
+                - if:
+                    - "{{ trigger.event.data['args'][1] | int >= states('input_number.skoda_citigo_mileage') | int }}"
+                  then:
+                    - service: telegram_bot.send_message
+                      data:
+                        target: "{{ trigger.event.data.chat_id }}"
+                        message: "Updated mileage for {{ trigger.event.data['args'][0] }}: {{ trigger.event.data['args'][1] }} km"
+                    - service: input_number.set_value
+                      data:
+                        value: "{{ trigger.event.data['args'][1] }}"
+                      target:
+                        entity_id: input_number.skoda_citigo_mileage
+                  else:
+                    - service: telegram_bot.send_message
+                      data:
+                        target: "{{ trigger.event.data.chat_id }}"
+                        message: "Current recorded mileage is higher than new value. Check the input value."
+          default:
+            - service: telegram_bot.send_message
+              data:
+                target: "{{ trigger.event.data.chat_id }}"
+                message: "Command is missing the correct variables. Example command: '/km citigo 123456'"

@@ -1,4 +1,10 @@
 game_room_pc_package:
+  switch:
+    - platform: wake_on_lan
+      name: Sicco PC
+      mac: FC:34:97:A6:93:9A
+      host: 192.168.1.22
+
   script:
     game_room_turn_on_second_monitor:
       alias: "Game Room: Turn on second monitor"

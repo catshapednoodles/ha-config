@@ -1,50 +1,44 @@
 electricity_contract_package:
-  sensor:
-    - platform: statistics
-      name: "Difference between usage and return over last 7 days - Change per second"
-      unique_id: 41d73dae-9b6b-4401-b50b-df426e7bdafa
-      entity_id: sensor.difference_between_usage_and_return_since_start_contract
-      state_characteristic: change_second
-      precision: 5
-      max_age:
-        days: 7
-    - platform: statistics
-      name: "Difference between usage and return over last day - Change per second"
-      unique_id: ba28a4b2-be8a-434e-bb68-20a50fd66939
-      entity_id: sensor.difference_between_usage_and_return_since_start_contract
-      state_characteristic: change_second
-      precision: 5
-      max_age:
-        hours: 24
-
   template:
-    - binary_sensor:
-      - name: "Difference between usage and return below 0 in 30 days (7 day prediction)"
-        unique_id: 77afe31d-5c79-4a93-899d-391c04eb6e60
-        state: >
-          {% set change_per_day = states('sensor.difference_between_usage_and_return_over_last_7_days_change_per_second') | float(0) * 86400 %}
-          {% set difference = states('sensor.difference_between_usage_and_return_since_start_contract') | float(0) %}
-          {% if change_per_day < 0 %}
-            {{ difference / (change_per_day * -1) < 30 }}
-          {% else %}
-            False
-          {% endif %}
-      - name: "Difference between usage and return below 0 in 30 days (24 hour prediction)"
-        unique_id: 39f44937-8d76-4b86-8012-bb6e077b5b01
-        state: >
-          {% set change_per_day = states('sensor.difference_between_usage_and_return_over_last_day_change_per_second') | float(0) * 86400 %}
-          {% set difference = states('sensor.difference_between_usage_and_return_since_start_contract') | float(0) %}
-          {% if change_per_day < 0 %}
-            {{ difference / (change_per_day * -1) < 30 }}
-          {% else %}
-            False
-          {% endif %}
     - sensor:
+        - name: "Energy usage since start contract"
+          unique_id: 6f1f783d-6437-4cec-a6d1-782119c2b1fd
+          unit_of_measurement: kWh
+          state_class: total
+          device_class: energy
+          icon: mdi:home-import-outline
+          state: >
+            {% set start1 = 4791.932 %}
+            {% set start2 = 2175.834 %}
+            {% set current_merged = states('sensor.dsmr_reading_electricity_delivered_1') | float(0) + states('sensor.dsmr_reading_electricity_delivered_2') | float(0) %}
+            {{ (current_merged - start1 - start2) | round(2) }}
+          availability: >
+            {{ states('sensor.dsmr_reading_electricity_delivered_1') | is_number and states('sensor.dsmr_reading_electricity_delivered_2') | is_number }}
+          attributes:
+            start_contract: "{{ '2024-10-01' | as_datetime }}"
+        - name: "Energy return since start contract"
+          unique_id: dba6c39a-47ee-4976-b3ab-2149cce2e323
+          unit_of_measurement: kWh
+          state_class: total
+          device_class: energy
+          icon: mdi:home-export-outline
+          state: >
+            {% set start1 = 1841.328 %}
+            {% set start2 = 4666.630 %}
+            {% set current_merged = states('sensor.dsmr_reading_electricity_returned_1') | float(0) + states('sensor.dsmr_reading_electricity_returned_2') | float(0) %}
+            {{ (current_merged - start1 - start2) | round(2) }}
+          availability: >
+            {{ states('sensor.dsmr_reading_electricity_returned_1') | is_number and states('sensor.dsmr_reading_electricity_returned_2') | is_number }}
+          attributes:
+            start_contract: "{{ '2024-10-01' | as_datetime }}"
         - name: "Difference between usage and return since start contract"
           unique_id: difference_usage_return_since_start_contract
           unit_of_measurement: kWh
+          icon: mdi:arrow-left-right
           state: >
-            {{ states('sensor.yearly_electricity_usage') | float(0) - states('sensor.yearly_electricity_return') | float(0) }}
+            {{ (states('sensor.energy_usage_since_start_contract') | float(0) - states('sensor.energy_return_since_start_contract') | float(0)) | round(1) }}
+          availability: >
+            {{ states('sensor.energy_usage_since_start_contract') | is_number and states('sensor.energy_return_since_start_contract') | is_number }}
 
   automation:
     - alias: "Energy contract: Switch contracts?"
@@ -57,14 +51,8 @@ electricity_contract_package:
           to: "off"
         - platform: numeric_state
           entity_id: sensor.difference_between_usage_and_return_since_start_contract
-          below: 500
+          below: 200
           for: "00:00:10"
-        - platform: state
-          entity_id: binary_sensor.difference_between_usage_and_return_below_0_in_30_days_7_day_prediction
-          to: "on"
-        - platform: state
-          entity_id: binary_sensor.difference_between_usage_and_return_below_0_in_30_days_24_hour_prediction
-          to: "on"
       action:
         - service: notify.sicco_phone
           data:

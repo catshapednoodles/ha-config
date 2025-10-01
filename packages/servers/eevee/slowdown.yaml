@@ -1,0 +1,14 @@
+home_assistant_slowdown_package:
+  automation:
+    - alias: "Home Assistant: Fix slowdown caused by Studio Code"
+      id: e0d11a10-67ff-43f3-bf19-66b2f727f01f
+      trigger:
+        - platform: numeric_state
+          entity_id: sensor.studio_code_server_cpu_percent
+          above: 10
+          for:
+            minutes: 30
+      action:
+        - service: hassio.addon_restart
+          data:
+            addon: a0d7b954_vscode

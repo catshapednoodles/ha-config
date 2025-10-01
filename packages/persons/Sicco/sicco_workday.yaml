@@ -18,12 +18,12 @@ sicco_workday_package:
         - name: "Sicco workday today"
           unique_id: sicco_workday_today
           state: >
-            {{ is_state("input_boolean.sicco_working_today", "on")
+            {{ today_at("00:00") < state_attr('calendar.werk_2', 'start_time') | as_datetime | as_local < today_at("00:00") + timedelta(days=1)
               and is_state("input_boolean.sicco_vacation", "off") }}
         - name: "Sicco workday tomorrow"
           unique_id: sicco_workday_tomorrow
           state: >
-            {{ is_state("input_boolean.sicco_working_tomorrow", "on") }}
+            {{ today_at("00:00") + timedelta(days=1) < state_attr('calendar.werk_2', 'start_time') | as_datetime | as_local < today_at("00:00") + timedelta(days=2) }}
         - name: "Sicco working from home today"
           unique_id: sicco_working_from_home_today
           state: >
@@ -37,21 +37,21 @@ sicco_workday_package:
       trigger:
         - platform: calendar
           event: start
-          entity_id: calendar.werk
+          entity_id: calendar.werk_2
           id: today
           offset: "-02:00:00"
         - platform: calendar
           event: end
-          entity_id: calendar.werk
+          entity_id: calendar.werk_2
           id: today
         - platform: calendar
           event: start
-          entity_id: calendar.werk
-          offset: "-15:00:00"
+          entity_id: calendar.werk_2
+          offset: "-16:00:00"
           id: tomorrow
         - platform: calendar
           event: end
-          entity_id: calendar.werk
+          entity_id: calendar.werk_2
           offset: "-10:00:00"
           id: tomorrow
       action:

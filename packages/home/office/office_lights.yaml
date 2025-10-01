@@ -1,17 +1,20 @@
 office_lights_package:
   adaptive_lighting:
-  - name: "Office"
-    lights:
-      - light.office_ceiling
-    min_brightness: 65
-    max_brightness: 100
-    autoreset_control_seconds: 3600
-    detect_non_ha_changes: true
+    - name: "Office"
+      lights:
+        - light.office_ceiling
+      min_brightness: 65
+      max_brightness: 100
+      autoreset_control_seconds: 3600
+      detect_non_ha_changes: true
+      max_sunrise_time: "09:30:00"
+      min_sunset_time: "17:00:00"
+      skip_redundant_commands: true
 
   binary_sensor:
     - platform: threshold
       name: Office is dark
-      entity_id: sensor.office_motion_sensor_illuminance_lux
+      entity_id: sensor.office_motion_sensor_illuminance
       lower: 50
       hysteresis: 20
 
@@ -72,12 +75,12 @@ office_lights_package:
                   entity_id: binary_sensor.activity_in_office
                   state: "on"
                 - or:
-                  - condition: state
-                    entity_id: binary_sensor.sun_low_elevation
-                    state: "on"
-                  - condition: state
-                    entity_id: binary_sensor.office_is_dark
-                    state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.sun_low_elevation
+                      state: "on"
+                    - condition: state
+                      entity_id: binary_sensor.office_is_dark
+                      state: "on"
               sequence:
                 - service: light.turn_on
                   data:
@@ -114,10 +117,11 @@ office_lights_package:
 
     - alias: "Office: Light switch"
       id: 0ea0ffc2-ef68-4440-a796-6f30617688d0
-      description: ''
+      description: ""
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Office Switch
           button_1_pressed:
             - service: switch.turn_on
@@ -140,7 +144,7 @@ office_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Office Ceiling/set
-                payload: "{\"brightness_move_onoff\": 51}"
+                payload: '{"brightness_move_onoff": 85}'
                 qos: 0
                 retain: false
             - service: input_boolean.turn_on
@@ -149,7 +153,7 @@ office_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Office Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false
           button_4_pressed:
@@ -163,13 +167,13 @@ office_lights_package:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Office Ceiling/set
-                payload: "{\"brightness_move_onoff\": -51}"
+                payload: '{"brightness_move_onoff": -85}'
                 qos: 0
                 retain: false
           button_4_released:
             - service: mqtt.publish
               data:
                 topic: zigbee2mqtt/Office Ceiling/set
-                payload: "{\"brightness_move\": \"stop\"}"
+                payload: '{"brightness_move": "stop"}'
                 qos: 0
                 retain: false

@@ -1,0 +1,35 @@
+car_checks_package:
+  automation:
+    - alias: "EV: Send notification on unlocked doors"
+      id: 05c95892-0172-4d74-b4be-0c9a638316a4
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.id_3_doors_locked
+          to: "on"
+          for:
+            minutes: 11
+        - platform: state
+          entity_id: binary_sensor.id_3_doors_locked
+          from: "on"
+          to: "off"
+      action:
+        - if:
+            - condition: state
+              entity_id: binary_sensor.id_3_doors_locked
+              state: "on"
+          then:
+            - service: notify.all_phones
+              data:
+                title: "Car unlocked"
+                message: "Car doors have been unlocked for a while. Check if they need to be locked."
+                data:
+                  channel: "Car locks"
+                  tag: car_lock_check
+                  importance: max
+                  notification_icon: "mdi:car-door-lock-open"
+          else:
+            - service: notify.all_phones
+              data:
+                message: clear_notification
+                data:
+                  tag: car_lock_check

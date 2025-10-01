@@ -1,41 +1,323 @@
 heat_pump_package:
 # Energy, power, and statistics
+  powercalc:
+    sensors:
+      - entity_id: binary_sensor.mitsubishi_booster_heater
+        name: Heat Pump Booster Heater
+        fixed:
+          power: 2000
+
+  mqtt:
+    - sensor:
+      - name: "Heat Pump power"
+        unique_id: c8365e38-d41e-4f50-af14-ad72b231f484
+        state_topic: "shellypro1pm-ec62608cf4d8/status/switch:0"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        value_template: "{{ value_json.apower | round(1) }}"
+
   sensor:
     - platform: average
       name: average_daily_outdoor_temperature
       start: '{{ now().replace(hour=0).replace(minute=0).replace(second=0) }}'
       end: '{{ now() }}'
-      entities: weather.combined_daily
+      entities: weather.combined
+    - platform: statistics
+      name: "Mitsubishi Current COP Average"
+      unique_id: b34a4eba-c150-46cf-b402-3e3cd0c84f05
+      entity_id: sensor.mitsubishi_current_cop
+      state_characteristic: median
+      precision: 2
+      max_age:
+        minutes: 2
+    - platform: integration
+      source: sensor.mitsubishi_current_output_power
+      name: Mitsubishi Output Energy
+      round: 2
+      max_sub_interval:
+        minutes: 5
+
+  utility_meter:
+    heat_pump_utility_meter:
+      name: Heat Pump Utility Meter
+      unique_id: f1e8b9d4-efe6-442e-b33b-6ab0a861125b
+      source: sensor.heat_pump_switch_energy
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_utility_meter_daily:
+      name: Heat Pump Utility Meter Daily
+      unique_id: 3f0105a2-462d-43e3-bfc7-5ba85428277e
+      source: sensor.heat_pump_switch_energy
+      cycle: daily
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_utility_meter_monthly:
+      name: Heat Pump Utility Meter Monthly
+      unique_id: 7390be5b-c2c3-4001-b94b-e4f3a5112ccd
+      source: sensor.heat_pump_switch_energy
+      cycle: monthly
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_utility_meter_yearly:
+      name: Heat Pump Utility Meter Yearly
+      unique_id: bf714521-cf1e-4f7f-970b-2f891d19843c
+      source: sensor.heat_pump_switch_energy
+      cycle: yearly
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_output_energy:
+      name: Heat Pump Output Energy
+      unique_id: 6dcfabda-c1e6-4213-8d29-126c944a218f
+      source: sensor.mitsubishi_output_energy
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_output_energy_daily:
+      name: Heat Pump Output Energy Daily
+      unique_id: 6bb00a07-244d-4fd2-8380-403d7c2c028b
+      source: sensor.mitsubishi_output_energy
+      cycle: daily
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_output_energy_monthly:
+      name: Heat Pump Output Energy Monthly
+      unique_id: 27dadf8e-87e5-445a-ba6c-86cfd25d7ab5
+      source: sensor.mitsubishi_output_energy
+      cycle: monthly
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_output_energy_yearly:
+      name: Heat Pump Output Energy Yearly
+      unique_id: 9b18b4fa-508d-4608-a086-ccf77ee87a4b
+      source: sensor.mitsubishi_output_energy
+      cycle: yearly
+      tariffs:
+        - Heating
+        - Cooling
+        - DHW
+        - Standby
+    heat_pump_booster_heater_energy_daily:
+      name: Heat Pump Booster Heater Energy Daily
+      unique_id: ea860940-560e-4b16-8752-3da40d692148
+      source: sensor.heat_pump_booster_heater_energy
+      cycle: daily
+    heat_pump_booster_heater_energy_monthly:
+      name: Heat Pump Booster Heater Energy Monthly
+      unique_id: aeb782e2-d353-4322-8f67-160d7a1e8b70
+      source: sensor.heat_pump_booster_heater_energy
+      cycle: monthly
+    heat_pump_booster_heater_energy_yearly:
+      name: Heat Pump Booster Heater Energy Yearly
+      unique_id: 13695433-85bc-47a0-8735-07f12cad45d2
+      source: sensor.heat_pump_booster_heater_energy
+      cycle: yearly
 
   template:
     - sensor:
         - name: "Mitsubishi Delta T"
+          unique_id: a4fb8f09-c472-4243-873d-1ddeb0bed661
           icon: mdi:delta
           unit_of_measurement: "°C"
           device_class: temperature
           state_class: measurement
           state: >
-            {{ (states('sensor.mitsubishi_flow_temperature') | float(0) - states('sensor.mitsubishi_return_temperature') | float(0)) | round(1) }}
+            {% set modifier = -1 if is_state('sensor.mitsubishi_operating_mode', 'Cooling') else 1 %}
+            {{ ((states('sensor.mitsubishi_flow_temperature') | float(0) - states('sensor.mitsubishi_return_temperature') | float(0)) * modifier) | round(1) }}
         - name: "Mitsubishi Current Output Power"
+          unique_id: f83a2e81-20df-4220-a4f2-0d5d106b2338
           device_class: power
           unit_of_measurement: "kW"
           state_class: measurement
           state: >
-            {% if states('sensor.mitsubishi_operating_mode') == 'Stop' %}
+            {% if is_state('sensor.mitsubishi_operating_mode', 'Stop') %}
               0
             {% else %}
               {{ ((states('sensor.mitsubishi_delta_t') | float(0)) * 4.186 * (states('sensor.mitsubishi_flow_rate') | float(0)) / 60) | round(1) }}
             {% endif %}
-        - name: "Mitsubishi Total Energy"
+        - name: "Mitsubishi Current COP"
+          unique_id: 35d08efd-01e5-4e53-8e9a-3e565ee63280
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% if is_state('sensor.mitsubishi_operating_mode', 'Stop') %}
+              0
+            {% else %}
+              {% set current_output = states('sensor.mitsubishi_current_output_power') | float(0) %}
+              {% set heat_pump_input = states('sensor.heat_pump_power') | float(1) / 1000 %}
+              {% set booster_heater_input = states('sensor.heat_pump_booster_heater_power') | float(1) %}
+              {% set current_input = heat_pump_input + booster_heater_input %}
+              {{ (current_output / current_input) | round(2) }}
+            {% endif %}
+        - name: "Mitsubishi Daily COP - Heating"
+          unique_id: 9432f96d-7bd0-4d74-99c6-6f17933c6dec
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_daily_heating') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_daily_heating') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_daily_heating', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_daily_heating', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Daily COP - Cooling"
+          unique_id: 7888b836-ac43-43a0-b33a-8f2ea90cf474
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_daily_cooling') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_daily_cooling') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_daily_cooling', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_daily_cooling', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Daily COP - DHW"
+          unique_id: 07e2dae4-2380-40b4-982f-4def5500ff7f
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_daily_dhw') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_daily_dhw') | float(1) %}
+            {% set booster_heater = states('sensor.heat_pump_booster_heater_energy_daily') | float(0) %}
+            {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_daily_dhw', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_daily_dhw', 'last_period') | float(1) %}
+              {% set booster_heater = state_attr('sensor.heat_pump_booster_heater_energy_daily', 'last_period') | float(0) %}
+              {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+        - name: "Mitsubishi Monthly COP - Heating"
+          unique_id: 1483aadf-fdcd-4baa-af43-062be035fed4
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_monthly_heating') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_monthly_heating') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_monthly_heating', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_monthly_heating', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Monthly COP - Cooling"
+          unique_id: d18a4771-5ce7-41fd-a202-aa7b8b51948a
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_monthly_cooling') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_monthly_cooling') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_monthly_cooling', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_monthly_cooling', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Monthly COP - DHW"
+          unique_id: b36d1293-37e9-4945-b883-ce4cc2c7297b
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_monthly_dhw') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_monthly_dhw') | float(1) %}
+            {% set booster_heater = states('sensor.heat_pump_booster_heater_energy_monthly') | float(0) %}
+            {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_monthly_dhw', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_monthly_dhw', 'last_period') | float(1) %}
+              {% set booster_heater = state_attr('sensor.heat_pump_booster_heater_energy_monthly', 'last_period') | float(0) %}
+              {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+        - name: "Mitsubishi Yearly COP - Heating"
+          unique_id: 5fd7d35f-52dd-45da-8eb8-6df03254378f
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_yearly_heating') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_yearly_heating') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_yearly_heating', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_yearly_heating', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Yearly COP - Cooling"
+          unique_id: 1178f60e-dc03-4bcc-8373-be91d841376a
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_yearly_cooling') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_yearly_cooling') | float(1) %}
+            {{ (output / input) | round(2) if input != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_yearly_cooling', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_yearly_cooling', 'last_period') | float(1) %}
+              {{ (output / input) | round(2) if input != 0 else 0 }}
+        - name: "Mitsubishi Yearly COP - DHW"
+          unique_id: 15c04527-2111-43fe-ba67-e6097452f655
+          icon: mdi:slash-forward-box
+          unit_of_measurement: ""
+          state_class: measurement
+          state: >
+            {% set output = states('sensor.heat_pump_output_energy_yearly_dhw') | float(0) %}
+            {% set input = states('sensor.heat_pump_utility_meter_yearly_dhw') | float(1) %}
+            {% set booster_heater = states('sensor.heat_pump_booster_heater_energy_yearly') | float(0) %}
+            {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+          attributes:
+            last_period: >
+              {% set output = state_attr('sensor.heat_pump_output_energy_yearly_dhw', 'last_period') | float(0) %}
+              {% set input = state_attr('sensor.heat_pump_utility_meter_yearly_dhw', 'last_period') | float(1) %}
+              {% set booster_heater = state_attr('sensor.heat_pump_booster_heater_energy_yearly', 'last_period') | float(0) %}
+              {{ ((output + booster_heater) / (input + booster_heater)) | round(2) if (input + booster_heater) != 0 else 0 }}
+
+    - trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_energy_used_heating
+          for:
+            minutes: 1
+      sensor:
+        - name: Mitsubishi energy produced heating total
+          unique_id: "3aa9cd41-b9c5-4785-853c-0239bd72a67c"
+          state: >
+            {% set new_state = states('sensor.mitsubishi_energy_used_heating') | float(0) if now() > today_at("23:50") else 0 %}
+            {{ (states('sensor.mitsubishi_energy_used_heating_total') | float(0) + new_state) | round(3) }}
+          unit_of_measurement: kWh
           device_class: energy
           state_class: total_increasing
-          unit_of_measurement: kWh
-          state: >
-            {{ (
-                states('sensor.mitsubishi_energy_used_heating_total') | float(0)
-                + states('sensor.mitsubishi_energy_used_cooling_total') | float(0)
-                + states('sensor.mitsubishi_energy_used_dhw_total') | float(0)
-                ) | round(3) }}
+          icon: mdi:heat-wave
 
     - trigger:
         - platform: state
@@ -44,7 +326,7 @@ heat_pump_package:
             minutes: 1
       sensor:
         - name: Mitsubishi energy used heating total
-          unique_id: "3aa9cd41-b9c5-4785-853c-0239bd72a67c"
+          unique_id: "9b800195-7382-4c3d-b8ec-c3899385f149"
           state: >
             {% set new_state = states('sensor.mitsubishi_energy_used_heating') | float(0) if now() > today_at("23:50") else 0 %}
             {{ (states('sensor.mitsubishi_energy_used_heating_total') | float(0) + new_state) | round(3) }}
@@ -114,3 +396,203 @@ heat_pump_package:
           {{ (energy_usage / dd) | round(3) if dd > 0 else 0 }}
         unit_of_measurement: 'kWh/DD'
         state_class: measurement
+
+    - trigger:
+        - platform: time
+          at: "04:00:00"
+      binary_sensor:
+        - name: Daylight savings active
+          unique_id: c1c99448-2639-4db2-85be-89df3d51ff7e
+          state: "{{ now().timetuple().tm_isdst > 0 }}"
+
+  script:
+    mitsubishi_select_energy_option:
+      alias: "Mitsubishi: Select Energy Option"
+      mode: single
+      icon: mdi:meter-electric
+      fields:
+        energy_option:
+          description: "Energy select option"
+          example: "Heating"
+      sequence:
+        - action: select.select_option
+          data:
+            option: "{{ energy_option }}"
+          target:
+            entity_id:
+              - select.heat_pump_utility_meter
+              - select.heat_pump_utility_meter_daily
+              - select.heat_pump_utility_meter_monthly
+              - select.heat_pump_utility_meter_yearly
+              - select.heat_pump_output_energy
+              - select.heat_pump_output_energy_daily
+              - select.heat_pump_output_energy_monthly
+              - select.heat_pump_output_energy_yearly
+    mitsubishi_reset_defrost_timer:
+      alias: "Mitsubishi: Reset defrost timer"
+      mode: single
+      icon: mdi:snowflake-melt
+      sequence:
+        - wait_for_trigger:
+            platform: state
+            entity_id: sensor.mitsubishi_defrost
+            from: 'Defrost'
+            to: 'Off'
+            for: "00:00:30"
+          timeout: 01:00:00
+          continue_on_timeout: false
+        - service: switch.turn_off
+          entity_id: switch.mitsubishi_system_on_off
+        - delay: "00:01:00"
+        - service: switch.turn_on
+          entity_id: switch.mitsubishi_system_on_off
+
+  automation:
+    - alias: "Heat pump: Select energy meter"
+      id: 1ca2d129-d09a-42c9-bffc-9dca0cffe86b
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_operating_mode
+          to:
+            - Stop
+            - Heating
+            - Cooling
+            - Hot Water
+            - Legionella
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: sensor.mitsubishi_operating_mode
+                  state: "Heating"
+              sequence:
+                - action: script.mitsubishi_select_energy_option
+                  data:
+                    energy_option: Heating
+                - action: select.select_option
+                  data:
+                    option: Heating
+                  target:
+                    entity_id:
+                      - select.heat_pump_utility_meter
+                      - select.heat_pump_output_energy
+            - conditions:
+                - condition: state
+                  entity_id: sensor.mitsubishi_operating_mode
+                  state: "Cooling"
+              sequence:
+                - action: script.mitsubishi_select_energy_option
+                  data:
+                    energy_option: Cooling
+                - action: select.select_option
+                  data:
+                    option: Cooling
+                  target:
+                    entity_id:
+                      - select.heat_pump_utility_meter
+                      - select.heat_pump_output_energy
+            - conditions:
+                or:
+                  - condition: state
+                    entity_id: sensor.mitsubishi_operating_mode
+                    state: "Hot Water"
+                  - condition: state
+                    entity_id: sensor.mitsubishi_operating_mode
+                    state: "Legionella"
+              sequence:
+                - action: script.mitsubishi_select_energy_option
+                  data:
+                    energy_option: DHW
+                - action: select.select_option
+                  data:
+                    option: DHW
+                  target:
+                    entity_id:
+                      - select.heat_pump_utility_meter
+                      - select.heat_pump_output_energy
+          default:
+            - action: script.mitsubishi_select_energy_option
+              data:
+                energy_option: Standby
+            - action: select.select_option
+              data:
+                option: Standby
+              target:
+                entity_id:
+                  - select.heat_pump_utility_meter
+                  - select.heat_pump_output_energy
+
+    - alias: "Heat pump: Turn off during vacation"
+      id: 65b2e269-a79e-4d34-a5aa-1fb39122cb72
+      trigger:
+        - platform: state
+          entity_id: input_boolean.vacation_mode
+        - platform: state
+          entity_id: input_boolean.vacation_mode_coming_home
+        - platform: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.vacation_mode
+                  state: "on"
+                - condition: state
+                  entity_id: input_boolean.vacation_mode_coming_home
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.negative_electricity_price_this_hour
+                  state: "off"
+              sequence:
+                - service: switch.turn_off
+                  data:
+                    entity_id: switch.mitsubishi_system_on_off
+          default:
+            - service: switch.turn_on
+              data:
+                entity_id: switch.mitsubishi_system_on_off
+
+    - alias: "Heat pump: Send notification on error"
+      id: 33284eb5-d868-4cd4-809d-498207d90939
+      trigger:
+        - platform: state
+          entity_id: sensor.mitsubishi_fault_code
+          from: "No Error"
+          for:
+            minutes: 1
+        - platform: state
+          entity_id: sensor.mitsubishi_refrigerant_error_info
+          from: "Normal"
+          for:
+            minutes: 1
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Heat pump error"
+            message: "Heat pump has thrown an error: {{ trigger.to_state.state }}. Check if there's anything wrong"
+            data:
+              channel: "Alerts"
+              importance: high
+              notification_icon: "mdi:alert"
+
+    - alias: "Heat pump: Notify to manually change settings around DST change"
+      id: 48ca9146-4f6d-46a4-958b-289e07a587d3
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.daylight_savings_active
+          from: "off"
+          to: "on"
+        - platform: state
+          entity_id: binary_sensor.daylight_savings_active
+          from: "on"
+          to: "off"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: "Change heat pump settings"
+            message: "DST has changed. Change the heat pump settings: DST, Silent Mode schedule"
+            data:
+              channel: "Heat pump"
+              importance: high
+              notification_icon: "mdi:heat-pump"

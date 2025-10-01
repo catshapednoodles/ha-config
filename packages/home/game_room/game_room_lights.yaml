@@ -2,8 +2,15 @@ game_room_lights_package:
   adaptive_lighting:
     - name: "Game Room"
       lights:
-        - light.game_room_ceiling
-      min_brightness: 50
+        - light.game_room_wall_lamp
+      min_brightness: 60
+      max_brightness: 100
+      autoreset_control_seconds: 18000
+      detect_non_ha_changes: true
+    - name: "Game Room Showcase Lights"
+      lights:
+        - light.game_room_showcase_lights
+      min_brightness: 70
       max_brightness: 100
       autoreset_control_seconds: 18000
       detect_non_ha_changes: true
@@ -11,7 +18,7 @@ game_room_lights_package:
   binary_sensor:
     - platform: threshold
       name: Game Room is dark
-      entity_id: sensor.game_room_motion_sensor_illuminance_lux
+      entity_id: sensor.game_room_motion_sensor_illuminance
       lower: 100
       hysteresis: 50
 
@@ -31,14 +38,6 @@ game_room_lights_package:
       max: 30
       mode: box
 
-  light:
-    - platform: group
-      name: "Game Room Ceiling"
-      entities:
-        - light.game_room_ceiling_1
-        - light.game_room_ceiling_2
-        - light.game_room_ceiling_3
-
   template:
     - binary_sensor:
         - name: "Activity in Game Room"
@@ -46,8 +45,11 @@ game_room_lights_package:
           device_class: occupancy
           state: >
             {{ is_state("binary_sensor.game_room_motion_sensor_occupancy", "on")
+              or is_state('switch.sicco_pc', 'on')
               or is_state('device_tracker.sicco_pc', 'home')
-              or not is_state('sensor.sicco_pc_satellite_loggeduser', 'unavailable') }}
+              or is_state('media_player.43_odyssey_g7', 'on')
+              or not is_state('sensor.sicco_pc_satellite_loggeduser', 'unavailable')
+              or not is_state('sensor.sicco_pc_display_display_count', 'unavailable') }}
         - name: "Game Room Game Mode"
           unique_id: game_room_game_mode
           state: >
@@ -59,19 +61,20 @@ game_room_lights_package:
       id: b3d5c352-b6cb-45a2-aafc-ca0d4c3bd5bd
       description: ''
       use_blueprint:
-        path: vandalon/z2m EnOcean PTM 215Z (Friends of Hue) switch.yaml
+        path: chris-1243/PTM_215Z_ZE.yaml
         input:
+          hold_delay: 300
           controller: Game Room Switch
           button_1_pressed:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.game_room_ceiling
+              entity_id: light.game_room_wall_lamp
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
-              entity_id: light.game_room_ceiling
+              entity_id: light.game_room_wall_lamp
           button_3_pressed:
           - service: light.turn_on
             data: {}
@@ -87,14 +90,14 @@ game_room_lights_package:
             data: {}
             target:
               entity_id:
-                - light.game_room_ceiling
+                - light.game_room_wall_lamp
                 - light.game_wall
           button_2_and_4_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id:
-                - light.game_room_ceiling
+                - light.game_room_wall_lamp
                 - light.game_wall
 
     - alias: "Game Room: Toggle game mode"
@@ -108,7 +111,7 @@ game_room_lights_package:
           entity_id: input_boolean.automatic_game_room_lights
           state: "on"
         - condition: state
-          entity_id: light.game_room_ceiling
+          entity_id: light.game_room_wall_lamp
           state: "on"
       action:
         - choose:
@@ -122,7 +125,7 @@ game_room_lights_package:
                     brightness_pct: 20
                     transition: 5
                   target:
-                    entity_id: light.game_room_ceiling
+                    entity_id: light.game_room_wall_lamp
             - conditions:
                 - condition: state
                   entity_id: binary_sensor.game_room_game_mode
@@ -132,7 +135,7 @@ game_room_lights_package:
                   data:
                     entity_id: switch.adaptive_lighting_game_room
                     lights:
-                      - light.game_room_ceiling
+                      - light.game_room_wall_lamp
                     manual_control: false
 
     - alias: "Game Room: Toggle lights"
@@ -176,7 +179,9 @@ game_room_lights_package:
                 - service: light.turn_on
                   data:
                     entity_id:
-                      - light.game_room
+                      - light.game_wall
+                      - light.game_room_wall_lamp
+                      - light.game_room_showcase_lights
             # Turn on light if there's activity and it is dark
             - conditions:
                 - condition: state
@@ -191,7 +196,9 @@ game_room_lights_package:
               sequence:
                 - service: light.turn_on
                   data:
-                    entity_id: light.game_wall
+                    entity_id:
+                      - light.game_wall
+                      - light.game_room_showcase_lights
             # Turn off lights when there's no activity
             - conditions:
                 - condition: state
@@ -205,4 +212,6 @@ game_room_lights_package:
                 - service: light.turn_off
                   data:
                     entity_id: 
-                      - light.game_room
+                      - light.game_wall
+                      - light.game_room_wall_lamp
+                      - light.game_room_showcase_lights

@@ -1,0 +1,38 @@
+adguard_home_package:
+  group:
+    adguard_home_filtering:
+      name: Adguard Home Filtering
+      icon: mdi:shield-check
+      entities:
+        - switch.adguard_home_filtering
+        - switch.adguard_home_eevee_filtering
+
+  automation:
+    - alias: "Adguard: Handle ad filtering"
+      id: 1cadfc11-b99e-42f7-9d09-0e6a7f606e6c
+      mode: queued
+      trigger:
+        - platform: time
+          at: "19:50:00"
+          id: turn_off_for_goplay
+          enabled: false
+        - platform: state
+          entity_id: group.adguard_home_filtering
+          to: "off"
+          for:
+            hours: 4
+      action:
+        - choose:
+            - conditions:
+                - "{{ trigger.id == 'turn_off_for_goplay' }}"
+              sequence:
+                - if:
+                    - condition: time
+                      weekday:
+                        - sun
+                  then:
+                    - service: switch.turn_off
+                      entity_id: group.adguard_home_filtering
+          default:
+            - service: switch.turn_on
+              entity_id: group.adguard_home_filtering

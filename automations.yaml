@@ -1,1 +1,70 @@
-[]
+- id: '1734878001688'
+  alias: 'Car: notification for defrosting windows'
+  description: ''
+  triggers:
+  - trigger: time
+    at: 07:15:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.ellen_free_today
+    state: 'off'
+  - condition: numeric_state
+    entity_id: weather.combined
+    attribute: temperature
+    below: 3
+  actions:
+  - action: notify.ellen_phone
+    metadata: {}
+    data:
+      message: Ruiten krabben!
+  mode: single
+- id: '1750098577211'
+  alias: 'Menstruation: putting dates into calendar'
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_datetime.menstruatie_stop
+  conditions: []
+  actions:
+  - action: calendar.create_event
+    metadata: {}
+    data:
+      summary: Menstruatie start
+      start_date: '{{ states(''input_datetime.menstruatie_start'') }}'
+      end_date: '{{ states(''input_datetime.menstruatie_stop'') }}'
+    target:
+      entity_id: calendar.menstruatie
+  mode: single
+- id: '1750099362029'
+  alias: Menstruatie knop naar datum
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_button.knop_menstruatie_start
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    metadata: {}
+    data:
+      date: '  {{now().strftime("%Y-%m-%d")}}'
+    target:
+      entity_id: input_datetime.menstruatie_start
+  mode: single
+- id: '1750099501353'
+  alias: Menstruatie stop knop naar datum
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_button.knop_menstruatie_stop
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    metadata: {}
+    data:
+      date: '  {{now().strftime("%Y-%m-%d")}}'
+    target:
+      entity_id: input_datetime.menstruatie_stop
+  mode: single

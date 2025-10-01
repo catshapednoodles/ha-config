@@ -1,0 +1,40 @@
+weather_package:
+  binary_sensor:
+    - platform: meteoalarm
+      name: "Meteoalarm Groningen"
+      country: "netherlands"
+      province: "Groningen"
+
+  sensor:
+    - platform: average
+      name: average_outdoor_temperature_last_3_days
+      duration:
+        hours: 72
+      entities: weather.combined
+    - platform: buienalarm
+      name: buienalarm
+      monitored_conditions:
+        - precipitation
+        - precipitation_forecast_average
+        - precipitation_forecast_total
+        - next_rain_forecast
+
+  template:
+    - binary_sensor:
+      - name: Weather alarm currently active in Groningen
+        icon: mdi:weather-lightning
+        state: >
+          {{ is_state('binary_sensor.meteoalarm_groningen', 'on')
+          and 'coastalevent' not in state_attr('binary_sensor.meteoalarm_groningen', 'awareness_type')
+          and state_attr('binary_sensor.meteoalarm_groningen', 'onset') | as_datetime - timedelta(hours=1) < now() < state_attr('binary_sensor.meteoalarm_groningen', 'expires') | as_datetime }}
+        availability: >
+          {{ has_value('binary_sensor.meteoalarm_groningen') }}
+      - name: Code yellow - Groningen
+        icon: mdi:weather-lightning
+        state: "{{ states('binary_sensor.meteoalarm_groningen') != 'off' and states.binary_sensor.meteoalarm_groningen and state_attr('binary_sensor.meteoalarm_groningen', 'awareness_level').split(';')[1].replace(' ','') == 'yellow' }}"
+      - name: Code orange - Groningen
+        icon: mdi:weather-lightning
+        state: "{{ states('binary_sensor.meteoalarm_groningen') != 'off' and states.binary_sensor.meteoalarm_groningen and state_attr('binary_sensor.meteoalarm_groningen', 'awareness_level').split(';')[1].replace(' ','') == 'orange' }}"
+      - name: Code red - Groningen
+        icon: mdi:weather-lightning
+        state: "{{ states('binary_sensor.meteoalarm_groningen') != 'off' and states.binary_sensor.meteoalarm_groningen and state_attr('binary_sensor.meteoalarm_groningen', 'awareness_level').split(';')[1].replace(' ','') == 'red' }}"

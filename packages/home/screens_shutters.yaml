@@ -1,0 +1,354 @@
+screens_shutters_package:
+### Notes
+# Remote 1:
+# 1 - Empty?
+# 2 - Living Room small
+# 3 - Office
+# 4 - Game Room
+# 5 - Bathroom
+# Remote 2:
+# 1 - Ellen's room
+# 2 - Living Room big
+# 3 - Bedroom right
+# 4 - Bedroom left
+# 5 - Empty?
+
+  cover:
+    - platform: group
+      name: "East side sun blinds"
+      entities:
+        - cover.bedroom_roller_shutter_left
+        - cover.bedroom_roller_shutter_right
+    - platform: group
+      name: "South side sun blinds"
+      entities:
+        - cover.living_room_roller_shade_small
+        - cover.bathroom_roller_shade
+    - platform: group
+      name: "West side sun blinds"
+      entities:
+        - cover.living_room_roller_shade_big
+        - cover.game_room_roller_shade
+        - cover.ellens_room_roller_shade
+        # - cover.office_roller_shade
+    - platform: group
+      name: "South side sun blinds low speed"
+      entities:
+        - cover.living_room_roller_shade_small_low_speed
+        - cover.bathroom_roller_shade_low_speed
+    - platform: group
+      name: "West side sun blinds low speed"
+      entities:
+        - cover.living_room_roller_shade_big_low_speed
+        - cover.game_room_roller_shade_low_speed
+        - cover.ellens_room_roller_shade_low_speed
+        # - cover.office_roller_shade
+
+  input_boolean:
+    dry_longer_after_heavy_rain:
+      name: Dry longer after heavy rain
+      icon: mdi:weather-pouring
+
+  input_number:
+    block_sunlight_temperature_threshold:
+      name: "Block sunlight temperature threshold"
+      icon: mdi:thermometer-high
+      min: 15
+      max: 30
+      mode: box
+      step: 1
+      unit_of_measurement: "°C"
+
+  script:
+    save_my_position:
+      alias: "Save Somfy My Position for screens and shutters"
+      icon: "mdi:content-save-cog"
+      description: "Save the Somfy My Position for rolling screens and rolling shutters"
+      fields:
+        somfy_entity:
+          name: Rolling screen or shutter
+          selector:
+            entity:
+              filter:
+                domain: cover
+      mode: parallel
+      sequence:
+        - service: number.set_value
+          target:
+            entity_id: number.{{ somfy_entity | regex_replace('cover.') }}_my_position
+          data:
+            value: "{{ state_attr(somfy_entity, 'current_position') }}"
+
+  sensor:
+    - platform: average
+      name: average_minimum_indoor_temperature_last_24_hours
+      duration:
+        hours: 24
+      entities: sensor.master_temperature_minimum
+
+  template:
+    - trigger:
+        - platform: state
+          entity_id: binary_sensor.solar_rain_sensor_rain
+          to: "off"
+          for:
+            hours: 1
+          id: short_dry
+        - platform: state
+          entity_id: binary_sensor.solar_rain_sensor_rain
+          to: "off"
+          for:
+            hours: 3
+          id: long_dry
+        - platform: state
+          entity_id: binary_sensor.solar_rain_sensor_rain
+          from: "off"
+          to: "on"
+          id: wet
+        - platform: state
+          entity_id: binary_sensor.solar_rain_sensor_rain
+          from: "off"
+          to: "on"
+          for:
+            hours: 2
+          id: very_wet
+        # - platform: state
+        #   entity_id: sensor.buienalarm_precipitation
+        #   to: "0.0"
+        #   for:
+        #     hours: 1
+        #   id: short_dry
+        # - platform: state
+        #   entity_id: sensor.buienalarm_precipitation
+        #   to: "0.0"
+        #   for:
+        #     hours: 4
+        #   id: long_dry
+        # - platform: numeric_state
+        #   entity_id: sensor.buienalarm_precipitation
+        #   above: 0
+        #   for:
+        #     minutes: 5
+        #   id: wet
+        # - platform: numeric_state
+        #   entity_id: sensor.buienalarm_precipitation
+        #   above: 1
+        #   for:
+        #     hours: 2
+        #   id: very_wet
+        # - platform: numeric_state
+        #   entity_id: sensor.buienalarm_precipitation
+        #   above: 2
+        #   for:
+        #     minutes: 10
+        #   id: very_wet
+        - platform: homeassistant
+          event: start
+        - platform: event
+          event_type: recalculate_screens_wet
+      action:
+        - alias: "Make screens dry longer after heavy rain"
+          choose:
+          - conditions:
+              - "{{ trigger.id == 'very_wet' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dry_longer_after_heavy_rain
+          - conditions:
+              - "{{ trigger.id == 'long_dry' }}"
+              - condition: state
+                entity_id: input_boolean.dry_longer_after_heavy_rain
+                state: "on"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.dry_longer_after_heavy_rain
+      binary_sensor:
+        - name: "Screens could be wet"
+          device_class: moisture
+          state: >
+            {% if has_value('binary_sensor.solar_rain_sensor_rain')  %}
+              {{ is_state('binary_sensor.solar_rain_sensor_rain', 'on') or is_state('input_boolean.dry_longer_after_heavy_rain', 'on') }}
+            {% else %}
+              {{ states('sensor.buienalarm_precipitation') | float(0) > 0 or is_state('input_boolean.dry_longer_after_heavy_rain', 'on') }}
+            {% endif %}
+
+    - trigger:
+        - platform: time
+          at: "07:00:00"
+      action:
+        - service: weather.get_forecasts
+          data:
+            type: hourly
+          target:
+            entity_id: weather.combined
+          response_variable: forecast_hourly
+      binary_sensor:
+        - name: "Block sunlight today"
+          device_class: heat
+          state: >
+            {% set forecast_values = forecast_hourly['weather.combined'] %}
+            {% set forecast_list = forecast_values.forecast[0:15] %}
+            {% set max_temp_forecast = forecast_list | map(attribute='temperature') | list | max %}
+            {% set threshold = states('input_number.block_sunlight_temperature_threshold') | float(25) %}
+            {{ max_temp_forecast >= threshold or (threshold - max_temp_forecast < 5 and states('sensor.average_minimum_indoor_temperature_last_24_hours') | float(0) > 21) }}
+          auto_off: "15:00:00"
+
+    - binary_sensor:
+        - name: "Sun is heating east side"
+          unique_id: 4a68b938-dd05-459e-98c8-a99210b3c267
+          icon: mdi:sun-wireless
+          state: >
+            {% set list = [states('sensor.bedroom_roller_shutter_left_luminance') | int(0), states('sensor.bedroom_roller_shutter_right_luminance') | int(0)] %}
+            {% set threshold = 22000 if is_state('cover.east_side_sun_blinds', ['open', 'opening']) else 14000 %}
+            {{ list | max > threshold and 10 < state_attr('sun.sun', 'azimuth') | float(0) < 155 and state_attr('sun.sun', 'elevation') | float(0) > 5 }}
+          delay_on: "00:10:10"
+          delay_off: "00:30:10"
+        - name: "Sun is heating south side"
+          unique_id: 6fcceadb-b693-490f-a426-21f89dac2c04
+          icon: mdi:sun-wireless
+          state: >
+            {% set list = [states('sensor.bathroom_roller_shade_luminance') | int(0), states('sensor.living_room_roller_shade_small_luminance') | int(0)] %}
+            {% set threshold = 22000 if is_state('cover.south_side_sun_blinds', ['open', 'opening']) else 14000 %}
+            {{ list | max > threshold and 100 < state_attr('sun.sun', 'azimuth') | float(0) < 245 and state_attr('sun.sun', 'elevation') | float(0) > 5 }}
+          delay_on: "00:10:10"
+          delay_off: "00:25:10"
+        - name: "Sun is heating west side"
+          unique_id: a8444494-ba82-4a2d-be95-280172aa5f6d
+          icon: mdi:sun-wireless
+          state: >
+            {% set list = [states('sensor.living_room_roller_shade_big_luminance') | int(0), states('sensor.game_room_roller_shade_luminance') | int(0), states('sensor.office_roller_shade_luminance') | int(0), states('sensor.ellens_room_roller_shade_luminance') | int(0)] %}
+            {% set threshold = 22000 if is_state('cover.west_side_sun_blinds', ['open', 'opening']) else 14000 %}
+            {{ list | max > threshold and 185 < state_attr('sun.sun', 'azimuth') | float(0) < 335 and state_attr('sun.sun', 'elevation') | float(0) > 5 }}
+          delay_on: "00:10:10"
+          delay_off: "00:25:10"
+
+  automation:
+    - alias: "Sun blinds: Control south side"
+      id: a04f2569-4864-4eab-b838-104b65fda49d
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sun_is_heating_south_side
+        - platform: state
+          entity_id: binary_sensor.screens_could_be_wet
+        - platform: homeassistant
+          event: start
+      condition:
+        - condition: state
+          entity_id: binary_sensor.daylight_savings_active
+          state: "on"
+        # - not:
+        #     - condition: state
+        #       entity_id: sensor.season
+        #       state: "winter"
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "on"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.south_side_sun_blinds
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_south_side
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.block_sunlight_today
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "off"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.south_side_sun_blinds_low_speed
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_south_side
+                  state: "off"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.south_side_sun_blinds_low_speed
+
+    - alias: "Sun blinds: Control west side"
+      id: 427807dc-732d-421f-8e7f-61bcbbb6f91b
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.sun_is_heating_west_side
+        - platform: state
+          entity_id: binary_sensor.screens_could_be_wet
+        - platform: homeassistant
+          event: start
+      condition:
+        - condition: state
+          entity_id: binary_sensor.daylight_savings_active
+          state: "on"
+        # - not:
+        #     - condition: state
+        #       entity_id: sensor.season
+        #       state: "winter"
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "on"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.west_side_sun_blinds
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_west_side
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.block_sunlight_today
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "off"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.west_side_sun_blinds_low_speed
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_west_side
+                  state: "off"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.west_side_sun_blinds_low_speed
+
+    - alias: "Curtains: Monthly charging reminder"
+      trigger:
+        - platform: calendar
+          event: start
+          entity_id: calendar.manual_charging
+      condition:
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: "off"
+      action:
+        - service: notify.sicco_phone
+          data:
+            title: Charge curtains
+            message: >
+              Monthly reminder: {{ trigger.calendar_event.summary }}
+            data:
+              channel: "Curtains"
+              tag: curtains
+              notification_icon: "mdi:battery-charging"

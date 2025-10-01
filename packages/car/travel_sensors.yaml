@@ -1,0 +1,449 @@
+travel_sensors_package:
+  template:
+    - trigger:
+        - platform: time_pattern
+          hours: "/1"
+      action:
+        - service: calendar.get_events
+          data:
+            duration:
+              hours: 24
+              minutes: 0
+              seconds: 0
+          target:
+            entity_id:
+              ## Google Calendar
+              - calendar.ellen_prive
+              - calendar.gezin
+              - calendar.mijn_agenda
+              - calendar.werk
+              ## Nextcloud
+              - calendar.werk_2
+              - calendar.werk_ellen
+              - calendar.personal
+              - calendar.persoonlijk_ellen
+              - calendar.samen
+          response_variable: calendars
+        - variables:
+            ev_list: |
+              {% set ns = namespace(cal_events=[]) %}
+              {%- for key, value in calendars.items() %}
+                {%- for event in value.events if event.location is defined and event.location != '' %}
+                  {%- set ns.cal_events = ns.cal_events + [event] %}
+                {%- endfor %}
+              {%- endfor %}
+              {{ ns.cal_events | sort(attribute='start') | list }}
+      sensor:
+        - name: "Travel time next destination address 1"
+          icon: mdi:map-marker
+          unique_id: 9528c276-d82c-473e-b605-1244f8d0d387
+          state: >
+            {% set location = ev_list[0].location | regex_replace(', Nederland', ', Netherlands') if ev_list[0] is defined else 'Unknown' %}
+            {% if 'compagnonsplein' in location %}
+              {% set location = location + ', Drachten' %}
+            {% endif %}
+            {% if location == 'Unknown' %}
+              {{ location }}
+            {% elif location | regex_findall(find=',') | count > 2 %}
+              {{ location | regex_replace('^(?:.*?), ', '') }}
+            {% elif not('Nederland' in location or 'nederland' in location or 'Netherlands' in location or 'netherlands' in location or 'NL' in location) %}
+              {{ location }}, Netherlands
+            {% else %}
+              {{ location }}
+            {% endif %}
+          attributes:
+            time: >
+              {% set time = ev_list[0].start if ev_list[0] is defined else 'Unknown' %}
+              {{ time }}
+        - name: "Travel time next destination address 2"
+          icon: mdi:map-marker
+          unique_id: 4ec84745-0461-4346-8ec7-571526e783b2
+          state: >
+            {% set location = ev_list[1].location | regex_replace(', Nederland', ', Netherlands') if ev_list[1] is defined else 'Unknown' %}
+            {% if 'compagnonsplein' in location %}
+              {% set location = location + ', Drachten' %}
+            {% endif %}
+            {% if location == 'Unknown' %}
+              {{ location }}
+            {% elif location | regex_findall(find=',') | count > 2 %}
+              {{ location | regex_replace('^(?:.*?), ', '') }}
+            {% elif not('Nederland' in location or 'nederland' in location or 'Netherlands' in location or 'netherlands' in location or 'NL' in location) %}
+              {{ location }}, Netherlands
+            {% else %}
+              {{ location }}
+            {% endif %}
+          attributes:
+            time: >
+              {% set time = ev_list[1].start if ev_list[1] is defined else 'Unknown' %}
+              {{ time }}
+        - name: "Travel time next destination address 3"
+          icon: mdi:map-marker
+          unique_id: 736d98ad-ef62-4125-997c-33fa5152d02b
+          state: >
+            {% set location = ev_list[2].location | regex_replace(', Nederland', ', Netherlands') if ev_list[2] is defined else 'Unknown' %}
+            {% if 'compagnonsplein' in location %}
+              {% set location = location + ', Drachten' %}
+            {% endif %}
+            {% if location == 'Unknown' %}
+              {{ location }}
+            {% elif location | regex_findall(find=',') | count > 2 %}
+              {{ location | regex_replace('^(?:.*?), ', '') }}
+            {% elif not('Nederland' in location or 'nederland' in location or 'Netherlands' in location or 'netherlands' in location or 'NL' in location) %}
+              {{ location }}, Netherlands
+            {% else %}
+              {{ location }}
+            {% endif %}
+          attributes:
+            time: >
+              {% set time = ev_list[2].start if ev_list[2] is defined else 'Unknown' %}
+              {{ time }}
+        - name: "Travel time next destination address 4"
+          icon: mdi:map-marker
+          unique_id: dca94ac7-509e-410d-9064-a73dc0756ba7
+          state: >
+            {% set location = ev_list[3].location | regex_replace(', Nederland', ', Netherlands') if ev_list[3] is defined else 'Unknown' %}
+            {% if 'compagnonsplein' in location %}
+              {% set location = location + ', Drachten' %}
+            {% endif %}
+            {% if location == 'Unknown' %}
+              {{ location }}
+            {% elif location | regex_findall(find=',') | count > 2 %}
+              {{ location | regex_replace('^(?:.*?), ', '') }}
+            {% elif not('Nederland' in location or 'nederland' in location or 'Netherlands' in location or 'netherlands' in location or 'NL' in location) %}
+              {{ location }}, Netherlands
+            {% else %}
+              {{ location }}
+            {% endif %}
+          attributes:
+            time: >
+              {% set time = ev_list[3].start if ev_list[3] is defined else 'Unknown' %}
+              {{ time }}
+        - name: "Travel time next destination address 5"
+          icon: mdi:map-marker
+          unique_id: 2ca4e01b-8f1d-4a15-abdf-b13c6c62f664
+          state: >
+            {% set location = ev_list[4].location | regex_replace(', Nederland', ', Netherlands') if ev_list[4] is defined else 'Unknown' %}
+            {% if 'compagnonsplein' in location %}
+              {% set location = location + ', Drachten' %}
+            {% endif %}
+            {% if location == 'Unknown' %}
+              {{ location }}
+            {% elif location | regex_findall(find=',') | count > 2 %}
+              {{ location | regex_replace('^(?:.*?), ', '') }}
+            {% elif not('Nederland' in location or 'nederland' in location or 'Netherlands' in location or 'netherlands' in location or 'NL' in location) %}
+              {{ location }}, Netherlands
+            {% else %}
+              {{ location }}
+            {% endif %}
+          attributes:
+            time: >
+              {% set time = ev_list[4].start if ev_list[4] is defined else 'Unknown' %}
+              {{ time }}
+        - name: "Travel time next destinations updated"
+          icon: mdi:update
+          unique_id: 81eeac95-5da4-4da3-92d7-cf948af01add
+          state: >
+            {{ now() }}
+          attributes:
+            events: >
+              {{ ev_list }}
+    - trigger:
+        - platform: time_pattern
+          hours: "/1"
+      action:
+        - action: calendar.get_events
+          target:
+            entity_id:
+              ## Google Calendar
+              - calendar.ellen_prive
+              - calendar.gezin
+              - calendar.mijn_agenda
+              - calendar.werk
+              ## Nextcloud
+              - calendar.werk_2
+              - calendar.werk_ellen
+              - calendar.personal
+              - calendar.persoonlijk_ellen
+              - calendar.samen
+          data:
+            duration:
+              hours: 120
+              minutes: 0
+              seconds: 0
+            start_date_time: "{{ now() + timedelta(hours=24) }}"
+          response_variable: calendars
+      binary_sensor:
+        - name: "ID.3 Charging needed for long trip this week"
+          unique_id: 5e1e6786-75cc-4c4e-ba2a-ee31a414dedf
+          state: >
+            {% set postal_code_regex = '[1-9][0-9]{3} ?(?!sa|sd|ss)[a-z]{2}' %}
+            {% set ns = namespace(cal_events=[]) %}
+            {%- for key, value in calendars.items() %}
+              {%- for event in value.events if event.location is defined %}
+                {% set event_dt = event.start | as_datetime %}
+                {% if 1 < event_dt.weekday() < 5 or (event_dt.weekday() == 5 and event_dt.hour <= 17) %}
+                  {% if event.location is search(find='Netherlands|Nederland', ignorecase=True) and event.location is search(find=postal_code_regex, ignorecase=True) %}
+                    {% set postal_code = event.location | regex_findall_index(find=postal_code_regex, index=0, ignorecase=True) %}
+                    {% if postal_code[0] | int < 9 %}
+                      {%- set ns.cal_events = ns.cal_events + [event] %}
+                    {% endif %}
+                  {% elif event.location | regex_findall(find=',') | count >= 2 %}
+                    {%- set ns.cal_events = ns.cal_events + [event] %}
+                  {% endif %}
+                {% endif %}
+              {%- endfor %}
+            {%- endfor %}
+            {% set events_with_location = ns.cal_events | sort(attribute='start') | list %}
+            {{ events_with_location | count > 0 }}
+
+    - sensor:
+        - name: "ID.3 Max Range"
+          icon: mdi:car-battery
+          unique_id: 4fe185fd-5f52-4756-bd9a-ac3a2c102e6d
+          unit_of_measurement: km
+          state: >
+            {% set winter_tires = now().month > 10 or now().month < 4 %}
+            {% set max_range = 350 if not winter_tires else 330 %}
+            {% set range_drop_start_temp = 16 %}  {# From which temp the range starts dropping #}
+            {% set coeff = 5.5 %}                 {# In km/°C #}
+            {% set temp = states('sensor.average_outdoor_temperature_last_3_days') | float(5) %}
+            {% set km_min = ((temp - range_drop_start_temp) * coeff / 10) | round(1, "half") * 10 %}
+            {{ min(max_range, (max_range + km_min)) | round(0) }}
+        - name: "ID.3 Minimum workweek charge"
+          icon: mdi:car-arrow-right
+          unique_id: 68458ce6-3e3b-4e96-ad74-7be318675fae
+          state: >
+            {% set workweek_range = {
+              'winter': [87,70,53,35,0],
+              'spring': [78,62,46,29,0],
+              'summer': [73,57,41,24,0],
+              'autumn': [82,65,48,30,0],
+            } %}
+            {% set current_weekday = now().weekday() %} {# mon = 0, sun = 6 #}
+            {% set currently_morning = now() < today_at("08:45") %}
+            {% if current_weekday == 0 or current_weekday == 1 and currently_morning %}
+              {{ workweek_range[states('sensor.season')][0] }}
+            {% elif current_weekday == 1 or current_weekday == 2 and currently_morning %}
+              {{ workweek_range[states('sensor.season')][1] }}
+            {% elif current_weekday == 2 or current_weekday == 3 and currently_morning %}
+              {{ workweek_range[states('sensor.season')][2] }}
+            {% elif current_weekday == 3 or current_weekday == 4 and currently_morning %}
+              {{ workweek_range[states('sensor.season')][3] }}
+            {% else %}
+              {{ workweek_range[states('sensor.season')][4] }}
+            {% endif %}
+        - name: "Expected travel distance"
+          icon: mdi:map-marker-distance
+          unique_id: edcdb73c-42ac-4df9-81f5-a9fc197f9df9
+          state: >
+            {% set destinations = [{"time": None, "distance": 0}] %}
+            {% if is_state('input_boolean.ellen_vacation', 'off') and (
+              (is_state('binary_sensor.workday_tomorrow', 'on') and is_state('input_boolean.ellen_free_tomorrow', 'off'))
+              or (is_state('binary_sensor.workday_today', 'on') and is_state('input_boolean.ellen_free_today', 'off') and now() < today_at("08:00"))
+            ) %}
+              {% set entry = {"time": "07:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25) } %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if is_state('binary_sensor.workday_today', 'off') and is_state('input_boolean.ellen_on_call', 'on') %}
+              {% set entry = {"time": "16:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if not is_state('sensor.travel_time_next_destination_address_1', 'Unknown') %}
+              {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_1', 'time')),
+                  "distance": state_attr('sensor.travel_time_next_destination_1', 'distance') | float(0)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if not is_state('sensor.travel_time_next_destination_address_2', 'Unknown') %}
+              {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_2', 'time')),
+                  "distance": state_attr('sensor.travel_time_next_destination_2', 'distance') | float(0)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if not is_state('sensor.travel_time_next_destination_address_3', 'Unknown') %}
+              {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_3', 'time')),
+                  "distance": state_attr('sensor.travel_time_next_destination_3', 'distance') | float(0)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if not is_state('sensor.travel_time_next_destination_address_4', 'Unknown') %}
+              {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_4', 'time')),
+                  "distance": state_attr('sensor.travel_time_next_destination_4', 'distance') | float(0)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% if not is_state('sensor.travel_time_next_destination_address_5', 'Unknown') %}
+              {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_5', 'time')),
+                  "distance": state_attr('sensor.travel_time_next_destination_5', 'distance') | float(0)} %}
+              {% set destinations = destinations + [entry] %}
+            {% endif %}
+            {% set is_weekend_or_day_off = (now().weekday() == 5 and (now() >= today_at('14:00') or is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') ))
+                or (now().weekday() == 6 and now() < today_at("20:00"))
+                or (now().weekday() < 5 and is_state('binary_sensor.workday_today', 'off')) %}
+            {{ (destinations | map(attribute='distance') | max * 2) | round(1, "floor") }}
+          unit_of_measurement: km
+          attributes:
+            time: >
+              {% set destinations = [{"time": None, "distance": 0}] %}
+              {# {% if is_state('binary_sensor.negative_electricity_price_in_next_3_hours', 'on') %}
+                {% set entry = {"time": None, "distance": (90 / 100 * 350 - 25) / 2 / 1.1 } %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %} #}
+              {% if is_state('input_boolean.ellen_vacation', 'off') and (
+                (is_state('binary_sensor.workday_tomorrow', 'on') and is_state('input_boolean.ellen_free_tomorrow', 'off'))
+                or (is_state('binary_sensor.workday_today', 'on') and is_state('input_boolean.ellen_free_today', 'off') and now() < today_at("08:00"))
+              ) %}
+                {% set entry = {"time": "07:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25) } %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if is_state('binary_sensor.workday_today', 'off') and is_state('input_boolean.ellen_on_call', 'on') %}
+                {% set entry = {"time": "16:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_1', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_1', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_1', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_2', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_2', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_2', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_3', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_3', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_3', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_4', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_4', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_4', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_5', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_5', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_5', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% set farthest_item = (destinations | sort(attribute='distance', reverse=true))[0] %}
+              {% set time = farthest_item.time %}
+              {% set distance = farthest_item.distance %}
+              {% if time is datetime %}
+                {% set datetime = time if now() < time else time + timedelta(days=1) %}
+                {% set min_minutes = min(180, (states('sensor.expected_travel_distance') | float / 2 / 60) | round(0, "half", 0) * 60) %}
+                {% set option = (datetime - timedelta(minutes=min_minutes)).strftime('%H:00') %}
+                {{ option if option in state_attr('select.ev_smart_charging_charge_completion_time', 'options') else 'None' }}
+              {% else %}
+                {{ time | default('None') }}
+              {% endif %}
+        - name: "Expected travel distance list"
+          icon: mdi:map-marker-distance
+          unique_id: b9e35f3d-9561-4098-af88-3066738ce336
+          state: >
+            {{ now() }}
+          attributes:
+            list: >
+              {% set destinations = [{"time": None, "distance": 0}] %}
+              {# {% if is_state('binary_sensor.negative_electricity_price_in_next_3_hours', 'on') %}
+                {% set entry = {"time": None, "distance": (90 / 100 * 350 - 25) / 2 / 1.1 } %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %} #}
+              {% if is_state('input_boolean.ellen_vacation', 'off') and (
+                (is_state('binary_sensor.workday_tomorrow', 'on') and is_state('input_boolean.ellen_free_tomorrow', 'off'))
+                or (is_state('binary_sensor.workday_today', 'on') and is_state('input_boolean.ellen_free_today', 'off') and now() < today_at("08:00"))
+              ) %}
+                {% set entry = {"time": "07:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25) } %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if is_state('binary_sensor.workday_today', 'off') and is_state('input_boolean.ellen_on_call', 'on') %}
+                {% set entry = {"time": "16:00", "distance": state_attr('sensor.home_to_ellen_s_work_travel_time', 'distance') | float(25)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_1', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_1', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_1', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_2', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_2', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_2', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_3', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_3', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_3', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_4', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_4', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_4', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {% if not is_state('sensor.travel_time_next_destination_address_5', 'Unknown') %}
+                {% set entry = {"time": as_datetime(state_attr('sensor.travel_time_next_destination_address_5', 'time')),
+                    "distance": state_attr('sensor.travel_time_next_destination_5', 'distance') | float(0)} %}
+                {% set destinations = destinations + [entry] %}
+              {% endif %}
+              {{ destinations }}
+
+    - binary_sensor:
+      - name: "ID.3 Charging needed for next trip"
+        unique_id: ce41276d-c082-4ae4-a98d-99f24a05223f
+        state: >
+          {% set current_range = states('sensor.id_3_electric_range') | float(0) %}
+          {% set needed_range = states('sensor.expected_travel_distance') | float(75) %}
+          {{ current_range <= needed_range * 1.11 + 30 }}
+        availability: >
+          {{ states('sensor.id_3_electric_range') | is_number and states('sensor.expected_travel_distance') | is_number }}
+      - name: "ID.3 Charging needed for workweek"
+        unique_id: b87192a3-c338-42b3-996d-8eedc1337874
+        state: >
+          {% if is_state('input_boolean.vacation_mode', 'off') and (is_state('input_boolean.sicco_vacation', 'off') or is_state('input_boolean.ellen_vacation', 'off')) %}
+            {% set current_charge = states('sensor.id_3_battery_level') | float(0) %}
+            {% set needed_charge = states('sensor.id_3_minimum_workweek_charge') | float(0) %}
+            {{ current_charge - needed_charge <= -3 }}
+          {% else %}
+            False
+          {% endif %}
+        availability: >
+          {{ states('sensor.id_3_battery_level') | is_number and states('sensor.id_3_minimum_workweek_charge') | is_number }}
+        attributes:
+          needed_charge: "{{ states('sensor.id_3_minimum_workweek_charge') }}"
+
+  automation:
+    ## Update Waze sensors
+    # - alias: "Sensor update: Waze travel times to work"
+    #   id: update_waze_sensors
+    #   initial_state: on
+    #   trigger:
+    #     - platform: time
+    #       at: "17:30:00"
+    #       id: update_for_travel_distance
+    #     # - platform: homeassistant
+    #     #   event: start
+    #     # - platform: time_pattern
+    #     #   minutes: "/5"
+    #     #   seconds: 00
+    #   action:
+    #     - choose:
+    #         - conditions:
+    #             - condition: trigger
+    #               id: update_for_travel_distance
+    #           sequence:
+    #             - service: homeassistant.update_entity
+    #               entity_id:
+    #                 - sensor.home_to_ellen_s_private_appointment_travel_time
+    #                 - sensor.home_to_ellen_s_work_travel_time
+    #                 - sensor.home_to_sicco_s_private_appointment_travel_time
+    #                 - sensor.home_to_sicco_s_work_travel_time
+    #                 - sensor.home_to_together_appointment_travel_time
+
+    - alias: "Sensor update: Waze travel times"
+      id: beedaf5e-5e32-4fd3-9d0e-a3d3f8bc97f0
+      trigger:
+        - platform: state
+          entity_id: sensor.travel_time_next_destinations_updated
+      action:
+        - service: homeassistant.update_entity
+          entity_id:
+            - sensor.travel_time_next_destination_1
+            - sensor.travel_time_next_destination_2
+            - sensor.travel_time_next_destination_3
+            - sensor.travel_time_next_destination_4
+            - sensor.travel_time_next_destination_5

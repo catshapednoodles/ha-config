@@ -7,6 +7,7 @@ hallway_lights_package:
     max_brightness: 100
     autoreset_control_seconds: 3600
     detect_non_ha_changes: true
+    skip_redundant_commands: true
 
   input_boolean:
     automatic_hallway_lights:

@@ -41,8 +41,8 @@ kitchen_camera_package:
             sequence:
               - service: switch.turn_on
                 target:
-                  entity_id: switch.ground_floor_camera_detections_motion
+                  entity_id: switch.kitchen_detections_motion
           default:
             - service: switch.turn_off
               target:
-                entity_id: switch.ground_floor_camera_detections_motion
+                entity_id: switch.kitchen_detections_motion

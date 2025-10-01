@@ -1,0 +1,80 @@
+office_screens_package:
+  template:
+    - binary_sensor:
+        - name: "Sun is heating office"
+          unique_id: 66accf4f-3b35-4bb1-bea7-4dfeb930449e
+          icon: mdi:sun-wireless
+          state: >
+            {{ states('sensor.office_roller_shade_luminance') | int(0) > 15000
+            and 225 < state_attr('sun.sun', 'azimuth') | float(0) < 260 and state_attr('sun.sun', 'elevation') | float(0) > 5 }}
+          delay_on: "00:05:10"
+          delay_off: "00:20:00"
+
+  automation:
+    - alias: "Office: Control roller shade"
+      id: 926c80f7-2f8b-4304-b3c5-584b85550656
+      mode: queued
+      trigger:
+        - platform: state
+          entity_id: binary_sensor.work_laptop_at_desk_and_active
+        - platform: state
+          entity_id: binary_sensor.sun_is_heating_office
+        - platform: state
+          entity_id: binary_sensor.sun_is_heating_west_side
+        - platform: state
+          entity_id: binary_sensor.screens_could_be_wet
+        - platform: homeassistant
+          event: start
+      action:
+        - choose:
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "on"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.office_roller_shade
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_office
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.work_laptop_at_desk_and_active
+                  state: "on"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.office_roller_shade_low_speed
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.daylight_savings_active
+                  state: "on"
+                # - not:
+                #     - condition: state
+                #       entity_id: sensor.season
+                #       state: "winter"
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_west_side
+                  state: "on"
+                - condition: state
+                  entity_id: binary_sensor.block_sunlight_today
+                  state: "on"
+              sequence:
+                - service: cover.close_cover
+                  data:
+                    entity_id: cover.office_roller_shade_low_speed
+            - conditions:
+                - condition: state
+                  entity_id: binary_sensor.screens_could_be_wet
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_west_side
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.sun_is_heating_office
+                  state: "off"
+              sequence:
+                - service: cover.open_cover
+                  data:
+                    entity_id: cover.office_roller_shade_low_speed

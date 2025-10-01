@@ -1,4 +1,29 @@
 wtw_package:
+  fan:
+    - platform: template
+      fans:
+        wtw_ventilation:
+          friendly_name: "WTW Ventilation"
+          value_template: "{{ states('light.wtw_ventilation') }}"
+          percentage_template: "{{ (state_attr('light.wtw_ventilation', 'brightness') / 2.55) | round(2) }}"
+          turn_on:
+            service: light.turn_on
+            entity_id: light.wtw_ventilation
+          turn_off:
+            service: light.turn_off
+            entity_id: light.wtw_ventilation
+          set_percentage:
+            action: light.turn_on
+            data:
+              brightness_pct: "{{ percentage }}"
+            target:
+              entity_id: light.wtw_ventilation
+          speed_count: 3
+
+  input_boolean:
+    wtw_smelly_air_outside:
+      name: WTW - Smelly air outside
+      icon: mdi:scent
   input_datetime:
     wtw_carbon_filter_cleaned:
       name: Koolstoffilter schoongemaakt
@@ -9,6 +34,17 @@ wtw_package:
     wtw_filters_changed:
       name: Filters vervangen
       has_date: true
+
+  powercalc:
+    sensors:
+      - entity_id: fan.wtw_ventilation
+        name: WTW
+        linear:
+          calibrate:
+            - 1 -> 18
+            - 33 -> 18
+            - 66 -> 33
+            - 100 -> 58
 
   automation:
     - alias: "WTW: Reset filter datetime sensors"
@@ -26,3 +62,14 @@ wtw_package:
             entity_id: input_datetime.wtw_pm25_filter_cleaned
           data:
             date: "{{ now().strftime('%Y-%m-%d') }}"
+
+    - alias: "WTW: Reset smelly air boolean"
+      trigger:
+        - platform: state
+          entity_id: input_boolean.wtw_smelly_air_outside
+          to: "on"
+          for: "01:30:00"
+      action:
+        - service: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.wtw_smelly_air_outside

@@ -1,0 +1,19 @@
+ellen_sleep_package:
+  template:
+    - trigger:
+        - platform: state
+          entity_id: binary_sensor.pixel_6a_ellen_is_charging
+        - platform: state
+          entity_id: person.ellen
+          from: "home"
+        - platform: time
+          at: "22:00:00"
+        - platform: time
+          at: "10:00:00"
+      binary_sensor:
+        - name: "Ellen is sleeping"
+          unique_id: ellen_is_sleeping
+          state: >
+            {{ (is_state("binary_sensor.pixel_6a_ellen_is_charging", "on") or not is_state('sensor.pixel_6a_ellen_battery_state', 'discharging'))
+              and is_state("person.ellen", "home")
+              and (now().hour > 21 or now().hour < 7 ) }}

@@ -31,6 +31,14 @@ ellen_workday_package:
           id: today
         - platform: calendar
           event: start
+          entity_id: calendar.gezin
+          id: together_today
+        - platform: calendar
+          event: end
+          entity_id: calendar.ellen_prive
+          id: together_today
+        - platform: calendar
+          event: start
           entity_id: calendar.ellen_prive
           offset: "-24:00:00"
           id: tomorrow
@@ -81,8 +89,11 @@ ellen_workday_package:
                     - service: input_boolean.turn_off
                       entity_id: input_boolean.ellen_on_call
             - conditions:
-                - condition: trigger
-                  id: today
+                - or:
+                    - condition: trigger
+                      id: today
+                    - condition: trigger
+                      id: together_today
                 - "{{ 'vakantie' in trigger.calendar_event.summary|lower }}"
               sequence:
                 - if:

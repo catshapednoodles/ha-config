@@ -1,0 +1,159 @@
+public_charging_package:
+  input_boolean:
+    public_charging_notification_location_1:
+      name: Public Charging Notification Location 1
+      icon: mdi:bell
+    public_charging_notify_ellen:
+      name: Public Charging Notify Ellen
+      icon: mdi:bell
+    public_charging_notify_sicco:
+      name: Public Charging Notify Sicco
+      icon: mdi:bell
+
+  rest:
+    - resource: !secret charge_location_1
+      scan_interval: 300
+      binary_sensor:
+        - name: Public Charging Station Available - Home
+          value_template: "{{ (value_json['evses'] | selectattr('status', 'eq', 'Available') | list | length) >= 1 }}"
+      sensor:
+        - name: Public Charging Station Available - Home
+          value_template: >
+            {% set data = value_json.evses %}
+            {% set available = data | selectattr('status', 'eq', 'Available') | list | length %}
+            {{ available }} / {{ data | length }}
+
+  automation:
+    - alias: "EV: Notification for public charging availability"
+      id: d4b99d13-0f77-4a7a-855e-128dc2073625
+      mode: single
+      trigger:
+        - platform: state
+          entity_id: sensor.public_charging_station_available_home
+          from: "0 / 2"
+          to: "1 / 2"
+        - platform: state
+          entity_id: sensor.public_charging_station_available_home
+          from: "0 / 2"
+          to: "2 / 2"
+        - platform: state
+          entity_id: sensor.public_charging_station_available_home
+          from: "1 / 2"
+          to: "2 / 2"
+      condition:
+        - condition: state
+          entity_id: input_boolean.public_charging_notification_location_1
+          state: "on"
+      action:
+        - service: notify.all_phones
+          data:
+            title: "Public charger available"
+            message: "One or more public chargers just became available"
+            data:
+              channel: "Public Charging"
+              tag: public_charging
+              timeout: 3600
+              importance: max
+              notification_icon: "mdi:ev-station"
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.public_charging_notification_location_1
+
+    - alias: "EV: Notification when charging is (almost) done"
+      id: f9fc8745-ced5-4412-9971-59a79a731cd2
+      mode: queued
+      max_exceeded: silent
+      trigger:
+        - platform: template
+          value_template: >
+            {{ states('sensor.id_3_battery_target_charge_level') | int == states('sensor.id_3_battery_level') | int }}
+          id: charging_ready
+        - platform: template
+          value_template: >
+            {{ states('sensor.id_3_battery_target_charge_level') | int - states('sensor.id_3_battery_level') | int <= 15 }}
+          id: charging_almost_ready
+        - platform: template
+          value_template: >
+            {{ states('sensor.id_3_battery_target_charge_level') | int - states('sensor.id_3_battery_level') | int <= 10 }}
+          id: charging_almost_ready
+        - platform: template
+          value_template: >
+            {{ states('sensor.id_3_battery_target_charge_level') | int - states('sensor.id_3_battery_level') | int <= 5 }}
+          id: charging_almost_ready
+      action:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: charging_almost_ready
+              sequence:
+                - if:
+                    - condition: state
+                      entity_id: input_boolean.public_charging_notify_ellen
+                      state: "on"
+                  then:
+                    - service: notify.ellen_phone
+                      data:
+                        title: "ID.3 Charging almost done!"
+                        message: >
+                          Battery is currently at {{ states('sensor.id_3_battery_level') }}%. {{ states('sensor.id_3_charging_time_left') }} minutes left to {{ states('sensor.id_3_battery_target_charge_level') }}%
+                        data:
+                          channel: "Public Charging"
+                          tag: charging_notification
+                          timeout: 3600
+                          importance: max
+                          notification_icon: "mdi:battery"
+                - if:
+                    - condition: state
+                      entity_id: input_boolean.public_charging_notify_sicco
+                      state: "on"
+                  then:
+                    - service: notify.sicco_phone
+                      data:
+                        title: "ID.3 Charging almost done!"
+                        message: >
+                          Battery is currently at {{ states('sensor.id_3_battery_level') }}%. {{ states('sensor.id_3_charging_time_left') }} minutes left to {{ states('sensor.id_3_battery_target_charge_level') }}%
+                        data:
+                          channel: "Public Charging"
+                          tag: charging_notification
+                          timeout: 3600
+                          importance: max
+                          notification_icon: "mdi:battery"
+            - conditions:
+                - condition: trigger
+                  id: charging_ready
+              sequence:
+                - if:
+                    - condition: state
+                      entity_id: input_boolean.public_charging_notify_ellen
+                      state: "on"
+                  then:
+                    - service: notify.ellen_phone
+                      data:
+                        title: "ID.3 Charging done!"
+                        message: >
+                          Battery is at {{ states('sensor.id_3_battery_level') }}%. Move the car if necessary.
+                        data:
+                          channel: "Public Charging"
+                          tag: charging_notification
+                          timeout: 10800
+                          importance: max
+                          notification_icon: "mdi:battery"
+                - if:
+                    - condition: state
+                      entity_id: input_boolean.public_charging_notify_sicco
+                      state: "on"
+                  then:
+                    - service: notify.sicco_phone
+                      data:
+                        title: "ID.3 Charging done!"
+                        message: >
+                          Battery is at {{ states('sensor.id_3_battery_level') }}%. Move the car if necessary.
+                        data:
+                          channel: "Public Charging"
+                          tag: charging_notification
+                          timeout: 10800
+                          importance: max
+                          notification_icon: "mdi:battery"
+                - service: input_boolean.turn_off
+                  entity_id:
+                    - input_boolean.public_charging_notify_ellen
+                    - input_boolean.public_charging_notify_sicco

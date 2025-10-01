@@ -1,30 +1,109 @@
 boiler_package:
+  sensor:
+    - platform: nordpool_diff
+      nordpool_entity: sensor.day_ahead_price
+      filter_length: 8
+      filter_type: interval
+
+  template:
+    - binary_sensor:
+        - name: "Negative electricity price in next 3 hours"
+          icon: mdi:cash
+          state: >
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+            {% endif %}
+            {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '<', now() + timedelta(hours=3)) | list %}
+            {{ next_hour_prices | map(attribute='value_solar_adjusted') | min < 0 }}
+
   automation:
-    - alias: "Boiler: Stop heating up on most expensive hours"
-      id: 5416039b-0d69-4501-9ba6-fef7c9e49069
+    - alias: "Kitchen: Control boiler"
+      id: a6c0c1f0-3164-4be3-b7c7-51fc2961db38
       mode: queued
       trigger:
         - platform: state
-          entity_id: sensor.p_deferrable0
-      action:
-        - if:
-            - condition: numeric_state
-              entity_id: sensor.p_deferrable0
-              below: 1
-          then:
-            - service: switch.turn_off
-              entity_id: switch.boiler
-          else:
-            - service: switch.turn_on
-              entity_id: switch.boiler
-    - alias: "Boiler: Briefly turn on if boiler has been off too long"
-      id: 1e2cb1cb-6c85-46ae-bd31-2a3e052af63f
-      mode: queued
-      trigger:
+          entity_id: sensor.nordpool_diff_interval_8
+        - platform: state
+          entity_id: binary_sensor.no_one_home
         - platform: state
           entity_id: switch.boiler
           to: "off"
-          for: "04:40:00"
-      action:
-        - service: switch.turn_on
+          for: "04:01:00"
+        - platform: state
           entity_id: switch.boiler
+          to: "on"
+          for: "00:12:00"
+        - platform: numeric_state
+          entity_id: sensor.slimmelezer_net_current_l1
+          above: 23
+        - platform: numeric_state
+          entity_id: sensor.slimmelezer_net_current_l1
+          below: 13
+          for: "00:02:00"
+      action:
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.vacation_mode_no_dhw
+                state: "on"
+              - condition: state
+                entity_id: input_boolean.vacation_mode_coming_home
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.negative_electricity_price_this_hour
+                state: "off"
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.boiler
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.negative_electricity_price_in_next_3_hours
+                state: "on"
+              - condition: numeric_state
+                entity_id: sensor.nordpool_diff_interval_8
+                below: 0.9
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.boiler
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.no_one_home
+                state: "on"
+              - condition: numeric_state
+                entity_id: sensor.nordpool_diff_interval_8
+                below: 0.5
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.boiler
+          - conditions:
+              - condition: state
+                entity_id: switch.boiler
+                state: "off"
+                for: "04:01:00"
+              - condition: numeric_state
+                entity_id: sensor.slimmelezer_net_current_l1
+                below: 13
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.boiler
+          - conditions:
+              or:
+              - condition: numeric_state
+                entity_id: sensor.nordpool_diff_interval_8
+                below: -0.5
+              - condition: numeric_state
+                entity_id: sensor.slimmelezer_net_current_l1
+                above: 23
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.boiler
+          default:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.boiler

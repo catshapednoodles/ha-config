@@ -4,7 +4,7 @@ central_lights_package:
         - name: "Sun low elevation"
           unique_id: sun_low_elevation
           state: >
-            {% set cutoff = 6 if states('weather.combined_daily') in ['cloudy', 'fog', 'hail', 'lightning', 'lightning-rainy', 'pouring', 'rainy', 'snowy', 'snowy-rainy'] else 4 %}
+            {% set cutoff = 6 if states('weather.combined') in ['cloudy', 'fog', 'hail', 'lightning', 'lightning-rainy', 'pouring', 'rainy', 'snowy', 'snowy-rainy'] else 4 %}
             {{ state_attr('sun.sun', 'elevation') < cutoff }}
           icon: "mdi:weather-sunset"
         - name: "Civil twilight"
@@ -50,9 +50,8 @@ central_lights_package:
           sequence:
             - service: light.turn_off
               data:
-                entity_id: 
+                entity_id:
                   - light.ground_floor_lights
-                  - light.second_floor_lights
                   - light.entryway_ceiling
                   - light.hallway_ceiling
         - conditions:
@@ -65,40 +64,74 @@ central_lights_package:
           sequence:
             - service: light.turn_off
               data:
-                entity_id: 
+                entity_id:
                   - light.ground_floor_lights
+                  - light.second_floor_lights
                   - light.entryway_ceiling
                   - light.hallway_ceiling
 
     - alias: "Light: Turn off certain automatic lights when guests are home"
       id: 7ce6f95a-291f-423a-a9e4-15af52f9a6a9
       trigger:
-      - platform: state
-        entity_id: input_boolean.guest_mode
-      - platform: state
-        entity_id: input_boolean.guest_mode
-        to: "off"
-        for: "08:00:00"
+        - platform: state
+          entity_id: input_boolean.guest_mode
+        - platform: state
+          entity_id: input_boolean.guest_mode
+          to: "off"
+          for:
+            hours: 8
+        - platform: state
+          entity_id:
+            - input_boolean.automatic_ellens_room_lights
+            - input_boolean.automatic_game_room_lights
+          to: "off"
+          for:
+            hours: 8
       action:
-      - choose:
-        - conditions:
-            - condition: state
-              entity_id: input_boolean.guest_mode
-              state: "on"
-          sequence:
-            - service: input_boolean.turn_off
-              data:
-                entity_id:
-                  - input_boolean.automatic_ellens_room_lights
-                  - input_boolean.automatic_game_room_lights
-        - conditions:
-            - condition: state
-              entity_id: input_boolean.guest_mode
-              state: "off"
-              for: "08:00:00"
-          sequence:
-            - service: input_boolean.turn_on
-              data:
-                entity_id:
-                  - input_boolean.automatic_ellens_room_lights
-                  - input_boolean.automatic_game_room_lights
+        - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.guest_mode
+                state: "on"
+            sequence:
+              - service: input_boolean.turn_off
+                data:
+                  entity_id:
+                    - input_boolean.automatic_ellens_room_lights
+                    - input_boolean.automatic_game_room_lights
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.guest_mode
+                state: "off"
+                for: "08:00:00"
+            sequence:
+              - service: input_boolean.turn_on
+                data:
+                  entity_id:
+                    - input_boolean.automatic_ellens_room_lights
+                    - input_boolean.automatic_game_room_lights
+
+    - alias: "Light: Reset automatic lights"
+      id: d33767ce-9a06-4b31-ae07-68d2220d94ee
+      trigger:
+        - platform: state
+          entity_id:
+            - input_boolean.automatic_attic_lights
+            - input_boolean.automatic_bathroom_lights
+            - input_boolean.automatic_bedroom_lights
+            - input_boolean.automatic_cupboard_lights
+            - input_boolean.automatic_entryway_lights
+            - input_boolean.automatic_garage_lights
+            - input_boolean.automatic_hallway_lights
+            - input_boolean.automatic_kitchen_lights
+            - input_boolean.automatic_living_room_lights
+            - input_boolean.automatic_office_lights
+            - input_boolean.automatic_outside_lights
+            - input_boolean.automatic_technical_room_lights
+          to: "off"
+          for:
+            hours: 8
+      action:
+        - service: input_boolean.turn_on
+          data:
+            entity_id: "{{ trigger.to_state.entity_id }}"

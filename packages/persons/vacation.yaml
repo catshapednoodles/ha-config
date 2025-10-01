@@ -6,6 +6,12 @@ vacation_package:
     vacation_mode:
       name: On Vacation
       icon: mdi:airplane
+    vacation_mode_coming_home:
+      name: On Vacation (Coming Home)
+      icon: mdi:airplane
+    vacation_mode_no_dhw:
+      name: On Vacation (No DHW)
+      icon: mdi:water-boiler-off
     vacation_mode_turned_off_because_of_guest:
       name: Vacation mode turned off because of guest
       icon: mdi:airplane-remove
@@ -18,10 +24,10 @@ vacation_package:
           entity_id: zone.home
           to: '0'
           for:
-            hours: 12
+            hours: 20
         - platform: numeric_state
-          entity_id: proximity.home
-          above: 200
+          entity_id: sensor.home_nearest_distance
+          above: 200000
       action:
         - if:
             - condition: state
@@ -36,13 +42,15 @@ vacation_package:
             - service: script.turn_on
               target:
                 entity_id: script.restore_vacation_lights_after_guest_leaves
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.vacation_mode_no_dhw
 
     - alias: "Vacation mode: Turn on (short trip)"
       id: 8c095ba6-4e82-4d92-bb18-20ec3daf3559
       trigger:
         - platform: numeric_state
-          entity_id: proximity.home
-          above: 6
+          entity_id: sensor.home_nearest_distance
+          above: 6000
       condition:
         - condition: state
           entity_id: input_boolean.guest_mode
@@ -50,6 +58,22 @@ vacation_package:
       action:
         - service: input_boolean.turn_on
           entity_id: input_boolean.vacation_mode_short_trip
+
+    - alias: "Vacation mode: Coming home"
+      id: c453ea08-05ee-4e30-8de0-a1aad968b2ac
+      trigger:
+        - platform: numeric_state
+          entity_id: sensor.home_nearest_distance
+          below: 120000
+      condition:
+        - condition: state
+          entity_id: input_boolean.vacation_mode
+          state: 'on'
+      action:
+        - service: input_boolean.turn_on
+          entity_id: input_boolean.vacation_mode_coming_home
+        - service: input_boolean.turn_off
+          entity_id: input_boolean.vacation_mode_no_dhw
 
     - alias: "Vacation mode: Turn off"
       id: a465d395-bc9d-4dc1-8d29-c47a2abf8b44
@@ -59,10 +83,12 @@ vacation_package:
           above: 0
       action:
         - service: input_boolean.turn_off
-          entity_id: 
+          entity_id:
             - input_boolean.vacation_mode
             - input_boolean.vacation_mode_turned_off_because_of_guest
             - input_boolean.vacation_mode_short_trip
+            - input_boolean.vacation_mode_coming_home
+            - input_boolean.vacation_mode_no_dhw
 
     - alias: "Vacation mode: Handle guest visits"
       id: 0cf4bf0b-23d1-486d-b2d3-7ce0a12a3160

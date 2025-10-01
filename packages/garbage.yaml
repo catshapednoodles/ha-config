@@ -6,6 +6,9 @@ garbage_package:
     garbage_already_outside:
       name: Garbage already outside
       icon: mdi:delete-clock-outline
+    siccos_turn_to_clean_containers:
+      name: Sicco's turn to clean the containers
+      icon: mdi:delete-alert
 
   template:
     - binary_sensor:
@@ -51,7 +54,7 @@ garbage_package:
       id: 3a9b2ade-6ed4-4821-8726-b6c5e4a60455
       trigger:
         - platform: time
-          at: "07:00:00"
+          at: "07:20:00"
       condition:
         - condition: state
           entity_id: input_boolean.waste_reminder
@@ -107,6 +110,32 @@ garbage_package:
               actions:
                 - action: "CONTAINERS_COLLECTED"
                   title: "Mark as done"
+        - if:
+            - condition: state
+              entity_id: input_boolean.siccos_turn_to_clean_containers
+              state: "on"
+          then:
+            - service: notify.sicco_phone
+              data:
+                title: "Clean containers"
+                message: "It's your turn to clean the containers"
+                data:
+                  channel: "Garbage"
+                  tag: garbage_day_clean
+                  importance: high
+                  notification_icon: mdi:delete-alert
+          else:
+            - service: notify.ellen_phone
+              data:
+                title: "Clean containers"
+                message: "It's your turn to clean the containers"
+                data:
+                  channel: "Garbage"
+                  tag: garbage_day_clean
+                  importance: high
+                  notification_icon: mdi:delete-alert
+        - service: input_boolean.toggle
+          entity_id: input_boolean.siccos_turn_to_clean_containers
 
     - alias: "Notification: Clear garbage notifications on all phones"
       id: 030bc9ba-19e5-4b8a-9fe6-06f85743c798
