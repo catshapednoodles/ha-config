@@ -93,53 +93,6 @@ electricity_prices_package:
             {% set bonus = 1.1 if is_state('sun.sun', 'above_horizon') and current_market_price + opslag > 0 else 1 %}
             {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
             {{ ((current_market_price + opslag) * bonus + included_tax) | round(4) }}
-          attributes:
-            upcoming_24_hours: >
-              {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-              {% set opslag = 0.02 %}
-              {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
-              {% set sunrise = state_attr('sun.sun','next_rising') | as_datetime | as_local %}
-              {% set sunset = state_attr('sun.sun','next_setting') | as_datetime | as_local %}
-              {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | list + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | list))[now().hour:][:24] %}
-              {% set ns = namespace(list=[]) %}
-              {% for item in list %}
-                {% set market_price = item.value - tax_kWh - opslag %}
-                {% if item.start.hour >= sunrise.hour and item.start.hour <= sunset.hour and market_price + opslag > 0 %}
-                  {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
-                {% else %}
-                  {% set value = ((market_price + opslag) + included_tax) | round(4) %}
-                {% endif %}
-                {% set ns.list = ns.list + [value | round(4)] %}
-              {% endfor %}
-              {{ ns.list }}
-            upcoming_24_hours_emhass_1h: >
-              {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-              {% set opslag = 0.02 %}
-              {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
-              {% set sunrise = state_attr('sun.sun','next_rising') | as_datetime | as_local %}
-              {% set sunset = state_attr('sun.sun','next_setting') | as_datetime | as_local %}
-              {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | list + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | list))[now().hour + 1:][:24] %}
-              {% set ns = namespace(list=[]) %}
-              {% for item in list %}
-                {% set market_price = item.value - tax_kWh - opslag %}
-                {% if item.start.hour > sunrise.hour and item.start.hour < sunset.hour %}
-                  {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
-                {% else %}
-                  {% set value = ((market_price + opslag) + included_tax) | round(4) %}
-                {% endif %}
-                {% set ns.list = ns.list + [value | round(4)] %}
-              {% endfor %}
-              {{ ns.list }}
-            # upcoming_24_hours_emhass_30m: >
-            #   {% set tax_kWh = 0.12599 * 1.21 if now().year == 2023 else 0.1088 * 1.21 %}
-            #   {% set value_to_substract = float(tax_kWh + 0.018*1.21) if is_state('binary_sensor.energy_tax_included_this_year', 'off') else 0.018*1.21 %}
-            #   {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list %}
-            #     {% set value = item | float(0) - value_to_substract %}
-            #     {% set ns.list = ns.list + [value | round(3)] + [value | round(3)] %}
-            #   {% endfor %}
-            #   {{ ns.list }}
         - name: "Current price for electricity usage"     # Incl. BTW
           unique_id: current_price_for_electricity_usage
           unit_of_measurement: €/kWh
@@ -151,37 +104,6 @@ electricity_prices_package:
             {% else %}
               {{ (states("sensor.day_ahead_price") | float(0) - (0.12599 * 1.21)) | round(4) }}
             {% endif %}
-          attributes:
-            upcoming_24_hours: >
-              {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-              {% set value_to_substract = float(tax_kWh) if is_state('binary_sensor.energy_tax_included_this_year', 'off') else 0 %}
-              {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | map(attribute='value') | list + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | map(attribute='value') | list))[now().hour:][:24] %}
-              {% set ns = namespace(list=[]) %}
-              {% for item in list %}
-                {% set value = item | float(0) - value_to_substract %}
-                {% set ns.list = ns.list + [value | round(4)] %}
-              {% endfor %}
-              {{ ns.list }}
-            upcoming_24_hours_emhass_1h: >
-              {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-              {% set value_to_substract = float(tax_kWh) if is_state('binary_sensor.energy_tax_included_this_year', 'off') else 0 %}
-              {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | map(attribute='value') | list + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
-              {% set ns = namespace(list=[]) %}
-              {% for item in list %}
-                {% set value = item | float(0) - value_to_substract %}
-                {% set ns.list = ns.list + [value | round(4)] %}
-              {% endfor %}
-              {{ ns.list }}
-            # upcoming_24_hours_emhass_30m: >
-            #   {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-            #   {% set value_to_substract = float(tax_kWh) if is_state('binary_sensor.energy_tax_included_this_year', 'off') else 0 %}
-            #   {% set list = ((state_attr('sensor.day_ahead_price', 'raw_today') | map(attribute='value') | list  + state_attr('sensor.day_ahead_price', 'raw_tomorrow') | map(attribute='value') | list))[now().hour + 1:][:24] %}
-            #   {% set ns = namespace(list=[]) %}
-            #   {% for item in list %}
-            #     {% set value = item | float(0) - value_to_substract %}
-            #     {% set ns.list = ns.list + [value | round(3)] + [value | round(3)] %}
-            #   {% endfor %}
-            #   {{ ns.list }}
         - name: "Average electricity price today"
           unique_id: average_electricity_price_today
           unit_of_measurement: €/kWh
