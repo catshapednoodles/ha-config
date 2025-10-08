@@ -2,7 +2,6 @@ ROUND_DECIMALS = data.get('decimals', 4)
 current_price_entity = hass.states.get(data.get('entsoe_current_entity_id', 'sensor.day_ahead_current_electricity_market_price'))
 entsoe_data = hass.states.get(data.get('entsoe_average_entity_id', 'sensor.day_ahead_average_electricity_price_today'))
 nordpool_data = hass.states.get(data.get('nordpool_entity_id', 'sensor.nordpool_kwh_nl_eur_4_09_0'))
-zonneplan_data = hass.states.get(data.get('zonneplan_entity_id', 'sensor.zonneplan_current_electricity_tariff'))
 pv_forecast_data = hass.states.get(data.get('pv_forecast_entity_id', 'sensor.p_pv_forecast'))
 pv_forecast_entity = hass.states.get('sensor.day_ahead_pv_forecast')
 

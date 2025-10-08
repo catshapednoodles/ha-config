@@ -2,7 +2,7 @@ boiler_package:
   sensor:
     - platform: nordpool_diff
       nordpool_entity: sensor.day_ahead_price
-      filter_length: 8
+      filter_length: 20
       filter_type: interval
 
   template:
@@ -10,9 +10,9 @@ boiler_package:
         - name: "Negative electricity price in next 3 hours"
           icon: mdi:cash
           state: >
-            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:100] %}
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
-              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:100] %}
             {% endif %}
             {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '<', now() + timedelta(hours=3)) | list %}
             {{ next_hour_prices | map(attribute='value_solar_adjusted') | min < 0 }}
@@ -23,7 +23,7 @@ boiler_package:
       mode: queued
       trigger:
         - platform: state
-          entity_id: sensor.nordpool_diff_interval_8
+          entity_id: sensor.nordpool_diff_interval_20
         - platform: state
           entity_id: binary_sensor.no_one_home
         - platform: state
@@ -62,7 +62,7 @@ boiler_package:
                 entity_id: binary_sensor.negative_electricity_price_in_next_3_hours
                 state: "on"
               - condition: numeric_state
-                entity_id: sensor.nordpool_diff_interval_8
+                entity_id: sensor.nordpool_diff_interval_20
                 below: 0.9
             sequence:
               - service: switch.turn_off
@@ -73,7 +73,7 @@ boiler_package:
                 entity_id: binary_sensor.no_one_home
                 state: "on"
               - condition: numeric_state
-                entity_id: sensor.nordpool_diff_interval_8
+                entity_id: sensor.nordpool_diff_interval_20
                 below: 0.5
             sequence:
               - service: switch.turn_off
@@ -94,7 +94,7 @@ boiler_package:
           - conditions:
               or:
               - condition: numeric_state
-                entity_id: sensor.nordpool_diff_interval_8
+                entity_id: sensor.nordpool_diff_interval_20
                 below: -0.5
               - condition: numeric_state
                 entity_id: sensor.slimmelezer_net_current_l1

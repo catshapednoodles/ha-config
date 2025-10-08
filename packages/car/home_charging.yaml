@@ -222,24 +222,24 @@ home_charging_package:
         - name: "Opportunistic charging today"
           unique_id: ff666397-21db-4b8a-862d-31fb4b4e483f
           state: >
-            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:100] %}
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
-              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:100] %}
             {% endif %}
-            {% set next_hour_prices = list | selectattr('start', '>', now() - timedelta(minutes=50)) | list %}
+            {% set next_hour_prices = list | selectattr('start', '>', now() - timedelta(minutes=5)) | list %}
             {% if states('select.ev_smart_charging_charge_completion_time') != "None" %}
               {% set next_hour_prices = next_hour_prices | selectattr('start', '<', today_at(states('select.ev_smart_charging_charge_completion_time'))) | list %}
             {% endif %}
-            {% set three_hour_average = (next_hour_prices | sort(attribute='value_solar_adjusted') | map(attribute='value_solar_adjusted') | list)[0:3] | average %}
+            {% set three_hour_average = (next_hour_prices | sort(attribute='value_solar_adjusted') | map(attribute='value_solar_adjusted') | list)[0:12] | average %}
             {{ three_hour_average + 0.02 < states('sensor.average_price_per_kwh_last_2_months') | float(0) }}
         - name: "Low charging price in next 12 hours"
           unique_id: b36fc0b9-45cf-4008-96e4-70a20b41e47f
           state: >
-            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:24] %}
+            {% set list = state_attr('sensor.day_ahead_price', 'raw_today')[0:100] %}
             {% if is_state('binary_sensor.electricity_prices_for_tomorrow_available', 'on') %}
-              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:24] %}
+              {% set list = list + state_attr('sensor.day_ahead_price', 'raw_tomorrow')[0:100] %}
             {% endif %}
-            {% set min_price = (list | selectattr('start', '>', now()) | map(attribute='value') | list)[:12] | min %}
+            {% set min_price = (list | selectattr('start', '>', now()) | map(attribute='value') | list)[:48] | min %}
             {{ min_price + 0.01 < states('sensor.average_price_per_kwh_last_2_months') | float(0) }}
 
   automation:
