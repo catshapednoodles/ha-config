@@ -150,12 +150,12 @@ heat_pump_dhw_package:
             - service: input_boolean.turn_on
               target:
                 entity_id: input_boolean.legionella_run_active
-            # - if:
-            #     - "{{ state_attr('weather.combined', 'temperature') | float(0) < 18 }}"
-            #   then:
-            #     - service: switch.turn_off
-            #       data:
-            #         entity_id: switch.mitsubishi_dhw_eco_mode
+            - if:
+                - "{{ state_attr('weather.combined', 'temperature') | float(0) < 15 }}"
+              then:
+                - service: switch.turn_off
+                  data:
+                    entity_id: switch.mitsubishi_dhw_eco_mode
             - service: number.set_value
               target:
                 entity_id: number.mitsubishi_set_tank_water_temperature
