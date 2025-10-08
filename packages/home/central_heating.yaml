@@ -135,6 +135,18 @@ central_heating_package:
         device_class: cold
         state: >
           {{ state_attr('weather.combined', 'temperature') < 5 }}
+    - sensor:
+        - name: "Heat Pump upcoming hours diff"
+          unique_id: 64c8271e-1448-4fb6-99e1-c2e30d4e372e
+          icon: mdi:flash
+          unit_of_measurement: ""
+          state: >
+            {% set hours_considered = 1 * 4 %}
+            {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+            {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=15)) | map(attribute='value') | list)[:100]
+            + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow) | map(attribute='value') | list)[:100] %}
+            {% set range = (x | max - x | min) | round(6) %}
+            {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range) | round(6) * -1 }}
 
   automation:
     - alias: "Heat pump: Set thermostat temperature"
