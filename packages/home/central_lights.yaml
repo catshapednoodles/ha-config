@@ -17,17 +17,17 @@ central_lights_package:
     - alias: "Light: Turn off all lights when we leave the house"
       id: 26fbaa60-5a47-49e3-aab1-2fbd655513de
       trigger:
-      - platform: state
-        entity_id: zone.home
-        to: "0"
+        - platform: state
+          entity_id: zone.home
+          to: "0"
       condition:
-      - condition: state
-        entity_id: input_boolean.guest_mode
-        state: "off"
+        - condition: state
+          entity_id: input_boolean.guest_mode
+          state: "off"
       action:
-      - service: light.turn_off
-        data:
-          entity_id: light.inside_lights
+        - service: light.turn_off
+          data:
+            entity_id: light.inside_lights
 
     - alias: "Light: Turn off certain lights when the first person leaves"
       id: f086fea2-8ada-4b90-b904-276a67e3291c
@@ -70,46 +70,46 @@ central_lights_package:
                   - light.entryway_ceiling
                   - light.hallway_ceiling
 
-    - alias: "Light: Turn off certain automatic lights when guests are home"
-      id: 7ce6f95a-291f-423a-a9e4-15af52f9a6a9
-      trigger:
-        - platform: state
-          entity_id: input_boolean.guest_mode
-        - platform: state
-          entity_id: input_boolean.guest_mode
-          to: "off"
-          for:
-            hours: 8
-        - platform: state
-          entity_id:
-            - input_boolean.automatic_ellens_room_lights
-            - input_boolean.automatic_game_room_lights
-          to: "off"
-          for:
-            hours: 8
-      action:
-        - choose:
-          - conditions:
-              - condition: state
-                entity_id: input_boolean.guest_mode
-                state: "on"
-            sequence:
-              - service: input_boolean.turn_off
-                data:
-                  entity_id:
-                    - input_boolean.automatic_ellens_room_lights
-                    - input_boolean.automatic_game_room_lights
-          - conditions:
-              - condition: state
-                entity_id: input_boolean.guest_mode
-                state: "off"
-                for: "08:00:00"
-            sequence:
-              - service: input_boolean.turn_on
-                data:
-                  entity_id:
-                    - input_boolean.automatic_ellens_room_lights
-                    - input_boolean.automatic_game_room_lights
+    # - alias: "Light: Turn off certain automatic lights when guests are home"
+    #   id: 7ce6f95a-291f-423a-a9e4-15af52f9a6a9
+    #   trigger:
+    #     - platform: state
+    #       entity_id: input_boolean.guest_mode
+    #     - platform: state
+    #       entity_id: input_boolean.guest_mode
+    #       to: "off"
+    #       for:
+    #         hours: 8
+    #     - platform: state
+    #       entity_id:
+    #         - input_boolean.automatic_ellens_room_lights
+    #         - input_boolean.automatic_game_room_lights
+    #       to: "off"
+    #       for:
+    #         hours: 8
+    #   action:
+    #     - choose:
+    #       - conditions:
+    #           - condition: state
+    #             entity_id: input_boolean.guest_mode
+    #             state: "on"
+    #         sequence:
+    #           - service: input_boolean.turn_off
+    #             data:
+    #               entity_id:
+    #                 - input_boolean.automatic_ellens_room_lights
+    #                 - input_boolean.automatic_game_room_lights
+    #       - conditions:
+    #           - condition: state
+    #             entity_id: input_boolean.guest_mode
+    #             state: "off"
+    #             for: "08:00:00"
+    #         sequence:
+    #           - service: input_boolean.turn_on
+    #             data:
+    #               entity_id:
+    #                 - input_boolean.automatic_ellens_room_lights
+    #                 - input_boolean.automatic_game_room_lights
 
     - alias: "Light: Reset automatic lights"
       id: d33767ce-9a06-4b31-ae07-68d2220d94ee
@@ -120,7 +120,9 @@ central_lights_package:
             - input_boolean.automatic_bathroom_lights
             - input_boolean.automatic_bedroom_lights
             - input_boolean.automatic_cupboard_lights
+            - input_boolean.automatic_ellens_room_lights
             - input_boolean.automatic_entryway_lights
+            - input_boolean.automatic_game_room_lights
             - input_boolean.automatic_garage_lights
             - input_boolean.automatic_hallway_lights
             - input_boolean.automatic_kitchen_lights
@@ -130,7 +132,7 @@ central_lights_package:
             - input_boolean.automatic_technical_room_lights
           to: "off"
           for:
-            hours: 8
+            hours: 10
       action:
         - service: input_boolean.turn_on
           data:
