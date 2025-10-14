@@ -45,26 +45,6 @@ battery_package:
 
   template:
     - sensor:
-        - name: "PV Simulation 870 W"
-          unique_id: 9d8e8b81-03cf-454f-bfbc-bdfec5f806ca
-          icon: mdi:solar-power
-          device_class: energy
-          state_class: total_increasing
-          unit_of_measurement: kWh
-          state: >
-            {{ (states('sensor.total_pv_generation') | float(0) / 6000 * 870) | round(3) }}
-          availability: >
-            {{ has_value('sensor.total_pv_generation') }}
-        - name: "PV Simulation 1740 W"
-          unique_id: 8a0f2323-24ff-4c70-b7b9-86721e08265a
-          icon: mdi:solar-power
-          device_class: energy
-          state_class: total_increasing
-          unit_of_measurement: kWh
-          state: >
-            {{ (states('sensor.total_pv_generation') | float(0) / 6000 * 1740) | round(3) }}
-          availability: >
-            {{ has_value('sensor.total_pv_generation') }}
         - name: "Battery Plug In"
           unique_id: 888b0093-61ab-4597-9095-8fd7500a96f7
           icon: mdi:home-battery
