@@ -146,15 +146,25 @@ central_heating_package:
             {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=15)) | map(attribute='value') | list)[:100]
             + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow) | map(attribute='value') | list)[:100] %}
             {% set range = (x | max - x | min) | round(6) %}
-            {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range) | round(6) * -1 }}
+            {% if is_state('sensor.mitsubishi_operating_mode', 'Heating') and x[0] == x[0:hours_considered] | min %}
+              {{ ((x[0] - x[1:40] | average) / range * -1.1) | round(6) }}
+            {% elif is_state_attr('climate.master_thermostat', 'hvac_action', 'idle') and x[0] == x[0:hours_considered] | max %}
+              {{ ((x[0] - x[1:40] | average) / range * -1) | round(6) }}
+            {% else %}
+              {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range * -1) | round(6) }}
+            {% endif %}
 
   automation:
     - alias: "Heat pump: Set thermostat temperature"
       id: bb4f4038-0965-41c9-87c7-ca6e9f6f69c6
       mode: queued
       trigger:
+        # - platform: state
+        #   entity_id: sensor.nordpool_diff_rectangle_10_normalize_max_min
+        #   for:
+        #     seconds: 1
         - platform: state
-          entity_id: sensor.nordpool_diff_rectangle_10_normalize_max_min
+          entity_id: sensor.heat_pump_upcoming_hours_diff
           for:
             seconds: 1
       condition:
@@ -164,6 +174,15 @@ central_heating_package:
         - "{{ has_value('sensor.day_ahead_price') }}"
       action:
         - parallel:
+          # - service: climate.set_temperature
+          #   target:
+          #     entity_id: climate.master_thermostat
+          #   data:
+          #     temperature: >
+          #       {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
+          #       {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
+          #       {% set temperature_offset = 0.2 if is_state('binary_sensor.low_temperature_outside', 'on') and is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
+          #       {{ (temp_setpoint - temperature_offset + states('sensor.nordpool_diff_rectangle_10_normalize_max_min') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
           - service: climate.set_temperature
             target:
               entity_id: climate.master_thermostat
@@ -172,7 +191,7 @@ central_heating_package:
                 {% set temp_setpoint = states('input_number.thermostat_temperature_setpoint') | float(20.5) %}
                 {% set variance = states('input_number.thermostat_temperature_variance') | float(0.5) %}
                 {% set temperature_offset = 0.2 if is_state('binary_sensor.low_temperature_outside', 'on') and is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
-                {{ (temp_setpoint - temperature_offset + states('sensor.nordpool_diff_rectangle_10_normalize_max_min') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
+                {{ (temp_setpoint - temperature_offset + states('sensor.heat_pump_upcoming_hours_diff') | float(0) * variance) | round(1) if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 21 }}
           - if:
               - condition: state
                 entity_id: input_boolean.heat_pump_variable_water_temperature
