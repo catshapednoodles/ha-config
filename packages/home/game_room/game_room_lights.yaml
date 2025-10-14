@@ -10,7 +10,7 @@ game_room_lights_package:
     - name: "Game Room Showcase Lights"
       lights:
         - light.game_room_showcase_lights
-      min_brightness: 70
+      min_brightness: 50
       max_brightness: 100
       autoreset_control_seconds: 18000
       detect_non_ha_changes: true
@@ -19,8 +19,8 @@ game_room_lights_package:
     - platform: threshold
       name: Game Room is dark
       entity_id: sensor.game_room_motion_sensor_illuminance
-      lower: 100
-      hysteresis: 50
+      lower: 60
+      hysteresis: 30
 
   input_boolean:
     automatic_game_room_lights:
@@ -69,36 +69,36 @@ game_room_lights_package:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.game_room_wall_lamp
+              entity_id: light.game_room
           button_2_pressed:
           - service: light.turn_off
             data: {}
             target:
-              entity_id: light.game_room_wall_lamp
+              entity_id: light.game_room
           button_3_pressed:
           - service: light.turn_on
             data: {}
             target:
-              entity_id: light.game_wall
+              entity_id: light.game_room_showcase_lights
           button_4_pressed:
           - service: light.turn_off
             data: {}
             target:
-              entity_id: light.game_wall
+              entity_id: light.game_room_showcase_lights
           button_1_and_3_pressed:
           - service: light.turn_on
             data: {}
             target:
               entity_id:
-                - light.game_room_wall_lamp
-                - light.game_wall
+                - light.game_room
+                - light.game_room_showcase_lights
           button_2_and_4_pressed:
           - service: light.turn_off
             data: {}
             target:
               entity_id:
-                - light.game_room_wall_lamp
-                - light.game_wall
+                - light.game_room
+                - light.game_room_showcase_lights
 
     - alias: "Game Room: Toggle game mode"
       id: e83bab4f-e490-4835-b10d-d218f59f4b41
@@ -179,8 +179,8 @@ game_room_lights_package:
                 - service: light.turn_on
                   data:
                     entity_id:
-                      - light.game_wall
-                      - light.game_room_wall_lamp
+                      - light.game_room
+                      # - light.game_room_wall_lamp
                       - light.game_room_showcase_lights
             # Turn on light if there's activity and it is dark
             - conditions:
@@ -197,7 +197,7 @@ game_room_lights_package:
                 - service: light.turn_on
                   data:
                     entity_id:
-                      - light.game_wall
+                      - light.game_room
                       - light.game_room_showcase_lights
             # Turn off lights when there's no activity
             - conditions:
@@ -211,7 +211,9 @@ game_room_lights_package:
               sequence:
                 - service: light.turn_off
                   data:
-                    entity_id: 
-                      - light.game_wall
+                    entity_id:
+                      - light.game_room
                       - light.game_room_wall_lamp
                       - light.game_room_showcase_lights
+                - service: input_boolean.turn_off
+                  entity_id: input_boolean.game_room_lights_manually_switched_on
