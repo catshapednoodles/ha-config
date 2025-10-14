@@ -128,7 +128,8 @@ dishwasher_package:
                   {% set ns = namespace(costs=0, time=time_loop) %}
                   {% for kwh in kwh_pattern %}
                     {% set today_or_tomorrow = 'raw_tomorrow' if (now() + timedelta(days=1)).day == ns.time.day else 'raw_today' %}
-                    {% set time_selector = today_at(ns.time.hour | string +":00") + timedelta(days=1) if (now() + timedelta(days=1)).day == ns.time.day else today_at(ns.time.hour | string +":00") %}
+                    {% set minutes = (ns.time.minute / 15) | round(0, "floor") * 15 %}
+                    {% set time_selector = today_at(ns.time.hour | string +":" + minutes | string) + timedelta(days=1) if (now() + timedelta(days=1)).day == ns.time.day else today_at(ns.time.hour | string +":" + minutes | string) %}
                     {% set ns.costs = ns.costs + kwh * (state_attr('sensor.day_ahead_price', today_or_tomorrow)| selectattr('start', 'eq', time_selector) | list)[0].value %}
                     {% set ns.time = ns.time + timedelta(minutes=resolution_in_minutes) %}
                   {% endfor %}
