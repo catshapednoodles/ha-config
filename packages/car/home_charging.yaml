@@ -735,6 +735,11 @@ home_charging_package:
                     option: SMART
                   target:
                     entity_id: select.smartevse_mode_selector
+                - action: button.press
+                  target:
+                    entity_id:
+                      - button.ev_smart_charging_manually_start_charging
+                      - button.ev_smart_charging_manually_start_charging_2
             - conditions:
                 - condition: trigger
                   id: stop
@@ -744,6 +749,11 @@ home_charging_package:
                     option: "OFF"
                   target:
                     entity_id: select.smartevse_mode_selector
+                - action: button.press
+                  target:
+                    entity_id:
+                      - button.ev_smart_charging_manually_stop_charging
+                      - button.ev_smart_charging_manually_stop_charging_2
 
     - alias: "SmartEVSE: Refresh data from ID.3"
       id: c639c549-05a7-4c97-bce6-3e8d0598a096
