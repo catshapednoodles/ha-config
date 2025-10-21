@@ -151,7 +151,7 @@ central_heating_package:
             {% elif is_state_attr('climate.master_thermostat', 'hvac_action', 'idle') and x[0] == x[0:hours_considered] | max %}
               {{ ((x[0] - x[1:40] | average) / range * -1) | round(6) }}
             {% else %}
-              {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range * -1) | round(6) }}
+              {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range * -1) | round(5) }}
             {% endif %}
 
   automation:
