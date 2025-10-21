@@ -512,6 +512,20 @@ living_room_lights_package:
           data:
             entity_id: "{{ trigger.to_state.entity_id }}"
 
+    - alias: "Light: Reset movie mode"
+      id: 1298faa0-0ea7-414d-b06f-50bcbb9823a2
+      trigger:
+        - platform: state
+          entity_id:
+            - media_player.philips_65oled807
+          to: "off"
+          for:
+            seconds: 10
+      action:
+        - service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.living_room_movie_mode
+
     # - alias: "Living Room: Dimmer Switch"
     #   id: cc123c50-4838-4300-8a53-d184daa28403
     #   mode: queued
