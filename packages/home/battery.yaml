@@ -81,6 +81,27 @@ battery_package:
             {% endif %}
           unit_of_measurement: W
           device_class: power
+        - name: "L2 Battery Power Room"
+          icon: mdi:home-battery
+          unique_id: 78a6c2d9-0d13-4acb-8d82-ed882711f937
+          state: >
+            {% set l1_amp = states('sensor.slimmelezer_net_current_l1') | float(0) %}
+            {% set l2_amp = states('sensor.slimmelezer_net_current_l2') | float(0) %}
+            {% set l3_amp = states('sensor.slimmelezer_net_current_l3') | float(0) %}
+            {% set battery_amp = states('sensor.battery_plug_current') | float(5) %}
+            {% set max_amps = 25.5 %}
+            {# check if ev is charging and ev charging l2 is the only limiting factor #}
+            {% if is_state('sensor.smartevse_7209_state', 'Charging') and
+            l2_amp >= 25 and l1_amp < 26 and l3_amp < 26 %}
+              {% set ev_charger_amps_ideal = 16 if is_state('sensor.smartevse_7209_state', 'Charging') else 0 %}
+              {% set ev_charger_amps_current = states('sensor.smartevse_7209_evcurrentl2') | float(0) %}
+              {% set amps_room = max_amps - (l2_amp - battery_amp - ev_charger_amps_current + ev_charger_amps_ideal) %}
+            {% else %}
+              {% set amps_room = max_amps - (l2_amp - battery_amp) %}
+            {% endif %}
+            {% set l2_power_room = amps_room * states('sensor.battery_plug_switch_voltage') | float(230) %}
+            {{ max(0, min(1200, l2_power_room)) | int(0) }}
+          unit_of_measurement: W
 
   automation:
     - alias: "Battery: Control 3.84 kWh Zendure"
@@ -89,6 +110,8 @@ battery_package:
       trigger:
         - platform: state
           entity_id: sensor.emhass_p_batt_forecast
+        - platform: state
+          entity_id: sensor.l2_battery_power_room
       action:
         - choose:
             - conditions:
@@ -140,7 +163,8 @@ battery_package:
                       {% else %}
                         {% set power = (states('sensor.emhass_p_batt_forecast') | int(-300) / 10) | round(0, "floor") * 10 / 0.94 * -1 %}
                       {% endif %}
-                      {{ max(0, min(1200, power)) | int(0) }}
+                      {% set power_room = states('sensor.l2_battery_power_room') | float(1200) %}
+                      {{ max(0, min(1200, power, power_room)) | int(0) }}
                 - action: number.set_value
                   target:
                     entity_id:
