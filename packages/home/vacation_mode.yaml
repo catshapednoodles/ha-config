@@ -41,8 +41,8 @@ vacation_mode_package:
         {{ as_timestamp(now()) - (7*86400) }}
       duration: 00:00:30
     - platform: history_stats
-      name: "replay_game_room_shelf"
-      entity_id: light.game_room_shelf
+      name: "replay_hue_lightstrip_plus_1"
+      entity_id: light.hue_lightstrip_plus_1
       state: "on"
       type: count
       start: >
@@ -109,7 +109,7 @@ vacation_mode_package:
             - sensor.replay_entryway_ceiling
             - sensor.replay_game_room_wall_lamp
             - sensor.replay_game_room_monitor
-            - sensor.replay_game_room_shelf
+            - sensor.replay_hue_lightstrip_plus_1
             - sensor.replay_kitchen_ceiling
             - sensor.replay_kitchen_dining_light
             - sensor.replay_living_room_ceiling
@@ -129,7 +129,7 @@ vacation_mode_package:
                 'sensor.replay_entryway_ceiling': 'light.entryway_ceiling',
                 'sensor.replay_game_room_wall_lamp': 'light.game_room_wall_lamp',
                 'sensor.replay_game_room_monitor': 'light.game_room_monitor',
-                'sensor.replay_game_room_shelf': 'light.game_room_shelf',
+                'sensor.replay_hue_lightstrip_plus_1': 'light.hue_lightstrip_plus_1',
                 'sensor.replay_kitchen_ceiling': 'light.kitchen_ceiling',
                 'sensor.replay_kitchen_dining_light': 'light.kitchen_dining_light',
                 'sensor.replay_living_room_ceiling': 'light.living_room_ceiling',
@@ -285,12 +285,12 @@ vacation_mode_package:
                 entity_id: light.game_room_monitor
         - if:
             - condition: state
-              entity_id: sensor.replay_game_room_shelf
+              entity_id: sensor.replay_hue_lightstrip_plus_1
               state: "1"
           then:
             - service: light.turn_on
               data:
-                entity_id: light.game_room_shelf
+                entity_id: light.hue_lightstrip_plus_1
         - if:
             - condition: state
               entity_id: sensor.replay_game_room_wall_lamp
