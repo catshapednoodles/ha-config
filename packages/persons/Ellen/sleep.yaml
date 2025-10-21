@@ -9,11 +9,24 @@ ellen_sleep_package:
         - platform: time
           at: "22:00:00"
         - platform: time
+          at: "23:00:00"
+        - platform: time
           at: "10:00:00"
+        - platform: state
+          entity_id: input_boolean.sicco_is_sleeping
+          to: "on"
+          for:
+            seconds: 10
+        - platform: state
+          entity_id: binary_sensor.pixel_6a_ellen_interactive
+          to: "on"
+          for:
+            seconds: 20
       binary_sensor:
         - name: "Ellen is sleeping"
           unique_id: ellen_is_sleeping
           state: >
-            {{ (is_state("binary_sensor.pixel_6a_ellen_is_charging", "on") or not is_state('sensor.pixel_6a_ellen_battery_state', 'discharging'))
+            {{ ((is_state("binary_sensor.pixel_6a_ellen_is_charging", "on") or not is_state('sensor.pixel_6a_ellen_battery_state', 'discharging'))
               and is_state("person.ellen", "home")
-              and (now().hour > 21 or now().hour < 7 ) }}
+              and (now().hour > 21 or now().hour < 7 ))
+              or (is_state("input_boolean.sicco_is_sleeping", "on") and is_state("person.ellen", "home") and (now().hour >= 23 or now().hour < 6 )) }}

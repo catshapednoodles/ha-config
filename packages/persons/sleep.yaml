@@ -86,7 +86,7 @@ sleep_package:
     - alias: "Sleep: Turn off sleep mode"
       trigger:
         - platform: time
-          at: "06:59:55"
+          at: "06:44:55"
         - platform: state
           entity_id: binary_sensor.ellen_is_sleeping
           to: "off"
