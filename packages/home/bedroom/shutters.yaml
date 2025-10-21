@@ -117,6 +117,8 @@ bedroom_shutters_package:
                               entity_id: binary_sensor.s_dehaan1s_macbook_air_audio_input_in_use
                               from: "off"
                               to: "on"
+                              for:
+                                seconds: 30
                             - platform: state
                               entity_id: zone.home
                               to: "0"
