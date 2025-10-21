@@ -27,7 +27,7 @@ car_notifications_package:
       - choose:
           - conditions:
               - condition: state
-                entity_id: binary_sensor.pixel_6a_sicco_android_auto
+                entity_id: binary_sensor.sm_s931b_android_auto
                 state: "on"
               - condition: numeric_state
                 entity_id: sensor.home_sicco_distance
