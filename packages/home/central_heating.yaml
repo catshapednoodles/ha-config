@@ -153,6 +153,35 @@ central_heating_package:
             {% else %}
               {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range * -1) | round(5) }}
             {% endif %}
+        - name: "Dynamic master temperature"
+          unique_id: 867726cf-5829-4546-a2af-04f5babbf695
+          icon: mdi:thermometer
+          unit_of_measurement: "°C"
+          state: >
+            {% set living_room_temp = states('sensor.living_room_temperature') | float(20) %}
+            {% set office_temp = states('sensor.office_temperature') | float(20) %}
+            {% set kitchen_temp = states('sensor.kitchen_temperature') | float(20) %}
+            {% set bedroom_temp = states('sensor.bedroom_temperature') | float(20) %}
+            {% set bathroom_temp = states('sensor.bathroom_temperature') | float(20) %}
+            {% set game_room_temp = states('sensor.game_room_temperature') | float(20) %}
+            {% set ns = namespace(temps=[living_room_temp]) %}
+            {% if is_state('binary_sensor.sicco_working_from_home_today', 'on') or is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') %}
+              {% set ns.temps = ns.temps + [office_temp] %}
+            {% endif %}
+            {% if now().weekday() >= 5 or is_state('input_boolean.ellen_free_today', 'on') or is_state('input_boolean.sicco_working_today', 'off') %}
+              {% set ns.temps = ns.temps + [kitchen_temp] %}
+            {% endif %}
+            {% if now().hour >= 12 %}
+              {% set ns.temps = ns.temps + [game_room_temp] %}
+            {% endif %}
+            {% if bedroom_temp < 20 %}
+              {% set ns.temps = ns.temps + [bedroom_temp] %}
+            {% endif %}
+            {% if bathroom_temp < 19.5 %}
+              {% set ns.temps = ns.temps + [bathroom_temp] %}
+            {% endif %}
+            {% set avg_temp = ns.temps | average %}
+            {{ avg_temp | round(1) }}
 
   automation:
     - alias: "Heat pump: Set thermostat temperature"
