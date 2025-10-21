@@ -103,12 +103,24 @@ heat_pump_dhw_package:
               {% set temp = states('sensor.average_outdoor_temperature_last_3_days') | float(5) %}
               {% if temp < 8 %}
                 {% set max_wait_time = time + timedelta(hours=36) if now() - time < timedelta(hours=26) else now() + timedelta(hours=10) %}
+              {% elif temp < 15 %}
+                {% set max_wait_time = time + timedelta(hours=38) if now() - time < timedelta(hours=27) else now() + timedelta(hours=11) %}
               {% else %}
                 {% set max_wait_time = time + timedelta(hours=40) if now() - time < timedelta(hours=28) else now() + timedelta(hours=12) %}
               {% endif %}
               {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '>=', time + min_wait) | selectattr('start', '<', max_wait_time) | list %}
             {% endif %}
-            {% set lowest_price_item = (next_hour_prices | sort(attribute='value_solar_adjusted'))[0] %}
+            {% set blocks = namespace(items=[]) %}
+            {% for item in next_hour_prices %}
+              {% if loop.last %}
+                {% set blocks.items = blocks.items + [item] %}
+              {% else %}
+                {% set avg = ((item.value_solar_adjusted + next_hour_prices[loop.index0 + 1].value_solar_adjusted) / 2) | round(4) %}
+                {% set new_item = namespace(start=item.start, value_solar_adjusted=avg) %}
+                {% set blocks.items = blocks.items + [new_item] %}
+              {% endif %}
+            {% endfor %}
+            {% set lowest_price_item = (blocks.items | sort(attribute='value_solar_adjusted'))[0] %}
             {{ lowest_price_item.start }}
 
     - binary_sensor:
@@ -161,6 +173,12 @@ heat_pump_dhw_package:
                 entity_id: number.mitsubishi_set_tank_water_temperature
               data:
                 value: 65
+            - if:
+                - "{{ state_attr('weather.combined', 'temperature') | float(0) < 8 }}"
+              then:
+                - service: switch.turn_on
+                  data:
+                    entity_id: switch.mitsubishi_set_force_dhw
           else:
             - service: number.set_value
               target:
