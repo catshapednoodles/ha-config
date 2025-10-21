@@ -5,9 +5,11 @@ home_assistant_slowdown_package:
       trigger:
         - platform: numeric_state
           entity_id: sensor.studio_code_server_cpu_percent
-          above: 10
+          above: 9
           for:
             minutes: 30
+        - platform: time
+          at: "03:55:00"
       action:
         - service: hassio.addon_restart
           data:
