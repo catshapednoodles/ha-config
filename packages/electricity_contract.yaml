@@ -8,14 +8,12 @@ electricity_contract_package:
           device_class: energy
           icon: mdi:home-import-outline
           state: >
-            {% set start1 = 4791.932 %}
-            {% set start2 = 2175.834 %}
-            {% set current_merged = states('sensor.dsmr_reading_electricity_delivered_1') | float(0) + states('sensor.dsmr_reading_electricity_delivered_2') | float(0) %}
-            {{ (current_merged - start1 - start2) | round(2) }}
+            {% set current_merged = states('sensor.electricity_delivered_since_start_contract_1') | float(0) + states('sensor.electricity_delivered_since_start_contract_2') | float(0) %}
+            {{ current_merged | round(2) }}
           availability: >
-            {{ states('sensor.dsmr_reading_electricity_delivered_1') | is_number and states('sensor.dsmr_reading_electricity_delivered_2') | is_number }}
+            {{ states('sensor.electricity_delivered_since_start_contract_1') | is_number and states('sensor.dsmr_reading_electricity_delivered_2') | is_number }}
           attributes:
-            start_contract: "{{ '2024-10-01' | as_datetime }}"
+            start_contract: "{{ state_attr('sensor.electricity_delivered_since_start_contract_1', 'last_reset') | as_datetime | as_local }}"
         - name: "Energy return since start contract"
           unique_id: dba6c39a-47ee-4976-b3ab-2149cce2e323
           unit_of_measurement: kWh
@@ -23,14 +21,12 @@ electricity_contract_package:
           device_class: energy
           icon: mdi:home-export-outline
           state: >
-            {% set start1 = 1841.328 %}
-            {% set start2 = 4666.630 %}
-            {% set current_merged = states('sensor.dsmr_reading_electricity_returned_1') | float(0) + states('sensor.dsmr_reading_electricity_returned_2') | float(0) %}
-            {{ (current_merged - start1 - start2) | round(2) }}
+            {% set current_merged = states('sensor.electricity_returned_since_start_contract_1') | float(0) + states('sensor.electricity_returned_since_start_contract_2') | float(0) %}
+            {{ current_merged | round(2) }}
           availability: >
             {{ states('sensor.dsmr_reading_electricity_returned_1') | is_number and states('sensor.dsmr_reading_electricity_returned_2') | is_number }}
           attributes:
-            start_contract: "{{ '2024-10-01' | as_datetime }}"
+            start_contract: "{{ state_attr('sensor.electricity_returned_since_start_contract_1', 'last_reset') | as_datetime | as_local }}"
         - name: "Difference between usage and return since start contract"
           unique_id: difference_usage_return_since_start_contract
           unit_of_measurement: kWh
@@ -39,26 +35,27 @@ electricity_contract_package:
             {{ (states('sensor.energy_usage_since_start_contract') | float(0) - states('sensor.energy_return_since_start_contract') | float(0)) | round(1) }}
           availability: >
             {{ states('sensor.energy_usage_since_start_contract') | is_number and states('sensor.energy_return_since_start_contract') | is_number }}
+          attributes:
+            start_contract: "{{ state_attr('sensor.electricity_delivered_since_start_contract_1', 'last_reset') | as_datetime | as_local }}"
 
-  automation:
-    - alias: "Energy contract: Switch contracts?"
-      id: 88d23a95-b254-469f-9a65-c8c6499c4272
-      mode: single
-      trigger:
-        - platform: state
-          entity_id: binary_sensor.energy_tax_included_this_year
-          from: "on"
-          to: "off"
-        - platform: numeric_state
-          entity_id: sensor.difference_between_usage_and_return_since_start_contract
-          below: 200
-          for: "00:00:10"
-      action:
-        - service: notify.sicco_phone
-          data:
-            title: Energy contract - Salderingsruimte gone soon
-            message: >
-              Now might be a good time to consider switching contracts!
-              Based on: {{ trigger.to_state.name }}
-            data:
-              notification_icon: "mdi:file-document-edit"
+  utility_meter:
+    electricity_delivered_since_start_contract_1:
+      name: Electricity delivered since start contract 1
+      unique_id: abe9994a-b323-4ea2-bcee-10fdb6de30e3
+      source: sensor.dsmr_reading_electricity_delivered_1
+      cron: "0 0 19 10 *"
+    electricity_delivered_since_start_contract_2:
+      name: Electricity delivered since start contract 2
+      unique_id: 593227ba-5d65-47b8-bcbd-075c1550227d
+      source: sensor.dsmr_reading_electricity_delivered_2
+      cron: "0 0 19 10 *"
+    electricity_returned_since_start_contract_1:
+      name: Electricity returned since start contract 1
+      unique_id: 2537b7ef-b10c-48b0-a506-6804660bab28
+      source: sensor.dsmr_reading_electricity_returned_1
+      cron: "0 0 19 10 *"
+    electricity_returned_since_start_contract_2:
+      name: Electricity returned since start contract 2
+      unique_id: 5ad0e40d-6af6-4e51-afb1-3bbc48f21044
+      source: sensor.dsmr_reading_electricity_returned_2
+      cron: "0 0 19 10 *"

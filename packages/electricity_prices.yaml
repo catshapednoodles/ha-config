@@ -11,7 +11,7 @@ electricity_prices_package:
       additional_costs: >
         {% set VAT = 0.21 %}
         {% set tax_kWh = 0.10154 * (1 + VAT) %}
-        {% set opslag = 0.02 %} {# Zonneplan #}
+        {% set opslag = 0.0248 %} {# Tibber #}
         {{ (current_price * VAT ) + (tax_kWh + opslag) | float }}
 
   template:
@@ -88,9 +88,9 @@ electricity_prices_package:
           device_class: monetary
           state: >
             {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-            {% set opslag = 0.02 %}
+            {% set opslag = 0.0248 %}
             {% set current_market_price = states("sensor.day_ahead_price") | float(0) - tax_kWh - opslag %}
-            {% set bonus = 1.1 if is_state('sun.sun', 'above_horizon') and current_market_price + opslag > 0 else 1 %}
+            {% set bonus = 1 if is_state('sun.sun', 'above_horizon') and current_market_price + opslag > 0 else 1 %}
             {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
             {{ ((current_market_price + opslag) * bonus + included_tax) | round(4) }}
         - name: "Current price for electricity usage"     # Incl. BTW

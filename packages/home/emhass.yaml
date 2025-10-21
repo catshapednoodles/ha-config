@@ -395,25 +395,40 @@ emhass_package:
               {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=8)) | list)[:100]
               + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | list)[:100] %}
               {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
-              {% set opslag = 0.02 %}
+              {% set opslag = 0.0248 %}
               {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
-              {% set nw = now() %}
-              {% set tmrw = nw + timedelta(days=1) %}
-              {% set sunrise_today = (state_attr('sun.sun','next_rising') | as_datetime | as_local).replace(year=nw.year, month=nw.month, day=nw.day) %}
-              {% set sunrise_tomorrow = (state_attr('sun.sun','next_rising') | as_datetime | as_local).replace(year=tmrw.year, month=tmrw.month, day=tmrw.day) %}
-              {% set sunset_today = (state_attr('sun.sun','next_setting') | as_datetime | as_local).replace(year=nw.year, month=nw.month, day=nw.day) %}
-              {% set sunset_tomorrow = (state_attr('sun.sun','next_setting') | as_datetime | as_local).replace(year=tmrw.year, month=tmrw.month, day=tmrw.day) %}
               {% set ns = namespace(z=[]) %}
               {% for i in x %}
                 {% set market_price = i.value - tax_kWh - opslag %}
-                {% if ((i.start >= sunrise_today and i.start <= sunset_today) or (i.start >= sunrise_tomorrow and i.start <= sunset_tomorrow)) and market_price > 0 %}
-                  {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
-                {% else %}
-                  {% set value = ((market_price + opslag) + included_tax) | round(4) %}
-                {% endif %}
+                {% set value = ((market_price + opslag) + included_tax) | round(4) %}
                 {% set ns.z = ns.z + [value] %}
               {% endfor %}
               {{ ns.z[:hours] }}
+            # prices_36h_15min_return_zonneplan: >
+            #   {% set hours = 36 * 4 %}
+            #   {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
+            #   {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=8)) | list)[:100]
+            #   + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow ) | list)[:100] %}
+            #   {% set tax_kWh = state_attr('sensor.current_energy_tax_per_kwh', 'incl_btw') %}
+            #   {% set opslag = 0.02 %}
+            #   {% set included_tax = tax_kWh if is_state('binary_sensor.energy_tax_included_this_year', 'on') else 0 %}
+            #   {% set nw = now() %}
+            #   {% set tmrw = nw + timedelta(days=1) %}
+            #   {% set sunrise_today = (state_attr('sun.sun','next_rising') | as_datetime | as_local).replace(year=nw.year, month=nw.month, day=nw.day) %}
+            #   {% set sunrise_tomorrow = (state_attr('sun.sun','next_rising') | as_datetime | as_local).replace(year=tmrw.year, month=tmrw.month, day=tmrw.day) %}
+            #   {% set sunset_today = (state_attr('sun.sun','next_setting') | as_datetime | as_local).replace(year=nw.year, month=nw.month, day=nw.day) %}
+            #   {% set sunset_tomorrow = (state_attr('sun.sun','next_setting') | as_datetime | as_local).replace(year=tmrw.year, month=tmrw.month, day=tmrw.day) %}
+            #   {% set ns = namespace(z=[]) %}
+            #   {% for i in x %}
+            #     {% set market_price = i.value - tax_kWh - opslag %}
+            #     {% if ((i.start >= sunrise_today and i.start <= sunset_today) or (i.start >= sunrise_tomorrow and i.start <= sunset_tomorrow)) and market_price > 0 %}
+            #       {% set value = ((market_price + opslag) * 1.1 + included_tax) | round(4) %}
+            #     {% else %}
+            #       {% set value = ((market_price + opslag) + included_tax) | round(4) %}
+            #     {% endif %}
+            #     {% set ns.z = ns.z + [value] %}
+            #   {% endfor %}
+            #   {{ ns.z[:hours] }}
 
     - trigger:
         - platform: state
@@ -474,25 +489,25 @@ emhass_package:
         #     publish: true
         - trigger: time_pattern
           minutes: 59
-          seconds: 42
+          seconds: 48
           variables:
             optimize: true
             publish: true
         - trigger: time_pattern
           minutes: 14
-          seconds: 42
+          seconds: 48
           variables:
             optimize: true
             publish: true
         - trigger: time_pattern
           minutes: 29
-          seconds: 42
+          seconds: 48
           variables:
             optimize: true
             publish: true
         - trigger: time_pattern
           minutes: 44
-          seconds: 42
+          seconds: 48
           variables:
             optimize: true
             publish: true
