@@ -116,20 +116,12 @@ electricity_prices_package:
           device_class: monetary
           state: >
             {{ state_attr("sensor.day_ahead_price", "raw_today") | map(attribute="value") | list | min }}
-          attributes:
-            hour: >
-              {% set sorted_list = state_attr("sensor.day_ahead_price", "raw_today") | sort(attribute="value") %}
-              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
         - name: "Most expensive electricity price today"
           unique_id: most_expensive_electricity_price_today
           unit_of_measurement: €/kWh
           device_class: monetary
           state: >
             {{ state_attr("sensor.day_ahead_price", "raw_today") | map(attribute="value") | list | max }}
-          attributes:
-            hour: >
-              {% set sorted_list = state_attr("sensor.day_ahead_price", "raw_today") | sort(attribute="value", reverse=true) %}
-              {{ sorted_list[0]["start"].hour }}:00 - {{ sorted_list[0]["end"].hour }}:00
 
     - trigger:
       # Update when data for tomorrow becomes available
