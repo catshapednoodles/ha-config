@@ -10,18 +10,18 @@ public_charging_package:
       name: Public Charging Notify Sicco
       icon: mdi:bell
 
-  rest:
-    - resource: !secret charge_location_1
-      scan_interval: 300
-      binary_sensor:
-        - name: Public Charging Station Available - Home
-          value_template: "{{ (value_json['evses'] | selectattr('status', 'eq', 'Available') | list | length) >= 1 }}"
-      sensor:
-        - name: Public Charging Station Available - Home
-          value_template: >
-            {% set data = value_json.evses %}
-            {% set available = data | selectattr('status', 'eq', 'Available') | list | length %}
-            {{ available }} / {{ data | length }}
+  # rest:
+  #   - resource: !secret charge_location_1
+  #     scan_interval: 300
+  #     binary_sensor:
+  #       - name: Public Charging Station Available - Home
+  #         value_template: "{{ (value_json['evses'] | selectattr('status', 'eq', 'Available') | list | length) >= 1 }}"
+  #     sensor:
+  #       - name: Public Charging Station Available - Home
+  #         value_template: >
+  #           {% set data = value_json.evses %}
+  #           {% set available = data | selectattr('status', 'eq', 'Available') | list | length %}
+  #           {{ available }} / {{ data | length }}
 
   automation:
     - alias: "EV: Notification for public charging availability"
