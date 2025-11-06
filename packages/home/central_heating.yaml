@@ -3,7 +3,8 @@ central_heating_package:
     - platform: generic_thermostat
       name: Master thermostat
       heater: input_boolean.heating_active
-      target_sensor: sensor.master_temperature_minimum
+      # target_sensor: sensor.master_temperature_minimum
+      target_sensor: sensor.dynamic_master_temperature
       min_temp: 15
       max_temp: 25
       cold_tolerance: 0.3
@@ -84,13 +85,6 @@ central_heating_package:
         - sensor.master_temperature_whole_house
         - sensor.living_room_temperature
 
-    # https://gathering.tweakers.net/forum/list_message/73381860#73381860
-    - platform: nordpool_diff
-      nordpool_entity: sensor.day_ahead_price
-      filter_length: 10
-      filter_type: rectangle
-      normalize: max_min
-
   switch:
     - platform: template
       switches:
@@ -142,28 +136,29 @@ central_heating_package:
           unit_of_measurement: ""
           state: >
             {% set hours_considered = 1 * 4 %}
+            {% set hours_look_ahead = 8 * 4 %}
             {% set tomorrow = (now() + timedelta(days=1)).strftime('%Y-%m-%d') %}
             {% set x = (state_attr('sensor.day_ahead_price', 'raw_today') | selectattr('start', '>', now() - timedelta(minutes=15)) | map(attribute='value') | list)[:100]
             + (state_attr('sensor.day_ahead_price', 'raw_tomorrow') | selectattr('start', 'match', tomorrow) | map(attribute='value') | list)[:100] %}
             {% set range = (x | max - x | min) | round(6) %}
             {% if is_state('sensor.mitsubishi_operating_mode', 'Heating') and x[0] == x[0:hours_considered] | min %}
-              {{ ((x[0] - x[1:40] | average) / range * -1.1) | round(6) }}
+              {{ ((x[0] - x[1:hours_look_ahead] | average) / range * -1.1) | round(6) }}
             {% elif is_state_attr('climate.master_thermostat', 'hvac_action', 'idle') and x[0] == x[0:hours_considered] | max %}
-              {{ ((x[0] - x[1:40] | average) / range * -1) | round(6) }}
+              {{ ((x[0] - x[1:hours_look_ahead] | average) / range * -1) | round(6) }}
             {% else %}
-              {{ ((x[0:hours_considered] | average - x[hours_considered:40] | average) / range * -1) | round(5) }}
+              {{ ((x[0:hours_considered] | average - x[hours_considered:hours_look_ahead] | average) / range * -1) | round(5) }}
             {% endif %}
         - name: "Dynamic master temperature"
           unique_id: 867726cf-5829-4546-a2af-04f5babbf695
           icon: mdi:thermometer
           unit_of_measurement: "°C"
           state: >
-            {% set living_room_temp = states('sensor.living_room_temperature') | float(20) %}
-            {% set office_temp = states('sensor.office_temperature') | float(20) %}
-            {% set kitchen_temp = states('sensor.kitchen_temperature') | float(20) %}
-            {% set bedroom_temp = states('sensor.bedroom_temperature') | float(20) %}
-            {% set bathroom_temp = states('sensor.bathroom_temperature') | float(20) %}
-            {% set game_room_temp = states('sensor.game_room_temperature') | float(20) %}
+            {% set living_room_temp = states('sensor.living_room_temperature') | float(20.5) %}
+            {% set office_temp = states('sensor.office_temperature') | float(20.5) %}
+            {% set kitchen_temp = states('sensor.kitchen_temperature') | float(20.5) %}
+            {% set bedroom_temp = states('sensor.bedroom_temperature') | float(20.5) %}
+            {% set bathroom_temp = states('sensor.bathroom_temperature') | float(20.5) %}
+            {% set game_room_temp = states('sensor.game_room_temperature') | float(20.5) + 0.2 %}
             {% set ns = namespace(temps=[living_room_temp]) %}
             {% if is_state('binary_sensor.sicco_working_from_home_today', 'on') or is_state('binary_sensor.work_laptop_at_desk_and_active', 'on') %}
               {% set ns.temps = ns.temps + [office_temp] %}
@@ -171,17 +166,17 @@ central_heating_package:
             {% if now().weekday() >= 5 or is_state('input_boolean.ellen_free_today', 'on') or is_state('input_boolean.sicco_working_today', 'off') %}
               {% set ns.temps = ns.temps + [kitchen_temp] %}
             {% endif %}
-            {% if now().hour >= 12 %}
+            {% if now().hour >= 12 or now().hour < 6 %}
               {% set ns.temps = ns.temps + [game_room_temp] %}
             {% endif %}
-            {% if bedroom_temp < 20 %}
+            {% if bedroom_temp < 19.5 %}
               {% set ns.temps = ns.temps + [bedroom_temp] %}
             {% endif %}
-            {% if bathroom_temp < 19.5 %}
+            {% if bathroom_temp < 19 %}
               {% set ns.temps = ns.temps + [bathroom_temp] %}
             {% endif %}
-            {% set avg_temp = ns.temps | average %}
-            {{ avg_temp | round(1) }}
+            {% set min_temp = ns.temps | min %}
+            {{ min_temp | round(1) }}
 
   automation:
     - alias: "Heat pump: Set thermostat temperature"
@@ -249,6 +244,15 @@ central_heating_package:
       trigger:
         - platform: state
           entity_id: input_boolean.heating_active
+          for:
+            seconds: 5
+        - platform: state
+          entity_id: input_boolean.vacation_mode
+        - platform: state
+          entity_id: input_boolean.vacation_mode_coming_home
+        - platform: state
+          entity_id: binary_sensor.negative_electricity_price_this_hour
+          to: "off"
       condition:
         - condition: state
           entity_id: select.mitsubishi_hc_control_type
