@@ -83,6 +83,11 @@ heat_pump_dhw_package:
         - platform: state
           entity_id: binary_sensor.mitsubishi_next_dhw_run_is_legionella_run
           to: "on"
+        - platform: numeric_state
+          entity_id: sensor.mitsubishi_tank_water_temperature
+          below: 41.5
+          for:
+            minutes: 1
       sensor:
         - name: "Mitsubishi Next DHW Run"
           unique_id: eeadbb0e-aa10-4c14-a488-3ef789fc9b53
@@ -97,10 +102,13 @@ heat_pump_dhw_package:
             {% set current_tank_temp = states('sensor.mitsubishi_tank_water_temperature') | float(0) %}
             {% set current_setpoint = states('input_number.dhw_temperature_setpoint') | float(0) %}
             {% set min_wait = timedelta(minutes=30) if is_state('binary_sensor.negative_electricity_price_today', 'on') or is_state('binary_sensor.negative_electricity_price_tomorrow', 'on') or current_tank_temp < current_setpoint else timedelta(hours=8) %}
+            {% set temp = states('sensor.average_outdoor_temperature_last_3_days') | float(5) %}
             {% if current_tank_temp - current_setpoint > 3 %}
               {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '>=', time + min_wait) | list %}
+            {% elif temp < 15 and current_tank_temp < 41.5 and now().hour > 6 %}
+              {% set max_wait_time =  now() + timedelta(hours=6) %}
+              {% set next_hour_prices = list | selectattr('start', '>', now()) | selectattr('start', '>=', time + min_wait) | selectattr('start', '<', max_wait_time) | list %}
             {% else %}
-              {% set temp = states('sensor.average_outdoor_temperature_last_3_days') | float(5) %}
               {% if temp < 8 %}
                 {% set max_wait_time = time + timedelta(hours=36) if now() - time < timedelta(hours=26) else now() + timedelta(hours=10) %}
               {% elif temp < 15 %}
@@ -248,11 +256,12 @@ heat_pump_dhw_package:
               data:
                 value: >
                   {% set sun_offset = 0.5 if is_state('binary_sensor.sun_low_elevation_outside', 'on') else 0 %}
-                  {% set heat_drop_offset = 3.5 if is_state('sensor.mitsubishi_operating_mode', 'Hot Water')
-                    and state_attr('script.mitsubishi_soft_force_dhw', 'last_triggered') < now() - timedelta(hours=1)
-                    and is_state('binary_sensor.electricity_cheapest_6_hours', 'off') else 0 %}
-                  {{ states('input_number.dhw_temperature_setpoint') | float(48) - sun_offset - heat_drop_offset if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 57 }}
-        - service: number.set_value
+                  {% set heat_drop_offset =
+                    3.5 if is_state('sensor.mitsubishi_operating_mode', 'Hot Water')
+                      and state_attr('script.mitsubishi_soft_force_dhw', 'last_triggered') <= now() - timedelta(hours=1)
+                      and states('sensor.nordpool_diff_interval_32') | float(0) < 0.3
+                    else 0 %}
+                  {{ states('input_number.dhw_temperature_setpoint') | float(48) - sun_offset - heat_drop_offset if is_state('binary_sensor.negative_electricity_price_this_hour', 'off') else 57 }}        - service: number.set_value
           target:
             entity_id: number.mitsubishi_set_tank_water_temperature
           data:
