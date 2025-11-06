@@ -8,7 +8,7 @@ central_ventilation_package:
     min_on_time: 1200 # Optional min on time in seconds. Default = 0 seconds
     max_on_time: 3600 # Optional safety max on time in seconds. Default = 7200 seconds
     sample_interval: 240 # Optional time between taking humidity samples in seconds, default 300 seconds
-    min_humidity: 30 # Optional minimum humidity to enable dehumidification. Default = 0
+    min_humidity: 35 # Optional minimum humidity to enable dehumidification. Default = 0
     unique_id: bathroom_hygrostat # Optional ID that uniquely identifies this sensor. Set this to a unique value to allow customization through the UI.
 
   input_boolean:
@@ -104,7 +104,7 @@ central_ventilation_package:
           device_class: gas
         - name: "CO2 very high in bedroom"
           unique_id: "co2_very_high_in_bedroom"
-          state: "{{ states('sensor.bedroom_carbon_dioxide') | float(0) >= 1000 }}"
+          state: "{{ states('sensor.bedroom_carbon_dioxide') | float(0) >= 900 }}"
           delay_off: "00:15:00"
           device_class: gas
     - sensor:
@@ -151,7 +151,7 @@ central_ventilation_package:
         - platform: state
           entity_id: input_boolean.wtw_smelly_air_outside
         - platform: time
-          at: "06:00:00"
+          at: "06:30:00"
       action:
         - choose:
             - conditions:
@@ -176,7 +176,7 @@ central_ventilation_package:
                   entity_id: binary_sensor.co2_very_high_in_bedroom
                   state: "on"
                 - condition: time
-                  before: "06:00:00"
+                  before: "06:30:00"
               sequence:
                 - service: fan.set_percentage
                   data:
@@ -241,6 +241,22 @@ central_ventilation_package:
                   state: "on"
                 - condition: state
                   entity_id: binary_sensor.co2_high_in_kitchen
+                  state: "on"
+              sequence:
+                - service: fan.set_percentage
+                  data:
+                    percentage: 66
+                  target:
+                    entity_id: fan.wtw_ventilation
+            - conditions:
+                - condition: state
+                  entity_id: input_boolean.sicco_is_sleeping
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.ellen_is_sleeping
+                  state: "off"
+                - condition: state
+                  entity_id: binary_sensor.co2_very_high_in_bedroom
                   state: "on"
               sequence:
                 - service: fan.set_percentage
