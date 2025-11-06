@@ -3,20 +3,32 @@ pikachu_download_package:
     - alias: "Energy: Only download at cheap hours"
       id: 2d2226f0-a45d-488e-9c26-5f7baab8d725
       trigger:
-        - platform: state
-          entity_id: binary_sensor.download_when_electricity_is_cheap_low_cost
-        - platform: state
-          entity_id: binary_sensor.negative_electricity_price_this_hour
+        # - platform: state
+        #   entity_id: binary_sensor.download_when_electricity_is_cheap_low_cost
+        # - platform: state
+        #   entity_id: binary_sensor.negative_electricity_price_this_hour
+        - platform: time
+          at: "17:30:00"
+        - platform: time
+          at: "18:30:00"
       action:
         - choose:
+            # - conditions:
+            #     or:
+            #       - condition: state
+            #         entity_id: binary_sensor.download_when_electricity_is_cheap_low_cost
+            #         state: "on"
+            #       - condition: state
+            #         entity_id: binary_sensor.negative_electricity_price_this_hour
+            #         state: "on"
+            #   sequence:
+            #     - service: button.press
+            #       target:
+            #         entity_id: button.sabnzbd_resume
             - conditions:
-                or:
-                  - condition: state
-                    entity_id: binary_sensor.download_when_electricity_is_cheap_low_cost
-                    state: "on"
-                  - condition: state
-                    entity_id: binary_sensor.negative_electricity_price_this_hour
-                    state: "on"
+                - condition: time
+                  after: "17:30:00"
+                  before: "18:30:00"
               sequence:
                 - service: button.press
                   target:
