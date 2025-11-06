@@ -467,50 +467,35 @@ emhass_package:
       id: fcd4ae32-e3c4-4e5e-8afb-0c615f47733d
       mode: queued
       trigger:
-        # - trigger: time_pattern
-        #   minutes: 0
-        #   variables:
-        #     optimize: false
-        #     publish: true
-        # - trigger: time_pattern
-        #   minutes: 15
-        #   variables:
-        #     optimize: false
-        #     publish: true
-        # - trigger: time_pattern
-        #   minutes: 30
-        #   variables:
-        #     optimize: true
-        #     publish: true
-        # - trigger: time_pattern
-        #   minutes: 45
-        #   variables:
-        #     optimize: false
-        #     publish: true
+        - trigger: time_pattern
+          minutes: "/15"
+          variables:
+            optimize: false
+            publish: true
         - trigger: time_pattern
           minutes: 59
-          seconds: 48
+          seconds: 40
           variables:
             optimize: true
-            publish: true
+            publish: false
         - trigger: time_pattern
           minutes: 14
-          seconds: 48
+          seconds: 40
           variables:
             optimize: true
-            publish: true
+            publish: false
         - trigger: time_pattern
           minutes: 29
-          seconds: 48
+          seconds: 40
           variables:
             optimize: true
-            publish: true
+            publish: false
         - trigger: time_pattern
           minutes: 44
-          seconds: 48
+          seconds: 40
           variables:
             optimize: true
-            publish: true
+            publish: false
         # - trigger: state
         #   entity_id: binary_sensor.electricity_prices_for_tomorrow_available
         #   from: "off"
@@ -523,14 +508,14 @@ emhass_package:
           variables:
             optimize: false
             publish: true
-        - platform: state
-          entity_id: update.emhass_update
-          to: 'off'
-          for:
-            minutes: 10
-          variables:
-            optimize: false
-            publish: true
+        # - platform: state
+        #   entity_id: update.emhass_update
+        #   to: 'off'
+        #   for:
+        #     minutes: 10
+        #   variables:
+        #     optimize: false
+        #     publish: true
       action:
         - if:
             - "{{ optimize }}"
